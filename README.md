@@ -1,12 +1,12 @@
-# HRPAuth MUI frontend
+# HRPAuth WebUI
 # Requirements
   1.NPM  
   2.Node (>=22 is highly recomended)
 # 🚀 Quick Start
 ## 1. Clone the repository
 ```bash
-git clone https://github.com/HRPAuth/HRPAuth-Web.git
-cd HRPAuth-Web
+git clone https://github.com/CoreMatch/HRPAuth-WebUI.git
+cd HRPAuth-WebUI
 ```
 ---
 ## 2. Install dependencies
@@ -14,12 +14,20 @@ cd HRPAuth-Web
 npm install
 ```
 ---
-## 3. Configure environment (if needed)
-If the project uses environment variables:
-```bash
-cp .env.example .env
+## 3. Configure HRPAuth API URL
+Edit config/backend.json
 ```
-Then edit `.env` with your own config (API URL, auth server, etc).
+{
+  "apiUrl": "https://your-hrpauth-api-url.com"
+}
+```
+Configure SSL certificate for your HRPAuth API URL  
+is HIGHLY RECOMMENDED  
+due to:
+
+- Yggdrasil API requirements  
+- Security considerations
+
 ---
 ## 4. Start development server
 ```bash
