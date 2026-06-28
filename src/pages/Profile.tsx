@@ -48,7 +48,6 @@ function TextureManageDialog({ open, onClose, textureType, uid, token, onUpdated
   const [capePreviewUrl, setCapePreviewUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [model, setModel] = useState<'default' | 'slim'>('default');
   const [lastAction, setLastAction] = useState<'upload' | 'delete' | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -65,7 +64,6 @@ function TextureManageDialog({ open, onClose, textureType, uid, token, onUpdated
       setError(null);
       setLastAction(null);
       setConfirmDelete(false);
-      setModel('default');
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -99,9 +97,6 @@ function TextureManageDialog({ open, onClose, textureType, uid, token, onUpdated
               setPreview(fullUrl);
               if (textureType === 'skin') {
                 setSkinPreviewUrl(fullUrl);
-                if (targetTexture.model) {
-                  setModel(targetTexture.model as 'default' | 'slim');
-                }
               } else {
                 setCapePreviewUrl(fullUrl);
               }
@@ -118,9 +113,6 @@ function TextureManageDialog({ open, onClose, textureType, uid, token, onUpdated
             const skinTexture = data.data.textures.find((t: TextureInfo) => t.texture_type === 'skin');
             if (skinTexture && skinTexture.url) {
               setSkinPreviewUrl(`${skinTexture.url}?${Date.now()}`);
-              if (skinTexture.model) {
-                setModel(skinTexture.model as 'default' | 'slim');
-              }
             } else {
               setSkinPreviewUrl(null);
             }
@@ -204,9 +196,6 @@ function TextureManageDialog({ open, onClose, textureType, uid, token, onUpdated
       formData.append('remember_token', token);
       formData.append('profile_id', uid);
       formData.append('texture_type', textureType);
-      if (textureType === 'skin') {
-        formData.append('model', model);
-      }
       formData.append('file', file);
 
       const response = await fetch(`${backendUrl}/texture/upload`, {
@@ -366,7 +355,6 @@ function TextureManageDialog({ open, onClose, textureType, uid, token, onUpdated
                       <SkinViewer3D
                         skinUrl={skinPreviewUrl}
                         capeUrl={capePreviewUrl}
-                        model={model}
                         width={200}
                         height={400}
                       />
@@ -413,27 +401,6 @@ function TextureManageDialog({ open, onClose, textureType, uid, token, onUpdated
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                   Supported: PNG format, max 100KB
                 </Typography>
-                {textureType === 'skin' && (
-                  <>
-                    <Typography variant="body1" sx={{ mb: 1 }}>
-                      Skin Model:
-                    </Typography>
-                    <Stack direction="row" spacing={2} sx={{ mb: 3 }}>
-                      <Button
-                        variant={model === 'default' ? 'contained' : 'outlined'}
-                        onClick={() => setModel('default')}
-                      >
-                        Default (Steve)
-                      </Button>
-                      <Button
-                        variant={model === 'slim' ? 'contained' : 'outlined'}
-                        onClick={() => setModel('slim')}
-                      >
-                        Slim (Alex)
-                      </Button>
-                    </Stack>
-                  </>
-                )}
                 {currentUrl && (
                   <Button
                     variant="outlined"

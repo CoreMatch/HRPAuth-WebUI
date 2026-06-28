@@ -6,10 +6,14 @@ export default defineConfig({
   plugins: [react()],
   publicDir: 'public',
   build: {
+    chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {
         manualChunks: {
-          'react-vendor': ['react', 'react-dom']
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'mui-core': ['@mui/material', '@emotion/react', '@emotion/styled'],
+          'mui-icons': ['@mui/icons-material'],
+          'skinview3d-vendor': ['skinview3d']
         }
       }
     }

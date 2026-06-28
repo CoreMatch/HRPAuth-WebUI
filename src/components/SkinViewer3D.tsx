@@ -4,7 +4,6 @@ import { SkinViewer } from 'skinview3d';
 interface SkinViewer3DProps {
   skinUrl?: string | null;
   capeUrl?: string | null;
-  model?: 'default' | 'slim';
   width?: number;
   height?: number;
 }
@@ -12,7 +11,6 @@ interface SkinViewer3DProps {
 export default function SkinViewer3D({
   skinUrl,
   capeUrl,
-  model = 'default',
   width = 200,
   height = 400,
 }: SkinViewer3DProps) {
@@ -31,7 +29,7 @@ export default function SkinViewer3D({
     });
 
     viewer.autoRotate = true;
-    viewer.autoRotateSpeed = 2;
+    viewer.autoRotateSpeed = 0.5;
     viewer.camera.position.z = 50;
 
     viewerRef.current = viewer;
@@ -46,13 +44,11 @@ export default function SkinViewer3D({
     if (!viewerRef.current) return;
 
     if (skinUrl) {
-      viewerRef.current.loadSkin(skinUrl, {
-        model: model === 'slim' ? 'slim' : 'default',
-      });
+      viewerRef.current.loadSkin(skinUrl);
     } else {
       viewerRef.current.loadSkin(null);
     }
-  }, [skinUrl, model]);
+  }, [skinUrl]);
 
   useEffect(() => {
     if (!viewerRef.current) return;
