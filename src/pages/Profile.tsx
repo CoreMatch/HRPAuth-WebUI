@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import type { ChangeEvent } from 'react';
 import { Box, Typography, Card, CardContent, Avatar, CircularProgress, Alert, Chip, Stack, Link, TextField, Button, Dialog, DialogTitle, DialogContent, DialogActions, InputAdornment } from '@mui/material';
 import CheckCircle from '@mui/icons-material/CheckCircle';
 import Warning from '@mui/icons-material/Warning';
@@ -10,6 +11,7 @@ import Delete from '@mui/icons-material/Delete';
 import Photo from '@mui/icons-material/Photo';
 import { QRCodeSVG } from 'qrcode.react';
 import { Link as RouterLink } from 'react-router-dom';
+const SkinViewer3D = lazy(() => import('../components/SkinViewer3D'));
 import { getUserEmail, getAuthToken, getUid, getVerified, getTotpEnabled, setTotpEnabled } from '../utils/cookie';
 import { getApiUrl, getRealBackendUrl } from '../utils/config';
 
@@ -20,6 +22,452 @@ interface UserInfo {
   verified?: boolean;
   totp_enabled: boolean;
   uuid?: string;
+}
+
+type TextureType = 'skin' | 'cape';
+
+interface TextureManageDialogProps {
+  open: boolean;
+  onClose: () => void;
+  textureType: TextureType;
+  uid: string;
+  token: string;
+  onUpdated?: () => void;
+}
+
+interface TextureInfo {
+  texture_type: string;
+  url: string;
+  model?: string;
+}
+
+function TextureManageDialog({ open, onClose, textureType, uid, token, onUpdated }: TextureManageDialogProps) {
+  const [preview, setPreview] = useState<string | null>(null);
+  const [currentUrl, setCurrentUrl] = useState<string | null>(null);
+  const [skinPreviewUrl, setSkinPreviewUrl] = useState<string | null>(null);
+  const [capePreviewUrl, setCapePreviewUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [model, setModel] = useState<'default' | 'slim'>('default');
+  const [lastAction, setLastAction] = useState<'upload' | 'delete' | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const label = textureType === 'skin' ? 'Skin' : 'Cape';
+  const inputId = `${textureType}-upload`;
+
+  useEffect(() => {
+    if (!open) {
+      setPreview(null);
+      setCurrentUrl(null);
+      setSkinPreviewUrl(null);
+      setCapePreviewUrl(null);
+      setError(null);
+      setLastAction(null);
+      setConfirmDelete(false);
+      setModel('default');
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      return;
+    }
+
+    let cancelled = false;
+    const fetchCurrent = async () => {
+      try {
+        const backendUrl = await getRealBackendUrl();
+        const response = await fetch(`${backendUrl}/texture/get`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            remember_token: token,
+            profile_id: uid,
+          }),
+        });
+
+        if (cancelled) return;
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data && data.data.textures) {
+            const targetTexture = data.data.textures.find((t: TextureInfo) => t.texture_type === textureType);
+            if (targetTexture && targetTexture.url) {
+              const fullUrl = `${targetTexture.url}?${Date.now()}`;
+              setCurrentUrl(fullUrl);
+              setPreview(fullUrl);
+              if (textureType === 'skin') {
+                setSkinPreviewUrl(fullUrl);
+                if (targetTexture.model) {
+                  setModel(targetTexture.model as 'default' | 'slim');
+                }
+              } else {
+                setCapePreviewUrl(fullUrl);
+              }
+            } else {
+              setCurrentUrl(null);
+              setPreview(null);
+              if (textureType === 'skin') {
+                setSkinPreviewUrl(null);
+              } else {
+                setCapePreviewUrl(null);
+              }
+            }
+
+            const skinTexture = data.data.textures.find((t: TextureInfo) => t.texture_type === 'skin');
+            if (skinTexture && skinTexture.url) {
+              setSkinPreviewUrl(`${skinTexture.url}?${Date.now()}`);
+              if (skinTexture.model) {
+                setModel(skinTexture.model as 'default' | 'slim');
+              }
+            } else {
+              setSkinPreviewUrl(null);
+            }
+
+            const capeTexture = data.data.textures.find((t: TextureInfo) => t.texture_type === 'cape');
+            if (capeTexture && capeTexture.url) {
+              setCapePreviewUrl(`${capeTexture.url}?${Date.now()}`);
+            } else {
+              setCapePreviewUrl(null);
+            }
+          } else {
+            setCurrentUrl(null);
+            setPreview(null);
+            setSkinPreviewUrl(null);
+            setCapePreviewUrl(null);
+          }
+        } else {
+          setCurrentUrl(null);
+          setPreview(null);
+          setSkinPreviewUrl(null);
+          setCapePreviewUrl(null);
+        }
+      } catch {
+        if (!cancelled) {
+          setCurrentUrl(null);
+          setPreview(null);
+          setSkinPreviewUrl(null);
+          setCapePreviewUrl(null);
+        }
+      }
+    };
+    fetchCurrent();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, uid, token, textureType]);
+
+  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/png')) {
+      setError('请上传 PNG 格式的图片');
+      return;
+    }
+
+    if (file.size > 100 * 1024) {
+      setError('图片大小不能超过 100KB');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target?.result as string;
+      setPreview(dataUrl);
+      if (textureType === 'skin') {
+        setSkinPreviewUrl(dataUrl);
+      } else {
+        setCapePreviewUrl(dataUrl);
+      }
+      setError(null);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleUpload = async () => {
+    const fileInput = fileInputRef.current;
+    if (!fileInput?.files?.[0]) {
+      setError('请先选择一个文件');
+      return;
+    }
+
+    const file = fileInput.files[0];
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const backendUrl = await getRealBackendUrl();
+      const formData = new FormData();
+      formData.append('remember_token', token);
+      formData.append('profile_id', uid);
+      formData.append('texture_type', textureType);
+      if (textureType === 'skin') {
+        formData.append('model', model);
+      }
+      formData.append('file', file);
+
+      const response = await fetch(`${backendUrl}/texture/upload`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (response.ok && data?.success) {
+        setLastAction('upload');
+        await fetchCurrentTexture();
+        onUpdated?.();
+        setTimeout(() => {
+          onClose();
+        }, 1500);
+      } else {
+        setError(data?.message || '上传失败');
+      }
+    } catch {
+      setError('服务器错误');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchCurrentTexture = async () => {
+    try {
+      const backendUrl = await getRealBackendUrl();
+      const response = await fetch(`${backendUrl}/texture/get`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          remember_token: token,
+          profile_id: uid,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data && data.data.textures) {
+          const targetTexture = data.data.textures.find((t: TextureInfo) => t.texture_type === textureType);
+          if (targetTexture && targetTexture.url) {
+            const fullUrl = `${targetTexture.url}?${Date.now()}`;
+            setCurrentUrl(fullUrl);
+            setPreview(fullUrl);
+          } else {
+            setCurrentUrl(null);
+            setPreview(null);
+          }
+
+          const skinTexture = data.data.textures.find((t: TextureInfo) => t.texture_type === 'skin');
+          if (skinTexture && skinTexture.url) {
+            setSkinPreviewUrl(`${skinTexture.url}?${Date.now()}`);
+          } else {
+            setSkinPreviewUrl(null);
+          }
+
+          const capeTexture = data.data.textures.find((t: TextureInfo) => t.texture_type === 'cape');
+          if (capeTexture && capeTexture.url) {
+            setCapePreviewUrl(`${capeTexture.url}?${Date.now()}`);
+          } else {
+            setCapePreviewUrl(null);
+          }
+        }
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleDelete = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const backendUrl = await getRealBackendUrl();
+      const response = await fetch(`${backendUrl}/texture/delete`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          remember_token: token,
+          profile_id: uid,
+          texture_type: textureType,
+        }),
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (response.ok && data?.success) {
+        setLastAction('delete');
+        setCurrentUrl(null);
+        setPreview(null);
+        onUpdated?.();
+        setTimeout(() => {
+          onClose();
+        }, 1500);
+      } else {
+        setError(data?.message || '删除失败');
+      }
+    } catch {
+      setError('服务器错误');
+    } finally {
+      setLoading(false);
+      setConfirmDelete(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+      <DialogTitle>Manage Minecraft {label}</DialogTitle>
+      <DialogContent>
+        {lastAction ? (
+          <Alert severity="success" sx={{ mt: 2 }}>
+            {lastAction === 'upload'
+              ? `${label} uploaded successfully!`
+              : `${label} deleted successfully!`}
+          </Alert>
+        ) : confirmDelete ? (
+          <Box sx={{ mt: 2 }}>
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              确定要删除当前的 {label} 吗？此操作无法撤销。
+            </Alert>
+            <Stack direction="row" spacing={2} justifyContent="flex-end">
+              <Button onClick={() => setConfirmDelete(false)} disabled={loading}>
+                取消
+              </Button>
+              <Button
+                variant="contained"
+                color="error"
+                onClick={handleDelete}
+                disabled={loading}
+              >
+                {loading ? '删除中...' : '确认删除'}
+              </Button>
+            </Stack>
+          </Box>
+        ) : (
+          <>
+            {error && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {error}
+              </Alert>
+            )}
+            <Box sx={{ display: 'flex', gap: 4, mt: 2 }}>
+              <Box sx={{ flex: 1 }}>
+                <Typography variant="body1" sx={{ mb: 2 }}>
+                  {label} Preview:
+                </Typography>
+                {preview ? (
+                  <Box sx={{ position: 'relative', width: 200, height: 400, margin: '0 auto' }}>
+                    <Suspense fallback={<CircularProgress sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }} />}>
+                      <SkinViewer3D
+                        skinUrl={skinPreviewUrl}
+                        capeUrl={capePreviewUrl}
+                        model={model}
+                        width={200}
+                        height={400}
+                      />
+                    </Suspense>
+                  </Box>
+                ) : (
+                  <Box sx={{
+                    width: 200,
+                    height: 400,
+                    margin: '0 auto',
+                    backgroundColor: '#e0e0e0',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderRadius: 1,
+                  }}>
+                    <Photo sx={{ width: 48, height: 48, color: '#999' }} />
+                  </Box>
+                )}
+              </Box>
+              <Box sx={{ flex: 1 }}>
+                <Typography variant="body1" sx={{ mb: 2 }}>
+                  Upload {label}:
+                </Typography>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/png"
+                  onChange={handleFileChange}
+                  style={{ display: 'none' }}
+                  id={inputId}
+                />
+                <label htmlFor={inputId}>
+                  <Button
+                    variant="outlined"
+                    component="span"
+                    startIcon={<CloudUpload />}
+                    fullWidth
+                    sx={{ mb: 2 }}
+                  >
+                    Choose File
+                  </Button>
+                </label>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Supported: PNG format, max 100KB
+                </Typography>
+                {textureType === 'skin' && (
+                  <>
+                    <Typography variant="body1" sx={{ mb: 1 }}>
+                      Skin Model:
+                    </Typography>
+                    <Stack direction="row" spacing={2} sx={{ mb: 3 }}>
+                      <Button
+                        variant={model === 'default' ? 'contained' : 'outlined'}
+                        onClick={() => setModel('default')}
+                      >
+                        Default (Steve)
+                      </Button>
+                      <Button
+                        variant={model === 'slim' ? 'contained' : 'outlined'}
+                        onClick={() => setModel('slim')}
+                      >
+                        Slim (Alex)
+                      </Button>
+                    </Stack>
+                  </>
+                )}
+                {currentUrl && (
+                  <Button
+                    variant="outlined"
+                    color="error"
+                    startIcon={<Delete />}
+                    onClick={() => setConfirmDelete(true)}
+                    disabled={loading}
+                    fullWidth
+                    sx={{ mb: 2 }}
+                  >
+                    Delete Current {label}
+                  </Button>
+                )}
+              </Box>
+            </Box>
+          </>
+        )}
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>
+          {lastAction ? 'Close' : 'Cancel'}
+        </Button>
+        {!lastAction && !confirmDelete && (
+          <Button
+            variant="contained"
+            onClick={handleUpload}
+            disabled={loading || !preview}
+          >
+            {loading ? 'Uploading...' : 'Upload'}
+          </Button>
+        )}
+      </DialogActions>
+    </Dialog>
+  );
 }
 
 export default function Profile() {
@@ -42,13 +490,7 @@ export default function Profile() {
   const [setupSuccess, setSetupSuccess] = useState(false);
 
   const [skinDialogOpen, setSkinDialogOpen] = useState(false);
-  const [skinPreview, setSkinPreview] = useState<string | null>(null);
-  const [skinLoading, setSkinLoading] = useState(false);
-  const [skinError, setSkinError] = useState<string | null>(null);
-  const [skinModel, setSkinModel] = useState<'default' | 'slim'>('default');
-  const [uploadSuccess, setUploadSuccess] = useState(false);
-  const [currentSkinUrl, setCurrentSkinUrl] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [capeDialogOpen, setCapeDialogOpen] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -282,175 +724,6 @@ export default function Profile() {
     return `otpauth://totp/${encodedIssuer}:${encodedAccount}?secret=${secret}&issuer=${encodedIssuer}&algorithm=SHA1&digits=6&period=30`;
   };
 
-  const handleOpenSkinDialog = async () => {
-    const uid = getUid();
-    if (!uid) {
-      setSkinError('未登录或登录已过期');
-      return;
-    }
-
-    setSkinPreview(null);
-    setSkinError(null);
-    setUploadSuccess(false);
-    setSkinModel('default');
-
-    try {
-      const backendUrl = await getRealBackendUrl();
-      const skinUrl = `${backendUrl}/textures/${uid}/skin.png`;
-      const response = await fetch(skinUrl);
-      if (response.ok) {
-        setCurrentSkinUrl(skinUrl + '?' + Date.now());
-        setSkinPreview(skinUrl + '?' + Date.now());
-      } else {
-        setCurrentSkinUrl(null);
-      }
-    } catch {
-      setCurrentSkinUrl(null);
-    }
-
-    setSkinDialogOpen(true);
-  };
-
-  const handleCloseSkinDialog = () => {
-    setSkinDialogOpen(false);
-    setSkinPreview(null);
-    setSkinError(null);
-    setUploadSuccess(false);
-    setSkinModel('default');
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
-
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    if (!file.type.startsWith('image/png')) {
-      setSkinError('请上传 PNG 格式的图片');
-      return;
-    }
-
-    if (file.size > 100 * 1024) {
-      setSkinError('图片大小不能超过 100KB');
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setSkinPreview(e.target?.result as string);
-      setSkinError(null);
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleUploadSkin = async () => {
-    const fileInput = fileInputRef.current;
-    if (!fileInput?.files?.[0]) {
-      setSkinError('请先选择一个文件');
-      return;
-    }
-
-    const file = fileInput.files[0];
-    const uid = getUid();
-    const token = getAuthToken();
-
-    if (!uid || !token) {
-      setSkinError('未登录或登录已过期');
-      return;
-    }
-
-    setSkinLoading(true);
-    setSkinError(null);
-    setUploadSuccess(false);
-
-    try {
-      const backendUrl = await getRealBackendUrl();
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('model', skinModel);
-
-      const response = await fetch(`${backendUrl}/api/user/profile/${uid}/skin`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-        body: formData,
-      });
-
-      if (response.ok) {
-        setUploadSuccess(true);
-        setCurrentSkinUrl(`${backendUrl}/textures/${uid}/skin.png?${Date.now()}`);
-        setSkinPreview(`${backendUrl}/textures/${uid}/skin.png?${Date.now()}`);
-        setTimeout(() => {
-          handleCloseSkinDialog();
-        }, 1500);
-      } else {
-        const data = await response.json().catch(() => null);
-        setSkinError(data?.errorMessage || '上传失败');
-      }
-    } catch {
-      setSkinError('服务器错误');
-    } finally {
-      setSkinLoading(false);
-    }
-  };
-
-  const handleDeleteSkin = async () => {
-    const uid = getUid();
-    const token = getAuthToken();
-
-    if (!uid || !token) {
-      setSkinError('未登录或登录已过期');
-      return;
-    }
-
-    setSkinLoading(true);
-    setSkinError(null);
-
-    try {
-      const backendUrl = await getRealBackendUrl();
-      const response = await fetch(`${backendUrl}/api/user/profile/${uid}/skin`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        setCurrentSkinUrl(null);
-        setSkinPreview(null);
-        setUploadSuccess(true);
-        setTimeout(() => {
-          handleCloseSkinDialog();
-        }, 1500);
-      } else {
-        const data = await response.json().catch(() => null);
-        setSkinError(data?.errorMessage || '删除失败');
-      }
-    } catch {
-      setSkinError('服务器错误');
-    } finally {
-      setSkinLoading(false);
-    }
-  };
-
-  const MinecraftSkinPreview = ({ skinUrl }: { skinUrl: string }) => {
-    return (
-      <Box sx={{ position: 'relative', width: 128, height: 256, margin: '0 auto' }}>
-        <div 
-          style={{
-            width: '100%',
-            height: '100%',
-            backgroundImage: `url(${skinUrl})`,
-            backgroundSize: '128px 256px',
-            imageRendering: 'pixelated',
-          }}
-        />
-      </Box>
-    );
-  };
-
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '200px' }}>
@@ -592,9 +865,31 @@ export default function Profile() {
             <Button
               variant="contained"
               startIcon={<CloudUpload />}
-              onClick={handleOpenSkinDialog}
+              onClick={() => setSkinDialogOpen(true)}
             >
               Manage Skin
+            </Button>
+          </Stack>
+        </CardContent>
+      </Card>
+
+      <Card sx={{ maxWidth: 500, mt: 2 }}>
+        <CardContent>
+          <Stack direction="row" alignItems="center" justifyContent="space-between">
+            <Box>
+              <Typography variant="h6" gutterBottom>
+                Minecraft Cape
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Upload and manage your Minecraft character cape
+              </Typography>
+            </Box>
+            <Button
+              variant="outlined"
+              startIcon={<CloudUpload />}
+              onClick={() => setCapeDialogOpen(true)}
+            >
+              Manage Cape
             </Button>
           </Stack>
         </CardContent>
@@ -626,116 +921,21 @@ export default function Profile() {
         </CardContent>
       </Card>
 
-      <Dialog open={skinDialogOpen} onClose={handleCloseSkinDialog} maxWidth="md" fullWidth>
-        <DialogTitle>Manage Minecraft Skin</DialogTitle>
-        <DialogContent>
-          {uploadSuccess ? (
-            <Alert severity="success" sx={{ mt: 2 }}>
-              Skin uploaded successfully!
-            </Alert>
-          ) : (
-            <>
-              {skinError && (
-                <Alert severity="error" sx={{ mb: 2 }}>
-                  {skinError}
-                </Alert>
-              )}
-              <Box sx={{ display: 'flex', gap: 4, mt: 2 }}>
-                <Box sx={{ flex: 1 }}>
-                  <Typography variant="body1" sx={{ mb: 2 }}>
-                    Skin Preview:
-                  </Typography>
-                  {skinPreview ? (
-                    <MinecraftSkinPreview skinUrl={skinPreview} />
-                  ) : (
-                    <Box sx={{ 
-                      width: 128, 
-                      height: 256, 
-                      margin: '0 auto', 
-                      backgroundColor: '#e0e0e0',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      borderRadius: 1
-                    }}>
-                      <Photo sx={{ width: 48, height: 48, color: '#999' }} />
-                    </Box>
-                  )}
-                </Box>
-                <Box sx={{ flex: 1 }}>
-                  <Typography variant="body1" sx={{ mb: 2 }}>
-                    Upload Skin:
-                  </Typography>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/png"
-                    onChange={handleFileChange}
-                    style={{ display: 'none' }}
-                    id="skin-upload"
-                  />
-                  <label htmlFor="skin-upload">
-                    <Button
-                      variant="outlined"
-                      component="span"
-                      startIcon={<CloudUpload />}
-                      fullWidth
-                      sx={{ mb: 2 }}
-                    >
-                      Choose File
-                    </Button>
-                  </label>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                    Supported: PNG format, max 100KB
-                  </Typography>
-                  <Typography variant="body1" sx={{ mb: 1 }}>
-                    Skin Model:
-                  </Typography>
-                  <Stack direction="row" spacing={2} sx={{ mb: 3 }}>
-                    <Button
-                      variant={skinModel === 'default' ? 'contained' : 'outlined'}
-                      onClick={() => setSkinModel('default')}
-                    >
-                      Default (Steve)
-                    </Button>
-                    <Button
-                      variant={skinModel === 'slim' ? 'contained' : 'outlined'}
-                      onClick={() => setSkinModel('slim')}
-                    >
-                      Slim (Alex)
-                    </Button>
-                  </Stack>
-                  {currentSkinUrl && (
-                    <Button
-                      variant="outlined"
-                      color="error"
-                      startIcon={<Delete />}
-                      onClick={handleDeleteSkin}
-                      disabled={skinLoading}
-                      fullWidth
-                      sx={{ mb: 2 }}
-                    >
-                      {skinLoading ? 'Deleting...' : 'Delete Current Skin'}
-                    </Button>
-                  )}
-                </Box>
-              </Box>
-            </>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseSkinDialog}>Cancel</Button>
-          {!uploadSuccess && (
-            <Button
-              variant="contained"
-              onClick={handleUploadSkin}
-              disabled={skinLoading || !skinPreview}
-            >
-              {skinLoading ? 'Uploading...' : 'Upload Skin'}
-            </Button>
-          )}
-        </DialogActions>
-      </Dialog>
+      <TextureManageDialog
+        open={skinDialogOpen}
+        onClose={() => setSkinDialogOpen(false)}
+        textureType="skin"
+        uid={getUid() || ''}
+        token={getAuthToken() || ''}
+      />
+
+      <TextureManageDialog
+        open={capeDialogOpen}
+        onClose={() => setCapeDialogOpen(false)}
+        textureType="cape"
+        uid={getUid() || ''}
+        token={getAuthToken() || ''}
+      />
 
       <Dialog open={totpDialogOpen} onClose={handleCloseTotpDialog} maxWidth="sm" fullWidth>
         <DialogTitle>Set up TOTP Authenticator</DialogTitle>
