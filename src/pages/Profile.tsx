@@ -295,7 +295,7 @@ function TextureManageDialog({ open, onClose, uid, token, onUpdated }: TextureMa
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-      <DialogTitle>Manage Minecraft Skin & Cape</DialogTitle>
+      <DialogTitle>Manage Skin & Cape</DialogTitle>
       <DialogContent>
         {error && (
           <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
@@ -421,11 +421,10 @@ export default function Profile() {
           message: '服务器返回无法解析的响应',
         }));
 
+        let totpEnabled: boolean;
         if (resp.ok && data.success && data.data) {
           const apiTotp = data.data.totp_enabled;
-          const cookieTotp = getTotpEnabled();
-          const totpEnabled = apiTotp !== undefined ? Boolean(apiTotp) : (cookieTotp !== undefined ? cookieTotp : false);
-          
+          totpEnabled = apiTotp !== undefined ? Boolean(apiTotp) : (getTotpEnabled() ?? false);
           setUserInfo({
             email: data.data.email || email,
             username: data.data.username || email.split('@')[0],
@@ -434,13 +433,31 @@ export default function Profile() {
             totp_enabled: totpEnabled,
           });
         } else {
-          const cookieTotp = getTotpEnabled();
+          totpEnabled = getTotpEnabled() ?? false;
           setUserInfo({
             email,
             username: email.split('@')[0],
             verified: Boolean(getVerified()),
-            totp_enabled: cookieTotp !== undefined ? cookieTotp : false,
+            totp_enabled: totpEnabled,
           });
+        }
+
+        // 根据 API_DOC.md 中的 POST /totp/hasbeenenabled 权威校验 totp 状态
+        try {
+          const totpResp = await fetch(getApiUrl('/totp/hasbeenenabled'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ uid, rt: token }),
+          });
+          const totpData = await totpResp.json().catch(() => null);
+          if (totpResp.ok && totpData && totpData.success && typeof totpData.enabled !== 'undefined') {
+            const serverTotp = Boolean(Number(totpData.enabled));
+            setTotpEnabled(serverTotp);
+            setUserInfo(prev => prev ? { ...prev, totp_enabled: serverTotp } : prev);
+          }
+        } catch {
+          // 静默失败，沿用之前的 totp 状态
         }
       } catch {
         const cookieTotp = getTotpEnabled();
@@ -656,7 +673,7 @@ export default function Profile() {
   return (
     <Box>
       <Typography variant="h4" gutterBottom>
-        Dashboard
+        Profile
       </Typography>
 
       {!userInfo.verified && (
@@ -758,10 +775,10 @@ export default function Profile() {
           <Stack direction="row" alignItems="center" justifyContent="space-between">
             <Box>
               <Typography variant="h6" gutterBottom>
-                Minecraft Skin & Cape
+                Skin & Cape
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Upload and manage your Minecraft character skin and cape
+                Manage your skin and cape
               </Typography>
             </Box>
             <Button
@@ -769,7 +786,7 @@ export default function Profile() {
               startIcon={<CloudUpload />}
               onClick={() => setTextureDialogOpen(true)}
             >
-              Manage Skin & Cape
+              Upload
             </Button>
           </Stack>
         </CardContent>
