@@ -13,7 +13,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { Link as RouterLink } from 'react-router-dom';
 const SkinViewer3D = lazy(() => import('../components/SkinViewer3D'));
 import { getUserEmail, getAuthToken, getUid, getVerified, getTotpEnabled, setTotpEnabled } from '../utils/cookie';
-import { getApiUrl, getRealBackendUrl } from '../utils/config';
+import { getApiUrl, getBackendUrl } from '../utils/config';
 
 interface UserInfo {
   email: string;
@@ -58,7 +58,7 @@ function TextureManageDialog({ open, onClose, uid, token, onUpdated }: TextureMa
 
   const fetchTextures = async () => {
     try {
-      const backendUrl = await getRealBackendUrl();
+      const backendUrl = getBackendUrl();
       const response = await fetch(`${backendUrl}/texture/get`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -148,7 +148,7 @@ function TextureManageDialog({ open, onClose, uid, token, onUpdated }: TextureMa
     setError(null);
 
     try {
-      const backendUrl = await getRealBackendUrl();
+      const backendUrl = getBackendUrl();
       const formData = new FormData();
       formData.append('remember_token', token);
       formData.append('profile_id', uid);
@@ -190,7 +190,7 @@ function TextureManageDialog({ open, onClose, uid, token, onUpdated }: TextureMa
     setError(null);
 
     try {
-      const backendUrl = await getRealBackendUrl();
+      const backendUrl = getBackendUrl();
       const response = await fetch(`${backendUrl}/texture/delete`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Drawer from '@mui/material/Drawer';
 import Toolbar from '@mui/material/Toolbar';
 import List from '@mui/material/List';
@@ -12,8 +12,7 @@ import { Box, Card, CardContent, Grid, Button } from "@mui/material";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import ApiIcon from '@mui/icons-material/Api';
 import FaceIcon from '@mui/icons-material/Face';
-import VpnKeyIcon from '@mui/icons-material/VpnKey';
-import { getBackendUrl } from '../utils/config';
+import { getRealBackendUrl } from '../utils/config';
 
 function CodeBlock({ children }: { children: string }) {
   return (
@@ -37,10 +36,21 @@ function CodeBlock({ children }: { children: string }) {
 }
 
 function YggdrasilDashboard() {
-  const baseUrl = getBackendUrl();
+  const [baseUrl, setBaseUrl] = useState('');
   const [copied, setCopied] = useState(false);
 
+  useEffect(() => {
+    let mounted = true;
+    getRealBackendUrl().then((url) => {
+      if (mounted) setBaseUrl(url);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   const handleCopy = async () => {
+    if (!baseUrl) return;
     await navigator.clipboard.writeText(baseUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
@@ -99,7 +109,6 @@ interface MenuItem {
 const menuItems: MenuItem[] = [
   { id: 'Yggdrasil API', label: 'Yggdrasil API', content: '', jsxContent: <YggdrasilDashboard />, icon: <ApiIcon /> },
   { id: 'CustomSkinLoader', label: 'CustomSkinLoader', content: '', icon: <FaceIcon /> },
-  { id: 'OAuth2', label: 'OAuth2', content: '', icon: <VpnKeyIcon /> },
 ];
 
 export default function PermanentDrawerLeft() {

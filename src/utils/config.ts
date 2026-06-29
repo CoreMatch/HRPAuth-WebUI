@@ -29,7 +29,7 @@ export async function getRealBackendUrl(): Promise<string> {
 
   const relayUrl = getRelayUrl();
   try {
-    const response = await fetch(relayUrl, {
+    const response = await fetch(`${relayUrl}/status`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
