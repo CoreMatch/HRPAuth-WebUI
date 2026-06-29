@@ -1,9 +1,24 @@
-import { useRef, useEffect, useImperativeHandle, forwardRef, useCallback } from 'react';
-import { Box, TextField, Typography } from '@mui/material';
+import {
+  useRef,
+  useEffect,
+  useImperativeHandle,
+  forwardRef,
+  useState,
+  useCallback,
+} from 'react';
+import { Box, TextField, Typography, CircularProgress } from '@mui/material';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import { requestCaptcha, type CaptchaFetchResult } from '../api/captcha';
 
 export interface CaptchaRef {
-  validate: () => boolean;
-  refresh: () => void;
+  /** Returns the current captcha token, or null if captcha is disabled / not yet loaded. */
+  getToken: () => string | null;
+  /** Manually refresh the captcha (POST /captcha again). */
+  refresh: () => Promise<void>;
+  /** Whether the captcha is enabled on the backend. */
+  isEnabled: () => boolean;
+  /** Whether the captcha is currently loading. */
+  isLoading: () => boolean;
 }
 
 interface CaptchaProps {
@@ -12,79 +27,117 @@ interface CaptchaProps {
   error?: boolean;
 }
 
+type Status = 'loading' | 'ready' | 'disabled' | 'error';
+
 const Captcha = forwardRef<CaptchaRef, CaptchaProps>(({ value, onChange, error }, ref) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const codeRef = useRef('');
+  const [status, setStatus] = useState<Status>('loading');
+  const [token, setToken] = useState<string | null>(null);
+  const [imageUrl, setImageUrl] = useState<string>('');
+  const [errorMsg, setErrorMsg] = useState<string>('');
+  // Bumped on every refresh to force <img> to refetch the same URL.
+  const [imageKey, setImageKey] = useState(0);
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const randomCode = () => {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    let result = '';
-    for (let i = 0; i < 4; i++) {
-      result += chars[Math.floor(Math.random() * chars.length)];
-    }
-    return result;
-  };
-
-  const drawCode = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    ctx.fillStyle = '#f2f2f2';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    codeRef.current = randomCode();
-
-    ctx.font = '24px Arial';
-    ctx.fillStyle = '#333';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(codeRef.current, 20, 20);
-
-    for (let i = 0; i < 3; i++) {
-      ctx.strokeStyle = '#aaa';
-      ctx.beginPath();
-      ctx.moveTo(Math.random() * 120, Math.random() * 40);
-      ctx.lineTo(Math.random() * 120, Math.random() * 40);
-      ctx.stroke();
+  const load = useCallback(async () => {
+    setStatus('loading');
+    setErrorMsg('');
+    try {
+      const result: CaptchaFetchResult = await requestCaptcha();
+      if (!result.enabled) {
+        setStatus('disabled');
+        setToken(null);
+        setImageUrl('');
+        return;
+      }
+      setToken(result.token);
+      setImageUrl(result.imageUrl);
+      setImageKey((k) => k + 1);
+      setStatus('ready');
+      // Schedule a refresh slightly before the captcha expires.
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+      // Refresh 30s before expiry, minimum 5s, to give the user time to retype.
+      const refreshIn = Math.max(5_000, (result.expiresIn - 30) * 1000);
+      refreshTimerRef.current = setTimeout(() => {
+        load();
+      }, refreshIn);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '加载验证码失败';
+      setErrorMsg(message);
+      setStatus('error');
     }
   }, []);
 
   useEffect(() => {
-    drawCode();
-  }, [drawCode]);
+    load();
+    return () => {
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+    };
+  }, [load]);
 
   useImperativeHandle(ref, () => ({
-    validate: () => {
-      return value.toUpperCase() === codeRef.current;
-    },
-    refresh: () => {
-      drawCode();
-    }
+    getToken: () => token,
+    refresh: () => load(),
+    isEnabled: () => status === 'ready' || status === 'loading',
+    isLoading: () => status === 'loading',
   }));
+
+  if (status === 'disabled') {
+    return null;
+  }
 
   return (
     <Box sx={{ mb: 2 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-        <canvas
-          ref={canvasRef}
-          width={120}
-          height={40}
-          onClick={drawCode}
-          style={{ cursor: 'pointer', background: '#f2f2f2', borderRadius: '4px' }}
-        />
+        <Box
+          onClick={load}
+          sx={{
+            width: 160,
+            height: 56,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            border: '1px solid',
+            borderColor: error ? 'error.main' : 'divider',
+            borderRadius: 1,
+            background: '#f5f5f5',
+            cursor: status === 'loading' ? 'wait' : 'pointer',
+            overflow: 'hidden',
+            flexShrink: 0,
+          }}
+          title="点击刷新验证码"
+        >
+          {status === 'loading' && <CircularProgress size={24} />}
+          {status === 'ready' && imageUrl && (
+            <img
+              key={imageKey}
+              src={imageUrl}
+              alt="captcha"
+              style={{ maxWidth: '100%', maxHeight: '100%', display: 'block' }}
+              draggable={false}
+            />
+          )}
+          {status === 'error' && (
+            <RefreshIcon sx={{ color: 'error.main' }} />
+          )}
+        </Box>
         <TextField
-          label="验证码 Captcha"
+          label="验证码"
           value={value}
           onChange={(e) => onChange(e.target.value)}
           error={error}
-          helperText={error ? '验证码错误' : ''}
+          helperText={
+            error
+              ? '验证码错误或已过期'
+              : status === 'error'
+                ? errorMsg || '加载失败，点击图片重试'
+                : '请输入图中 5 位字符（不区分大小写）'
+          }
           sx={{ flex: 1 }}
+          inputProps={{ maxLength: 5, autoComplete: 'off' }}
         />
       </Box>
-      <Typography variant="caption" color="text.secondary">
-        Click the image to refresh the captcha
+      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+        点击图片可刷新验证码
       </Typography>
     </Box>
   );

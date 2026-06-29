@@ -6,3 +6,4 @@ declare module '@mui/icons-material/Key';
 declare module '@mui/icons-material/CloudUpload';
 declare module '@mui/icons-material/Delete';
 declare module '@mui/icons-material/Photo';
+declare module '@mui/icons-material/Refresh';

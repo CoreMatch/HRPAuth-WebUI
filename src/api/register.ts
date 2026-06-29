@@ -1,9 +1,15 @@
 import { getBackendUrl } from '../utils/config';
-import type { RegisterRequest, RegisterResponse } from '../types/register';
+import type { RegisterRequest, RegisterResponse, RegisterError } from '../types/register';
+
+export type RegisterApiResult = (RegisterResponse | RegisterError) & { code?: string };
+
+function isInvalidCaptcha(statusCode: number, message: string | undefined): boolean {
+  return statusCode === 400 && message === 'Invalid or expired captcha';
+}
 
 export async function register(
   data: Omit<RegisterRequest, 'password2'>
-): Promise<RegisterResponse> {
+): Promise<RegisterApiResult> {
   try {
     const base = getBackendUrl();
     const url = `${base}/register`;
@@ -21,10 +27,14 @@ export async function register(
 
     clearTimeout(timeoutId);
 
+    const statusCode = resp.status;
+    const body = await resp.json().catch(() => null) as
+      | { success?: boolean; message?: string; uid?: number }
+      | null;
+
     if (!resp.ok) {
-      const statusCode = resp.status;
       let message = '注册失败';
-      
+
       if (statusCode === 500) {
         message = '服务器内部错误，请稍后重试';
       } else if (statusCode === 409) {
@@ -35,34 +45,30 @@ export async function register(
         message = '请求方法错误';
       }
 
-      try {
-        const responseData = await resp.json();
-        if (responseData.message) {
-          message = responseData.message;
-        }
-      } catch {
-        // 如果无法解析响应，使用默认消息
+      if (body?.message) {
+        message = body.message;
+      }
+      if (isInvalidCaptcha(statusCode, body?.message)) {
+        message = '验证码错误或已过期，请重新输入';
       }
 
       return {
         success: false,
         message,
+        code: isInvalidCaptcha(statusCode, body?.message) ? 'invalid_captcha' : undefined,
       };
     }
 
-    const responseData = await resp.json().catch(() => ({
-      success: false,
-      message: '服务器返回无法解析的响应',
-    }));
-
-    if (responseData.success === false) {
+    if (body?.success === false) {
+      const message = body.message || '注册失败';
       return {
         success: false,
-        message: responseData.message || '注册失败',
+        message,
+        code: isInvalidCaptcha(statusCode, message) ? 'invalid_captcha' : undefined,
       };
     }
 
-    return responseData as RegisterResponse;
+    return body as RegisterResponse;
   } catch (error) {
     if (error instanceof Error) {
       if (error.name === 'AbortError') {

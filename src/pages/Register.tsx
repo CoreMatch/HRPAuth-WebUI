@@ -20,7 +20,7 @@ export default function Register() {
     password: '',
     password2: '',
   });
-  const [captcha, setCaptcha] = useState('');
+  const [captchaCode, setCaptchaCode] = useState('');
   const [captchaError, setCaptchaError] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -61,10 +61,19 @@ export default function Register() {
       return false;
     }
 
-    if (!captcha || captcha.trim().length === 0) {
-      setError('请输入验证码');
-      setCaptchaError(true);
-      return false;
+    // Captcha is only required when the backend has it enabled.
+    const captchaRequired = captchaRef.current?.isEnabled() ?? false;
+    if (captchaRequired) {
+      if (!captchaCode || captchaCode.trim().length === 0) {
+        setError('请输入验证码');
+        setCaptchaError(true);
+        return false;
+      }
+      if (!captchaRef.current?.getToken()) {
+        setError('验证码尚未加载完成，请稍候');
+        setCaptchaError(true);
+        return false;
+      }
     }
 
     return true;
@@ -74,36 +83,57 @@ export default function Register() {
     e.preventDefault();
     if (!validate()) return;
 
-    if (captchaRef.current && !captchaRef.current.validate()) {
-      setError('验证码错误');
-      setCaptchaError(true);
-      captchaRef.current.refresh();
-      return;
-    }
-
     setLoading(true);
     setError(null);
 
     try {
-      const { password2, ...registerData } = formData;
+      const { password2, ...rest } = formData;
+      const registerData: Omit<RegisterRequest, 'password2'> = {
+        email: rest.email,
+        username: rest.username,
+        password: rest.password,
+      };
+
+      // Attach captcha fields only if the backend has captcha enabled.
+      if (captchaRef.current?.isEnabled()) {
+        const token = captchaRef.current.getToken();
+        if (token) {
+          registerData.captcha_token = token;
+          registerData.captcha_code = captchaCode.trim();
+        }
+      }
+
       const result = await register(registerData);
 
       if (result.success === true) {
         setSuccess(true);
         setTimeout(() => navigate('/login'), 1500);
       } else {
-        setError(result.message || '注册失败');
-        captchaRef.current?.refresh();
+        // Per API doc: 400 "Invalid or expired captcha" -> refresh and re-prompt.
+        if (result.code === 'invalid_captcha') {
+          setCaptchaError(true);
+          setError(result.message || '验证码错误或已过期，请重新输入');
+          await captchaRef.current?.refresh();
+          setCaptchaCode('');
+        } else {
+          setError(result.message || '注册失败');
+          // Always refresh captcha on a failed attempt to avoid reuse of a
+          // possibly-burned token.
+          await captchaRef.current?.refresh();
+          setCaptchaCode('');
+        }
       }
     } catch {
       setError('网络错误：无法连接到后端');
+      await captchaRef.current?.refresh();
+      setCaptchaCode('');
     } finally {
       setLoading(false);
     }
   };
 
   const handleCaptchaRefresh = () => {
-    captchaRef.current?.refresh();
+    void captchaRef.current?.refresh();
   };
 
   return (
@@ -171,8 +201,8 @@ export default function Register() {
 
           <Captcha
             ref={captchaRef}
-            value={captcha}
-            onChange={setCaptcha}
+            value={captchaCode}
+            onChange={setCaptchaCode}
             error={captchaError}
           />
 
