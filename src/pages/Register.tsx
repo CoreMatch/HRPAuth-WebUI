@@ -68,8 +68,8 @@ export default function Register() {
         setCaptchaError(true);
         return false;
       }
-      if (captchaCode.trim().length !== 5) {
-        setError('请输入 5 位验证码');
+      if (captchaCode.trim().length !== 4) {
+        setError('请输入 4 位验证码');
         setCaptchaError(true);
         return false;
       }

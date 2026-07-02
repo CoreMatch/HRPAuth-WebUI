@@ -145,10 +145,10 @@ const Captcha = forwardRef<CaptchaRef, CaptchaProps>(({ value, onChange, error }
                 ? errorMsg || '加载失败，点击图片重试'
                 : status === 'expired'
                   ? '验证码已过期，请点击图片刷新'
-                  : '请输入图中 5 位字符（不区分大小写）'
+                  : '请输入图中 4 位字符（不区分大小写）'
           }
           sx={{ flex: 1 }}
-          inputProps={{ maxLength: 5, autoComplete: 'off' }}
+          inputProps={{ maxLength: 4, autoComplete: 'off' }}
         />
       </Box>
       <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
