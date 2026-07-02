@@ -8,7 +8,11 @@ import {
 } from 'react';
 import { Box, TextField, Typography, CircularProgress } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import { requestCaptcha, type CaptchaFetchResult } from '../api/captcha';
+import {
+  getCaptchaEnabled,
+  requestCaptcha,
+  type CaptchaFetchResult,
+} from '../api/captcha';
 
 export interface CaptchaRef {
   /** Returns the current captcha token, or null if captcha is disabled / not yet loaded. */
@@ -27,7 +31,7 @@ interface CaptchaProps {
   error?: boolean;
 }
 
-type Status = 'loading' | 'ready' | 'disabled' | 'error';
+type Status = 'loading' | 'ready' | 'disabled' | 'error' | 'expired';
 
 const Captcha = forwardRef<CaptchaRef, CaptchaProps>(({ value, onChange, error }, ref) => {
   const [status, setStatus] = useState<Status>('loading');
@@ -42,6 +46,15 @@ const Captcha = forwardRef<CaptchaRef, CaptchaProps>(({ value, onChange, error }
     setStatus('loading');
     setErrorMsg('');
     try {
+      // Per API doc section 4.4: query the backend captcha toggle first
+      // (GET /captcha/enabled) to decide whether to show the input.
+      const enabled = await getCaptchaEnabled();
+      if (!enabled) {
+        setStatus('disabled');
+        setToken(null);
+        setImageUrl('');
+        return;
+      }
       const result: CaptchaFetchResult = await requestCaptcha();
       if (!result.enabled) {
         setStatus('disabled');
@@ -77,7 +90,7 @@ const Captcha = forwardRef<CaptchaRef, CaptchaProps>(({ value, onChange, error }
   useImperativeHandle(ref, () => ({
     getToken: () => token,
     refresh: () => load(),
-    isEnabled: () => status === 'ready' || status === 'loading',
+    isEnabled: () => status === 'ready' || status === 'loading' || status === 'expired',
     isLoading: () => status === 'loading',
   }));
 
@@ -116,7 +129,7 @@ const Captcha = forwardRef<CaptchaRef, CaptchaProps>(({ value, onChange, error }
               draggable={false}
             />
           )}
-          {status === 'error' && (
+          {(status === 'error' || status === 'expired') && (
             <RefreshIcon sx={{ color: 'error.main' }} />
           )}
         </Box>
@@ -130,7 +143,9 @@ const Captcha = forwardRef<CaptchaRef, CaptchaProps>(({ value, onChange, error }
               ? '验证码错误或已过期'
               : status === 'error'
                 ? errorMsg || '加载失败，点击图片重试'
-                : '请输入图中 5 位字符（不区分大小写）'
+                : status === 'expired'
+                  ? '验证码已过期，请点击图片刷新'
+                  : '请输入图中 5 位字符（不区分大小写）'
           }
           sx={{ flex: 1 }}
           inputProps={{ maxLength: 5, autoComplete: 'off' }}

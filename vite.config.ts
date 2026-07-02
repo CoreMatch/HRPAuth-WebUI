@@ -1,6 +1,36 @@
 /// <reference types="vitest" />
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { dirname, resolve } from 'node:path'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
+interface BackendConfig { baseUrl: string }
+const backendConfig: BackendConfig = JSON.parse(
+  readFileSync(resolve(__dirname, 'config/backend.json'), 'utf-8')
+)
+const backendTarget = backendConfig.baseUrl.replace(/\/$/, '')
+
+// Paths that should be served by Vite (HMR, source files, public assets, etc.)
+// and not proxied to the backend.
+const isViteInternal = (path: string) => {
+  // Strip query string for prefix matching.
+  const p = path.split('?')[0]
+  if (p === '/' || p === '') return false
+  if (p.startsWith('/@')) return true // /@vite, /@id, /@react-refresh, ...
+  if (p === '/node_modules' || p.startsWith('/node_modules/')) return true
+  if (p === '/src' || p.startsWith('/src/')) return true
+  if (p.startsWith('/__')) return true // /__vite, /__open-in-editor, ...
+  // Known static public assets.
+  if (p === '/favicon' || p === '/favicon.ico' || p.startsWith('/favicon.')) return true
+  if (p === '/logo.svg') return true
+  if (p === '/revolution.png') return true
+  // Anything else with a file extension is treated as a static asset
+  // and handled by Vite (e.g. /assets/index.js).
+  if (/\.[a-zA-Z0-9]+$/.test(p)) return true
+  return false
+}
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -21,12 +51,22 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      '/relay.php': {
-        target: 'https://hrpauth.samuelcheston.com', // 你的目标后端
+      // Reverse proxy: forward all non-Vite requests to the backend
+      // configured in config/backend.json, so the frontend can use
+      // same-origin (relative) URLs in dev and avoid CORS issues.
+      '^/': {
+        target: backendTarget,
         changeOrigin: true,
-
-        // 🔥 关键：把 /relay.php 去掉，后面的路径原样透传
-        rewrite: (path) => path.replace(/^\/relay\.php/, '')
+        secure: true,
+        bypass: (req) => {
+          const path = req.url || '/'
+          // Let Vite's own middlewares handle internal asset / HMR requests.
+          if (isViteInternal(path)) return path
+          // Let Vite's SPA fallback handle HTML navigation requests.
+          if (req.headers.accept?.includes('text/html')) return '/index.html'
+          // Otherwise, proxy the request to the backend.
+          return undefined
+        }
       }
     }
   },

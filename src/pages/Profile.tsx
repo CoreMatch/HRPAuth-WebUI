@@ -393,6 +393,51 @@ export default function Profile() {
   const [setupSuccess, setSetupSuccess] = useState(false);
 
   const [textureDialogOpen, setTextureDialogOpen] = useState(false);
+  const [skinUrl, setSkinUrl] = useState<string | null>(null);
+  const [capeUrl, setCapeUrl] = useState<string | null>(null);
+
+  const fetchTextures = async () => {
+    const token = getAuthToken();
+    const uid = getUid();
+    if (!token || !uid) return;
+
+    try {
+      const backendUrl = getBackendUrl();
+      const response = await fetch(`${backendUrl}/texture/get`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          remember_token: token,
+          profile_id: uid,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data && Array.isArray(data.data.textures)) {
+          const skinTexture = data.data.textures.find(
+            (t: TextureInfo) => t.texture_type === 'skin'
+          );
+          const capeTexture = data.data.textures.find(
+            (t: TextureInfo) => t.texture_type === 'cape'
+          );
+          const cacheBust = Date.now();
+          setSkinUrl(skinTexture?.url ? `${skinTexture.url}?${cacheBust}` : null);
+          setCapeUrl(capeTexture?.url ? `${capeTexture.url}?${cacheBust}` : null);
+          return;
+        }
+      }
+      setSkinUrl(null);
+      setCapeUrl(null);
+    } catch {
+      setSkinUrl(null);
+      setCapeUrl(null);
+    }
+  };
+
+  useEffect(() => {
+    fetchTextures();
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -772,13 +817,13 @@ export default function Profile() {
 
       <Card sx={{ maxWidth: 500, mt: 2 }}>
         <CardContent>
-          <Stack direction="row" alignItems="center" justifyContent="space-between">
+          <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
             <Box>
               <Typography variant="h6" gutterBottom>
                 Skin & Cape
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Manage your skin and cape
+                Preview and manage your skin and cape
               </Typography>
             </Box>
             <Button
@@ -786,9 +831,37 @@ export default function Profile() {
               startIcon={<CloudUpload />}
               onClick={() => setTextureDialogOpen(true)}
             >
-              Upload
+              Manage
             </Button>
           </Stack>
+          <Box sx={{
+            width: '100%',
+            height: 360,
+            backgroundColor: 'grey.100',
+            borderRadius: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            overflow: 'hidden',
+          }}>
+            {skinUrl || capeUrl ? (
+              <Suspense fallback={<CircularProgress />}>
+                <SkinViewer3D
+                  skinUrl={skinUrl}
+                  capeUrl={capeUrl}
+                  width={200}
+                  height={360}
+                />
+              </Suspense>
+            ) : (
+              <Stack alignItems="center" spacing={1}>
+                <Photo sx={{ width: 48, height: 48, color: 'grey.500' }} />
+                <Typography variant="body2" color="text.secondary">
+                  No skin or cape uploaded yet
+                </Typography>
+              </Stack>
+            )}
+          </Box>
         </CardContent>
       </Card>
 
@@ -823,6 +896,7 @@ export default function Profile() {
         onClose={() => setTextureDialogOpen(false)}
         uid={getUid() || ''}
         token={getAuthToken() || ''}
+        onUpdated={fetchTextures}
       />
 
       <Dialog open={totpDialogOpen} onClose={handleCloseTotpDialog} maxWidth="sm" fullWidth>

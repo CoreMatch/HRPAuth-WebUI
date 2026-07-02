@@ -3,10 +3,6 @@ import type { RegisterRequest, RegisterResponse, RegisterError } from '../types/
 
 export type RegisterApiResult = (RegisterResponse | RegisterError) & { code?: string };
 
-function isInvalidCaptcha(statusCode: number, message: string | undefined): boolean {
-  return statusCode === 400 && message === 'Invalid or expired captcha';
-}
-
 export async function register(
   data: Omit<RegisterRequest, 'password2'>
 ): Promise<RegisterApiResult> {
@@ -34,37 +30,57 @@ export async function register(
 
     if (!resp.ok) {
       let message = '注册失败';
+      let code: string | undefined;
 
       if (statusCode === 500) {
         message = '服务器内部错误，请稍后重试';
       } else if (statusCode === 409) {
-        message = '邮箱已被注册';
+        if (body?.message === 'Email already registered') {
+          message = '邮箱已被注册';
+          code = 'email_exists';
+        } else if (body?.message === 'Username already taken') {
+          message = '用户名已被占用';
+          code = 'username_exists';
+        } else {
+          message = '资源冲突';
+        }
       } else if (statusCode === 400) {
-        message = '请求参数错误';
+        if (body?.message === 'Invalid or expired captcha') {
+          message = '验证码错误或已过期，请重新输入';
+          code = 'invalid_captcha';
+        } else if (body?.message === 'Invalid email') {
+          message = '邮箱格式不合法';
+          code = 'invalid_email';
+        } else if (body?.message === 'Username too short') {
+          message = '用户名太短，至少需要3个字符';
+          code = 'username_too_short';
+        } else if (body?.message === 'Password too short') {
+          message = '密码太短，至少需要6个字符';
+          code = 'password_too_short';
+        } else {
+          message = body?.message || '请求参数错误';
+        }
+      } else if (statusCode === 429) {
+        message = '请求过于频繁，请稍后重试';
+        code = 'rate_limit';
       } else if (statusCode === 405) {
         message = '请求方法错误';
-      }
-
-      if (body?.message) {
-        message = body.message;
-      }
-      if (isInvalidCaptcha(statusCode, body?.message)) {
-        message = '验证码错误或已过期，请重新输入';
       }
 
       return {
         success: false,
         message,
-        code: isInvalidCaptcha(statusCode, body?.message) ? 'invalid_captcha' : undefined,
+        code,
       };
     }
 
     if (body?.success === false) {
       const message = body.message || '注册失败';
+      const code = body.message === 'Invalid or expired captcha' ? 'invalid_captcha' : undefined;
       return {
         success: false,
         message,
-        code: isInvalidCaptcha(statusCode, message) ? 'invalid_captcha' : undefined,
+        code,
       };
     }
 

@@ -22,6 +22,16 @@ export function getRelayUrl(): string {
   return backendConfig.baseUrl.replace(/\/$/, '');
 }
 
+export function getBackendUrl(): string {
+  // In dev, use a same-origin empty path so requests are reverse-proxied
+  // by the Vite dev server to the configured backend. This avoids CORS
+  // issues during development.
+  if (import.meta.env.DEV) {
+    return '';
+  }
+  return getRelayUrl();
+}
+
 export async function getRealBackendUrl(): Promise<string> {
   if (cachedRealBackendUrl) {
     return cachedRealBackendUrl;
@@ -48,10 +58,6 @@ export async function getRealBackendUrl(): Promise<string> {
   }
 
   return relayUrl;
-}
-
-export function getBackendUrl(): string {
-  return getRelayUrl();
 }
 
 export function getApiUrl(endpoint: string): string {

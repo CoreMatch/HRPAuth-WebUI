@@ -61,11 +61,15 @@ export default function Register() {
       return false;
     }
 
-    // Captcha is only required when the backend has it enabled.
     const captchaRequired = captchaRef.current?.isEnabled() ?? false;
     if (captchaRequired) {
       if (!captchaCode || captchaCode.trim().length === 0) {
         setError('请输入验证码');
+        setCaptchaError(true);
+        return false;
+      }
+      if (captchaCode.trim().length !== 5) {
+        setError('请输入 5 位验证码');
         setCaptchaError(true);
         return false;
       }
@@ -109,18 +113,17 @@ export default function Register() {
         setSuccess(true);
         setTimeout(() => navigate('/login'), 1500);
       } else {
-        // Per API doc: 400 "Invalid or expired captcha" -> refresh and re-prompt.
         if (result.code === 'invalid_captcha') {
           setCaptchaError(true);
           setError(result.message || '验证码错误或已过期，请重新输入');
           await captchaRef.current?.refresh();
           setCaptchaCode('');
-        } else {
-          setError(result.message || '注册失败');
-          // Always refresh captcha on a failed attempt to avoid reuse of a
-          // possibly-burned token.
+        } else if (result.code === 'rate_limit') {
+          setError(result.message || '请求过于频繁，请稍后重试');
           await captchaRef.current?.refresh();
           setCaptchaCode('');
+        } else {
+          setError(result.message || '注册失败');
         }
       }
     } catch {

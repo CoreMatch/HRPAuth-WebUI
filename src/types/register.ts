@@ -29,3 +29,7 @@ export interface CaptchaDisabledResponse {
   success: false;
   message: 'Captcha is disabled';
 }
+
+export interface CaptchaEnabledResponse {
+  enabled: 0 | 1;
+}

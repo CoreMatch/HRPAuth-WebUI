@@ -2,6 +2,7 @@ import { getBackendUrl } from '../utils/config';
 import type {
   CaptchaResponse,
   CaptchaDisabledResponse,
+  CaptchaEnabledResponse,
 } from '../types/register';
 
 export type CaptchaFetchResult =
@@ -9,6 +10,39 @@ export type CaptchaFetchResult =
   | { enabled: false };
 
 type CaptchaErrorBody = { success?: boolean; message?: string };
+
+/**
+ * Query backend captcha global toggle (GET /captcha/enabled).
+ * Per doc section 4.4: frontend should use this on register page load
+ * to decide whether to show the captcha input.
+ */
+export async function getCaptchaEnabled(): Promise<boolean> {
+  const base = getBackendUrl();
+  const url = `${base}/captcha/enabled`;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+  try {
+    const resp = await fetch(url, {
+      method: 'GET',
+      credentials: 'include',
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!resp.ok) {
+      return false;
+    }
+
+    const data = (await resp.json().catch(() => null)) as CaptchaEnabledResponse | null;
+    return data?.enabled === 1;
+  } catch {
+    clearTimeout(timeoutId);
+    return false;
+  }
+}
 
 export async function requestCaptcha(): Promise<CaptchaFetchResult> {
   const base = getBackendUrl();
