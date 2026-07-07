@@ -1,7 +1,9 @@
 import { Box, Typography, } from "@mui/material";
 import logo from "/revolution.png";
+import { useMeta } from '../hooks/useMeta';
 
 export default function Home() {
+  useMeta('home');
 	return (
 		<>
 			{/* 顶部图片 Banner */}

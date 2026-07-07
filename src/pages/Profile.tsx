@@ -14,6 +14,7 @@ import { Link as RouterLink } from 'react-router-dom';
 const SkinViewer3D = lazy(() => import('../components/SkinViewer3D'));
 import { getUserEmail, getAuthToken, getUid, getVerified, getTotpEnabled, setTotpEnabled } from '../utils/cookie';
 import { getApiUrl, getBackendUrl } from '../utils/config';
+import { useMeta } from '../hooks/useMeta';
 
 interface UserInfo {
   email: string;
@@ -374,6 +375,7 @@ function TextureManageDialog({ open, onClose, uid, token, onUpdated }: TextureMa
 }
 
 export default function Profile() {
+  useMeta('profile');
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

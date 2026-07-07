@@ -1,0 +1,91 @@
+{
+  "home": {
+    "title": "HRPAuth - Minecraft Authentication and Skin Library Service",
+    "description": "HRPAuth is a Minecraft authentication and skin library service that supports Yggdrasil API and CustomSkinLoader.",
+    "keywords": "Minecraft, authentication, Yggdrasil, CustomSkinLoader, skin, cape, authlib-injector",
+    "og": {
+      "title": "HRPAuth - Minecraft Authentication and Skin Library Service",
+      "description": "HRPAuth is a Minecraft authentication and skin library service that supports Yggdrasil API and CustomSkinLoader.",
+      "type": "website"
+    },
+    "twitter": {
+      "title": "HRPAuth - Minecraft Authentication and Skin Library Service",
+      "description": "HRPAuth is a Minecraft authentication and skin library service that supports Yggdrasil API and CustomSkinLoader.",
+      "card": "summary"
+    }
+  },
+  "skinlib": {
+    "title": "Skin Library - HRPAuth",
+    "description": "Browse and manage your Minecraft skins and capes in the HRPAuth skin library.",
+    "keywords": "Minecraft, skin, cape, skin library, CustomSkinLoader",
+    "og": {
+      "title": "Skin Library - HRPAuth",
+      "description": "Browse and manage your Minecraft skins and capes in the HRPAuth skin library.",
+      "type": "website"
+    },
+    "twitter": {
+      "title": "Skin Library - HRPAuth",
+      "description": "Browse and manage your Minecraft skins and capes in the HRPAuth skin library.",
+      "card": "summary"
+    }
+  },
+  "dash": {
+    "title": "Dashboard - HRPAuth",
+    "description": "Manage your HRPAuth server settings and view API information.",
+    "keywords": "Minecraft, authentication, server, dashboard, API",
+    "og": {
+      "title": "Dashboard - HRPAuth",
+      "description": "Manage your HRPAuth server settings and view API information.",
+      "type": "website"
+    },
+    "twitter": {
+      "title": "Dashboard - HRPAuth",
+      "description": "Manage your HRPAuth server settings and view API information.",
+      "card": "summary"
+    }
+  },
+  "login": {
+    "title": "Login - HRPAuth",
+    "description": "Login to your HRPAuth account to access Minecraft authentication services.",
+    "keywords": "Minecraft, login, authentication, account",
+    "og": {
+      "title": "Login - HRPAuth",
+      "description": "Login to your HRPAuth account to access Minecraft authentication services.",
+      "type": "website"
+    },
+    "twitter": {
+      "title": "Login - HRPAuth",
+      "description": "Login to your HRPAuth account to access Minecraft authentication services.",
+      "card": "summary"
+    }
+  },
+  "register": {
+    "title": "Register - HRPAuth",
+    "description": "Create a new HRPAuth account for Minecraft authentication.",
+    "keywords": "Minecraft, register, sign up, account, authentication",
+    "og": {
+      "title": "Register - HRPAuth",
+      "description": "Create a new HRPAuth account for Minecraft authentication.",
+      "type": "website"
+    },
+    "twitter": {
+      "title": "Register - HRPAuth",
+      "description": "Create a new HRPAuth account for Minecraft authentication.",
+      "card": "summary"
+  },
+  "profile": {
+    "title": "Profile - HRPAuth",
+    "description": "View and manage your HRPAuth profile and settings.",
+    "keywords": "Minecraft, profile, settings, account",
+    "og": {
+      "title": "Profile - HRPAuth",
+      "description": "View and manage your HRPAuth profile and settings.",
+      "type": "website"
+    },
+    "twitter": {
+      "title": "Profile - HRPAuth",
+      "description": "View and manage your HRPAuth profile and settings.",
+      "card": "summary"
+    }
+  }
+}

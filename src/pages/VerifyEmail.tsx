@@ -4,8 +4,10 @@ import { useNavigate } from 'react-router-dom';
 import { validateEmail } from '../utils/email';
 import { setCookie } from '../utils/cookie';
 import { getBackendUrl } from '../utils/config';
+import { useMeta } from '../hooks/useMeta';
 
 export default function VerifyEmail() {
+  useMeta('verifyemail');
   const [email, setEmail] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
   const [emailError, setEmailError] = useState(false);

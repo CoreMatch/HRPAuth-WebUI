@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Box, Typography, Card, CardContent, CircularProgress, Alert, Paper, Stack, Chip, Divider } from '@mui/material';
 import { getAuthToken, getUid, getUserEmail } from '../utils/cookie';
 import { getBackendUrl } from '../utils/config';
+import { useMeta } from '../hooks/useMeta';
 
 interface DebugInfo {
   requestUrl: string;
@@ -17,6 +18,7 @@ interface DebugInfo {
 }
 
 export default function DashboardDebug() {
+  useMeta('dashdebug');
   const [rawData, setRawData] = useState<any>(null);
   const [debugInfo, setDebugInfo] = useState<DebugInfo | null>(null);
   const [loading, setLoading] = useState(true);

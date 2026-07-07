@@ -13,6 +13,7 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import ApiIcon from '@mui/icons-material/Api';
 import FaceIcon from '@mui/icons-material/Face';
 import { getRealBackendUrl } from '../utils/config';
+import { useMeta } from '../hooks/useMeta';
 
 function CodeBlock({ children }: { children: string }) {
   return (
@@ -112,6 +113,7 @@ const menuItems: MenuItem[] = [
 ];
 
 export default function PermanentDrawerLeft() {
+  useMeta('dash');
   const [selectedItem, setSelectedItem] = useState<string | null>('Yggdrasil API');
 
   return (

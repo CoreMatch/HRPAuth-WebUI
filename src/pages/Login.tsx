@@ -4,10 +4,12 @@ import { useNavigate } from 'react-router-dom';
 import { validateEmail } from '../utils/email';
 import { setAuthCookies } from '../utils/cookie';
 import type { LoginResponse } from '../global';
+import { useMeta } from '../hooks/useMeta';
 
 type LoginMethod = 'password' | 'totp';
 
 export default function Login() {
+  useMeta('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [totpCode, setTotpCode] = useState('');

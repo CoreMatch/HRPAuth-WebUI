@@ -12,8 +12,10 @@ import Captcha, { type CaptchaRef } from '../components/Captcha';
 import { validateEmail } from '../utils/email';
 import { register } from '../api/register';
 import type { RegisterRequest } from '../types/register';
+import { useMeta } from '../hooks/useMeta';
 
 export default function Register() {
+  useMeta('register');
   const [formData, setFormData] = useState<RegisterRequest>({
     email: '',
     username: '',
