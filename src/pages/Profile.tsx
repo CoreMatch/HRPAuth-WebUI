@@ -29,7 +29,6 @@ type TextureType = 'skin' | 'cape';
 interface TextureManageDialogProps {
   open: boolean;
   onClose: () => void;
-  uid: string;
   token: string;
   onUpdated?: () => void;
 }
@@ -40,7 +39,23 @@ interface TextureInfo {
   model?: string;
 }
 
-function TextureManageDialog({ open, onClose, uid, token, onUpdated }: TextureManageDialogProps) {
+/**
+ * 开发环境下，后端返回的纹理绝对 URL 指向外部域名（如生产环境），本地无法访问。
+ * 改为同源相对路径（/textures/:hash），由 Vite dev server 代理到本地后端。
+ * 生产环境保持原样。
+ */
+function normalizeTextureUrl(url: string): string {
+  if (import.meta.env.DEV) {
+    try {
+      return new URL(url).pathname;
+    } catch {
+      return url;
+    }
+  }
+  return url;
+}
+
+function TextureManageDialog({ open, onClose, token, onUpdated }: TextureManageDialogProps) {
   const [skinCurrentUrl, setSkinCurrentUrl] = useState<string | null>(null);
   const [capeCurrentUrl, setCapeCurrentUrl] = useState<string | null>(null);
   const [skinLocalPreview, setSkinLocalPreview] = useState<string | null>(null);
@@ -64,7 +79,6 @@ function TextureManageDialog({ open, onClose, uid, token, onUpdated }: TextureMa
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           remember_token: token,
-          profile_id: uid,
         }),
       });
 
@@ -73,8 +87,8 @@ function TextureManageDialog({ open, onClose, uid, token, onUpdated }: TextureMa
         if (data.success && data.data && data.data.textures) {
           const skinTexture = data.data.textures.find((t: TextureInfo) => t.texture_type === 'skin');
           const capeTexture = data.data.textures.find((t: TextureInfo) => t.texture_type === 'cape');
-          setSkinCurrentUrl(skinTexture?.url ? `${skinTexture.url}?${Date.now()}` : null);
-          setCapeCurrentUrl(capeTexture?.url ? `${capeTexture.url}?${Date.now()}` : null);
+          setSkinCurrentUrl(skinTexture?.url ? `${normalizeTextureUrl(skinTexture.url)}?${Date.now()}` : null);
+          setCapeCurrentUrl(capeTexture?.url ? `${normalizeTextureUrl(capeTexture.url)}?${Date.now()}` : null);
         } else {
           setSkinCurrentUrl(null);
           setCapeCurrentUrl(null);
@@ -103,7 +117,7 @@ function TextureManageDialog({ open, onClose, uid, token, onUpdated }: TextureMa
       return;
     }
     fetchTextures();
-  }, [open, uid, token]);
+  }, [open, token]);
 
   const handleFileSelect = (
     event: ChangeEvent<HTMLInputElement>,
@@ -151,7 +165,6 @@ function TextureManageDialog({ open, onClose, uid, token, onUpdated }: TextureMa
       const backendUrl = getBackendUrl();
       const formData = new FormData();
       formData.append('remember_token', token);
-      formData.append('profile_id', uid);
       formData.append('texture_type', type);
       formData.append('file', file);
 
@@ -196,7 +209,6 @@ function TextureManageDialog({ open, onClose, uid, token, onUpdated }: TextureMa
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           remember_token: token,
-          profile_id: uid,
           texture_type: type,
         }),
       });
@@ -398,8 +410,7 @@ export default function Profile() {
 
   const fetchTextures = async () => {
     const token = getAuthToken();
-    const uid = getUid();
-    if (!token || !uid) return;
+    if (!token) return;
 
     try {
       const backendUrl = getBackendUrl();
@@ -408,7 +419,6 @@ export default function Profile() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           remember_token: token,
-          profile_id: uid,
         }),
       });
 
@@ -422,8 +432,8 @@ export default function Profile() {
             (t: TextureInfo) => t.texture_type === 'cape'
           );
           const cacheBust = Date.now();
-          setSkinUrl(skinTexture?.url ? `${skinTexture.url}?${cacheBust}` : null);
-          setCapeUrl(capeTexture?.url ? `${capeTexture.url}?${cacheBust}` : null);
+          setSkinUrl(skinTexture?.url ? `${normalizeTextureUrl(skinTexture.url)}?${cacheBust}` : null);
+          setCapeUrl(capeTexture?.url ? `${normalizeTextureUrl(capeTexture.url)}?${cacheBust}` : null);
           return;
         }
       }
@@ -890,7 +900,6 @@ export default function Profile() {
       <TextureManageDialog
         open={textureDialogOpen}
         onClose={() => setTextureDialogOpen(false)}
-        uid={getUid() || ''}
         token={getAuthToken() || ''}
         onUpdated={fetchTextures}
       />
