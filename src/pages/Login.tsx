@@ -3,6 +3,7 @@ import { TextField, Button, Typography, Box, Alert, ToggleButton, ToggleButtonGr
 import { useNavigate } from 'react-router-dom';
 import { validateEmail } from '../utils/email';
 import { setAuthCookies } from '../utils/cookie';
+import { BackendUrl } from '../utils/config';
 import type { LoginResponse } from '../global';
 import { useMeta } from '../hooks/useMeta';
 
@@ -54,7 +55,7 @@ export default function Login() {
     setError(null);
 
     try {
-      const base = (window as Window & { BACKEND_URL?: string }).BACKEND_URL?.replace(/\/$/, '') || '';
+      const base = BackendUrl;
       const url = loginMethod === 'password' ? base + '/login' : base + '/totp/verify';
 
       const controller = new AbortController();

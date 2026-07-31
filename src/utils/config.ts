@@ -19,6 +19,27 @@ const DEFAULT_CONFIG: BackendConfig = { baseUrl: '' };
 let runtimeConfig: BackendConfig = DEFAULT_CONFIG;
 
 /**
+ * 全局后端地址。
+ * 应用启动时（main.tsx）通过 initBackendUrl() 一次性确定：
+ * - 开发环境：空串（同源），由 Vite dev server 反向代理到 config/backend-dev.json 配置的后端
+ * - 生产环境：/config.json 中的 baseUrl
+ * 业务代码一律直接引用本变量，禁止自行判断环境。
+ */
+export let BackendUrl: string = '';
+
+/**
+ * 项目启动时调用：一次性判断当前环境并写入 BackendUrl。
+ */
+export async function initBackendUrl(): Promise<void> {
+  if (import.meta.env.DEV) {
+    BackendUrl = '';
+    return;
+  }
+  await loadConfig();
+  BackendUrl = runtimeConfig.baseUrl.replace(/\/$/, '');
+}
+
+/**
  * Load the runtime configuration from /config.json (an external file copied
  * verbatim from public/ to the build output, editable without rebuilding).
  * Falls back to the default (same-origin) config if the file is missing or
@@ -42,16 +63,6 @@ export async function loadConfig(): Promise<BackendConfig> {
 
 export function getRelayUrl(): string {
   return runtimeConfig.baseUrl.replace(/\/$/, '');
-}
-
-export function getBackendUrl(): string {
-  // In dev, use a same-origin empty path so requests are reverse-proxied
-  // by the Vite dev server to the backend configured in
-  // config/backend-dev.json. This avoids CORS issues during development.
-  if (import.meta.env.DEV) {
-    return '';
-  }
-  return getRelayUrl();
 }
 
 let cachedRealBackendUrl: string | null = null;
@@ -85,7 +96,6 @@ export async function getRealBackendUrl(): Promise<string> {
 }
 
 export function getApiUrl(endpoint: string): string {
-  const base = getBackendUrl();
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-  return base + cleanEndpoint;
+  return BackendUrl + cleanEndpoint;
 }

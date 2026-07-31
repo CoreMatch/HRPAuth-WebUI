@@ -2,11 +2,10 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
-import { loadConfig, getBackendUrl } from './utils/config.ts'
+import { initBackendUrl } from './utils/config.ts'
 
 async function bootstrap() {
-  await loadConfig();
-  window.BACKEND_URL = getBackendUrl();
+  await initBackendUrl();
 
   createRoot(document.getElementById('root')!).render(
     <StrictMode>

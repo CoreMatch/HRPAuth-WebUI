@@ -13,7 +13,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { Link as RouterLink } from 'react-router-dom';
 const SkinViewer3D = lazy(() => import('../components/SkinViewer3D'));
 import { getUserEmail, getAuthToken, getUid, getVerified, getTotpEnabled, setTotpEnabled } from '../utils/cookie';
-import { getApiUrl, getBackendUrl } from '../utils/config';
+import { getApiUrl, BackendUrl } from '../utils/config';
 
 interface UserInfo {
   email: string;
@@ -73,7 +73,7 @@ function TextureManageDialog({ open, onClose, token, onUpdated }: TextureManageD
 
   const fetchTextures = async () => {
     try {
-      const backendUrl = getBackendUrl();
+      const backendUrl = BackendUrl;
       const response = await fetch(`${backendUrl}/texture/get`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -162,7 +162,7 @@ function TextureManageDialog({ open, onClose, token, onUpdated }: TextureManageD
     setError(null);
 
     try {
-      const backendUrl = getBackendUrl();
+      const backendUrl = BackendUrl;
       const formData = new FormData();
       formData.append('remember_token', token);
       formData.append('texture_type', type);
@@ -203,7 +203,7 @@ function TextureManageDialog({ open, onClose, token, onUpdated }: TextureManageD
     setError(null);
 
     try {
-      const backendUrl = getBackendUrl();
+      const backendUrl = BackendUrl;
       const response = await fetch(`${backendUrl}/texture/delete`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -413,7 +413,7 @@ export default function Profile() {
     if (!token) return;
 
     try {
-      const backendUrl = getBackendUrl();
+      const backendUrl = BackendUrl;
       const response = await fetch(`${backendUrl}/texture/get`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

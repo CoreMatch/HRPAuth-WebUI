@@ -1,4 +1,4 @@
-import { getBackendUrl } from '../utils/config';
+import { BackendUrl } from '../utils/config';
 import type { RegisterRequest, RegisterResponse, RegisterError } from '../types/register';
 
 export type RegisterApiResult = (RegisterResponse | RegisterError) & { code?: string };
@@ -7,7 +7,7 @@ export async function register(
   data: Omit<RegisterRequest, 'password2'>
 ): Promise<RegisterApiResult> {
   try {
-    const base = getBackendUrl();
+    const base = BackendUrl;
     const url = `${base}/register`;
 
     const controller = new AbortController();

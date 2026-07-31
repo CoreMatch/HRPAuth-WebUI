@@ -1,4 +1,4 @@
-import { getBackendUrl } from '../utils/config';
+import { BackendUrl } from '../utils/config';
 import type {
   CaptchaResponse,
   CaptchaDisabledResponse,
@@ -17,7 +17,7 @@ type CaptchaErrorBody = { success?: boolean; message?: string };
  * to decide whether to show the captcha input.
  */
 export async function getCaptchaEnabled(): Promise<boolean> {
-  const base = getBackendUrl();
+  const base = BackendUrl;
   const url = `${base}/captcha/enabled`;
 
   const controller = new AbortController();
@@ -45,7 +45,7 @@ export async function getCaptchaEnabled(): Promise<boolean> {
 }
 
 export async function requestCaptcha(): Promise<CaptchaFetchResult> {
-  const base = getBackendUrl();
+  const base = BackendUrl;
   const url = `${base}/captcha`;
 
   const controller = new AbortController();

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { AppBar, Toolbar, Typography, Button, Avatar, Menu, MenuItem, IconButton } from "@mui/material";
 import { Link, useNavigate } from "react-router-dom";
 import { getAuthToken, getUserEmail, clearAuthCookies } from '../utils/cookie';
-import { getBackendUrl } from '../utils/config';
+import { BackendUrl } from '../utils/config';
 
 export default function Navbar() {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -31,7 +31,7 @@ export default function Navbar() {
 
   const handleLogout = async () => {
     try {
-      const base = getBackendUrl();
+      const base = BackendUrl;
       const url = base + '/logout';
       await fetch(url, {
         method: 'GET',

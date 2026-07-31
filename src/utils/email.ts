@@ -1,4 +1,4 @@
-import { getBackendUrl } from './config';
+import { BackendUrl } from './config';
 
 export interface SendEmailRequest {
   to: string;
@@ -17,7 +17,7 @@ export interface SendEmailResponse {
 
 export async function sendTestEmail(data: SendEmailRequest): Promise<SendEmailResponse> {
   try {
-    const base = getBackendUrl();
+    const base = BackendUrl;
     const url = base + '/email-verification';
 
     const resp = await fetch(url, {
