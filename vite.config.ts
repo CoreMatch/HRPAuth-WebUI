@@ -8,7 +8,7 @@ import { dirname, resolve } from 'node:path'
 const __dirname = dirname(fileURLToPath(import.meta.url))
 interface BackendConfig { baseUrl: string }
 const backendConfig: BackendConfig = JSON.parse(
-  readFileSync(resolve(__dirname, 'config/backend.json'), 'utf-8')
+  readFileSync(resolve(__dirname, 'config/backend-dev.json'), 'utf-8')
 )
 const backendTarget = backendConfig.baseUrl.replace(/\/$/, '')
 
@@ -52,7 +52,7 @@ export default defineConfig({
   server: {
     proxy: {
       // Reverse proxy: forward all non-Vite requests to the backend
-      // configured in config/backend.json, so the frontend can use
+      // configured in config/backend-dev.json, so the frontend can use
       // same-origin (relative) URLs in dev and avoid CORS issues.
       '^/': {
         target: backendTarget,

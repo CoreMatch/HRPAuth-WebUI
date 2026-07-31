@@ -44,6 +44,21 @@
       "card": "summary"
     }
   },
+  "dashdebug": {
+    "title": "Dashboard Debug - HRPAuth",
+    "description": "Inspect HRPAuth API requests and responses for debugging.",
+    "keywords": "Minecraft, dashboard, debug, API",
+    "og": {
+      "title": "Dashboard Debug - HRPAuth",
+      "description": "Inspect HRPAuth API requests and responses for debugging.",
+      "type": "website"
+    },
+    "twitter": {
+      "title": "Dashboard Debug - HRPAuth",
+      "description": "Inspect HRPAuth API requests and responses for debugging.",
+      "card": "summary"
+    }
+  },
   "login": {
     "title": "Login - HRPAuth",
     "description": "Login to your HRPAuth account to access Minecraft authentication services.",
@@ -72,6 +87,7 @@
       "title": "Register - HRPAuth",
       "description": "Create a new HRPAuth account for Minecraft authentication.",
       "card": "summary"
+    }
   },
   "profile": {
     "title": "Profile - HRPAuth",
@@ -85,6 +101,21 @@
     "twitter": {
       "title": "Profile - HRPAuth",
       "description": "View and manage your HRPAuth profile and settings.",
+      "card": "summary"
+    }
+  },
+  "verifyemail": {
+    "title": "Verify Email - HRPAuth",
+    "description": "Verify your email address for your HRPAuth account.",
+    "keywords": "Minecraft, email, verify, account",
+    "og": {
+      "title": "Verify Email - HRPAuth",
+      "description": "Verify your email address for your HRPAuth account.",
+      "type": "website"
+    },
+    "twitter": {
+      "title": "Verify Email - HRPAuth",
+      "description": "Verify your email address for your HRPAuth account.",
       "card": "summary"
     }
   }

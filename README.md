@@ -15,10 +15,18 @@ npm install
 ```
 ---
 ## 3. Configure HRPAuth API URL
-Edit config/backend.json
+### Production (runtime config)
+Edit `public/config.json` (copied to `dist/config.json` on build, editable without rebuilding)
 ```
 {
-  "apiUrl": "https://your-hrpauth-api-url.com"
+  "baseUrl": "https://your-hrpauth-api-url.com"
+}
+```
+### Development (Vite proxy target)
+Edit `config/backend-dev.json`
+```
+{
+  "baseUrl": "https://your-hrpauth-api-url.com"
 }
 ```
 Configure SSL certificate for your HRPAuth API URL  
