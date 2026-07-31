@@ -14,6 +14,8 @@ import ApiIcon from '@mui/icons-material/Api';
 import FaceIcon from '@mui/icons-material/Face';
 import { getRealBackendUrl } from '../utils/config';
 import { useMeta } from '../hooks/useMeta';
+import PersonIcon from '@mui/icons-material/Person';
+import Profile from './Profile';
 
 function CodeBlock({ children }: { children: string }) {
   return (
@@ -108,13 +110,14 @@ interface MenuItem {
 }
 
 const menuItems: MenuItem[] = [
+  { id: 'Profile', label: 'Profile', content: '', jsxContent: <Profile />, icon: <PersonIcon /> },
   { id: 'Yggdrasil API', label: 'Yggdrasil API', content: '', jsxContent: <YggdrasilDashboard />, icon: <ApiIcon /> },
   { id: 'CustomSkinLoader', label: 'CustomSkinLoader', content: '', icon: <FaceIcon /> },
 ];
 
 export default function PermanentDrawerLeft() {
   useMeta('dash');
-  const [selectedItem, setSelectedItem] = useState<string | null>('Yggdrasil API');
+  const [selectedItem, setSelectedItem] = useState<string | null>('Profile');
 
   return (
     <Box sx={{ display: 'flex', minHeight: 'calc(100vh - 64px)' }}>

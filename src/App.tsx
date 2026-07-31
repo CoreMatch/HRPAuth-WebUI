@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
 import Layout from './components/Layout';
 
@@ -9,7 +9,6 @@ const DashboardDebug = lazy(() => import('./pages/DashboardDebug'));
 const Login = lazy(() => import('./pages/Login'));
 const Register = lazy(() => import('./pages/Register'));
 const VerifyEmail = lazy(() => import('./pages/VerifyEmail'));
-const Profile = lazy(() => import('./pages/Profile'));
 
 function LoadingFallback() {
   return (
@@ -38,7 +37,7 @@ export default function App() {
             <Route path="login" element={<Login />} />
             <Route path="register" element={<Register />} />
             <Route path="verifyemail" element={<VerifyEmail />} />
-            <Route path="profile" element={<Profile />} />
+            <Route path="profile" element={<Navigate to="/dash" replace />} />
           </Route>
         </Routes>
       </Suspense>
