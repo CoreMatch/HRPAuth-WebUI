@@ -62,9 +62,12 @@ export async function initBackendUrl(): Promise<void> {
  */
 export async function loadConfig(): Promise<BackendConfig> {
   try {
-    const response = await fetch('/config.json', { cache: 'no-cache' });
+    const configUrl = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/config.json`.replace(/^\/\//, '/');
+    console.log(`[Config] 正在从 ${configUrl} 加载生产环境配置...`);
+    const response = await fetch(configUrl, { cache: 'no-cache' });
     if (response.ok) {
       const data = await response.json() as Partial<BackendConfig>;
+      console.log('[Config] 成功加载配置:', data);
       if (typeof data.baseUrl === 'string' && data.baseUrl.trim() !== '' &&
           typeof data.skinlibUrl === 'string' && data.skinlibUrl.trim() !== '') {
         runtimeConfig = { 
@@ -72,9 +75,14 @@ export async function loadConfig(): Promise<BackendConfig> {
           skinlibUrl: data.skinlibUrl
         };
         return runtimeConfig;
+      } else {
+        console.error('[Config] 配置内容格式不正确:', data);
       }
+    } else {
+      console.error(`[Config] 无法获取配置: ${response.status} ${response.statusText}`);
     }
-  } catch {
+  } catch (err) {
+    console.error('[Config] 加载配置时发生错误:', err);
     // Ignore: fall back to the default config below.
   }
   return runtimeConfig;

@@ -37,8 +37,10 @@ export default function DashboardDebug() {
 
       try {
         const base = BackendUrl;
-        // 如果未登录，请求后端根路径（门户页）；如果已登录，请求用户信息接口
-        const url = isLoggedIn ? base + '/user' : base + '/';
+        
+        // 如果未登录，请求后端状态端点 /status；如果已登录，请求用户信息接口 /user
+        // 注意：根据 API 文档，状态端点是 /status 而不是根路径 /
+        const url = isLoggedIn ? base + '/user' : base + '/status';
 
         const requestHeaders: Record<string, string> = {
           'Content-Type': 'application/json',
@@ -50,11 +52,12 @@ export default function DashboardDebug() {
           remember_token: token.substring(0, 20) + '...',
         } : {
           status: '未登录',
-          mode: '获取门户元数据'
+          mode: '获取服务状态'
         };
 
         console.log('========== DashboardDebug 请求开始 ==========');
         console.log('请求目标:', url);
+        console.log('BackendUrl 变量值:', `"${base}"`);
         console.log('状态:', isLoggedIn ? '已登录' : '未登录');
         console.log('请求方法:', isLoggedIn ? 'POST' : 'GET');
         console.log('请求头:', requestHeaders);
@@ -62,7 +65,7 @@ export default function DashboardDebug() {
 
         const fetchOptions: RequestInit = {
           headers: requestHeaders,
-          credentials: 'include',
+          credentials: isLoggedIn ? 'include' : 'omit',
         };
 
         if (isLoggedIn) {
@@ -70,6 +73,8 @@ export default function DashboardDebug() {
           fetchOptions.body = JSON.stringify({ remember_token: token, uid, email });
         } else {
           fetchOptions.method = 'GET';
+          // 对于未登录的状态检查，通常不需要 credentials，可以尝试移除以减少 CORS 限制
+          // fetchOptions.credentials = 'omit';
         }
 
         const resp = await fetch(url, fetchOptions);
@@ -184,6 +189,18 @@ export default function DashboardDebug() {
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {error}
+          {error.includes('Failed to fetch') && (
+            <Typography variant="body2" sx={{ mt: 1 }}>
+              提示：这通常意味着浏览器无法连接到后端服务器。请检查后端服务是否启动，或者是否存在跨域 (CORS) 问题。
+            </Typography>
+          )}
+        </Alert>
+      )}
+
+      {BackendUrl === '' && !import.meta.env.DEV && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          检测到 BackendUrl 为空。这可能意味着 /config.json 未能正确加载。
+          请检查部署目录下是否存在 config.json 且内容格式正确。
         </Alert>
       )}
 
