@@ -52,10 +52,11 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      '^/texture/': {
+      '^/skinlib-api/': {
         target: skinlibTarget,
         changeOrigin: true,
         secure: true,
+        rewrite: (path) => path.replace(/^\/skinlib-api/, '')
       },
       // Reverse proxy: forward all non-Vite requests to the backend
       // configured in config/backend-dev.json, so the frontend can use

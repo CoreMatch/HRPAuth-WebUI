@@ -1,4 +1,4 @@
-import { SkinlibUrl } from '../utils/config';
+import { SkinlibUrl, BackendUrl } from '../utils/config';
 import type { 
   TextureListRequest, 
   TextureListResponse, 
@@ -82,6 +82,82 @@ export async function listTextures(
       return {
         success: false,
         message: body?.message || `获取列表失败 (${resp.status})`,
+      };
+    }
+
+    return body;
+  } catch (error) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : '网络错误',
+    };
+  }
+}
+
+export async function pullTexture(hash: string): Promise<Blob | { success: false; message: string }> {
+  try {
+    const url = `${SkinlibUrl}/texture/pull/${hash}`;
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+    const resp = await fetch(url, {
+      method: 'GET',
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!resp.ok) {
+      const body = await resp.json().catch(() => null);
+      return {
+        success: false,
+        message: body?.message || `拉取材质失败 (${resp.status})`,
+      };
+    }
+
+    return await resp.blob();
+  } catch (error) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : '网络错误',
+    };
+  }
+}
+
+export async function applyTextureToUser(
+  token: string,
+  type: string,
+  file: File,
+  model?: string,
+  uid?: number
+): Promise<{ success: boolean; message: string }> {
+  try {
+    const url = `${BackendUrl}/texture/upload`;
+    const formData = new FormData();
+    formData.append('remember_token', token);
+    formData.append('texture_type', type);
+    formData.append('file', file);
+    if (model) formData.append('model', model);
+    if (uid) formData.append('uid', uid.toString());
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+    const resp = await fetch(url, {
+      method: 'POST',
+      body: formData,
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    const body = await resp.json().catch(() => null);
+
+    if (!resp.ok) {
+      return {
+        success: false,
+        message: body?.message || `应用材质失败 (${resp.status})`,
       };
     }
 

@@ -4,10 +4,12 @@ import {
   Typography, 
   Grid, 
   Card, 
-  CardContent, 
+  CardContent,
+  CardActions,
   CardMedia, 
   CircularProgress, 
   Alert, 
+  Snackbar,
   FormControl, 
   InputLabel, 
   Select, 
@@ -32,7 +34,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import SettingsInputComponentIcon from '@mui/icons-material/SettingsInputComponent';
 import { useMeta } from '../hooks/useMeta';
-import { listTextures, getPreviewUrl, uploadTexture } from '../api/texture';
+import { listTextures, getPreviewUrl, uploadTexture, pullTexture, applyTextureToUser } from '../api/texture';
 import type { TextureItem, TextureListRequest, TextureType, SkinModel } from '../types/texture';
 import { getAuthToken, getUid } from '../utils/cookie';
 import { SkinlibUrl, setSkinlibUrl } from '../utils/config';
@@ -84,10 +86,11 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ open, onClose, onSuccess })
     }
 
     const token = getAuthToken();
-    const uid = getUid();
+    const uidStr = getUid();
+    const uid = uidStr ? parseInt(uidStr) : NaN;
 
-    if (!token || !uid) {
-      setError('请先登录');
+    if (!token || !uidStr || isNaN(uid) || uid <= 0) {
+      setError('请先登录或重新登录 (无效的 UID)');
       return;
     }
 
@@ -96,7 +99,7 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ open, onClose, onSuccess })
 
     try {
       const result = await uploadTexture({
-        uid: parseInt(uid),
+        uid: uid,
         type,
         model: type === 'skin' ? model : undefined,
         name,
@@ -252,6 +255,12 @@ const Skinlib: React.FC = () => {
   const [searchTag, setSearchTag] = useState('');
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [sourceUrl, setSourceUrl] = useState(SkinlibUrl);
+  const [usingHash, setUsingHash] = useState<string | null>(null);
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
+    open: false,
+    message: '',
+    severity: 'success',
+  });
 
   const fetchTextures = async () => {
     setLoading(true);
@@ -274,6 +283,50 @@ const Skinlib: React.FC = () => {
       setError('网络错误，请稍后重试');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleUseTexture = async (item: TextureItem) => {
+    const token = getAuthToken();
+    const uidStr = getUid();
+    const uid = uidStr ? parseInt(uidStr) : NaN;
+
+    if (!token || !uidStr || isNaN(uid) || uid <= 0) {
+      setSnackbar({ open: true, message: '请先登录或重新登录 (无效的 UID)', severity: 'error' });
+      return;
+    }
+
+    setUsingHash(item.hash);
+
+    try {
+      // Step 1: Pull the skin source file from texture/pull API
+      const blob = await pullTexture(item.hash);
+
+      if ('success' in blob && !blob.success) {
+        setSnackbar({ open: true, message: blob.message || '拉取材质失败', severity: 'error' });
+        return;
+      }
+
+      // Step 2: Upload to HA business system (equivalent to Profile.tsx logic)
+      const file = new File([blob as Blob], item.file_name, { type: 'image/png' });
+
+      const result = await applyTextureToUser(
+        token, 
+        item.type, 
+        file, 
+        item.type === 'skin' ? (item.model || 'default') : undefined,
+        uid
+      );
+
+      if (result.success) {
+        setSnackbar({ open: true, message: `材质 "${item.name}" 使用成功！`, severity: 'success' });
+      } else {
+        setSnackbar({ open: true, message: result.message || '应用失败', severity: 'error' });
+      }
+    } catch (err) {
+      setSnackbar({ open: true, message: '操作过程中发生错误', severity: 'error' });
+    } finally {
+      setUsingHash(null);
     }
   };
 
@@ -473,6 +526,16 @@ const Skinlib: React.FC = () => {
                       ))}
                     </Stack>
                   </CardContent>
+                  <CardActions sx={{ justifyContent: 'center', pb: 2 }}>
+                    <Button
+                      variant="contained"
+                      size="small"
+                      disabled={usingHash === item.hash}
+                      onClick={() => handleUseTexture(item)}
+                    >
+                      {usingHash === item.hash ? '使用中...' : '使用'}
+                    </Button>
+                  </CardActions>
                 </Card>
               </Grid>
             ))}
@@ -489,6 +552,22 @@ const Skinlib: React.FC = () => {
           </Stack>
         </>
       )}
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert 
+          onClose={() => setSnackbar(prev => ({ ...prev, open: false }))} 
+          severity={snackbar.severity}
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
 
       <UploadDialog 
         open={uploadDialogOpen} 

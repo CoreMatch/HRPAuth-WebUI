@@ -46,7 +46,7 @@ export function setSkinlibUrl(url: string): void {
 export async function initBackendUrl(): Promise<void> {
   if (import.meta.env.DEV) {
     BackendUrl = '';
-    SkinlibUrl = '';
+    SkinlibUrl = '/skinlib-api';
     return;
   }
   await loadConfig();
