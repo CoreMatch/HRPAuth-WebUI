@@ -40,19 +40,29 @@ interface TextureInfo {
 }
 
 /**
- * 开发环境下，后端返回的纹理绝对 URL 指向外部域名（如生产环境），本地无法访问。
- * 改为同源相对路径（/textures/:hash），由 Vite dev server 代理到本地后端。
- * 生产环境保持原样。
+ * 修正纹理 URL。
+ * 后端返回的绝对 URL 可能指向内部域名或错误的协议（如生产环境下返回 http 而非 https），
+ * 导致浏览器拦截或无法访问。
+ * 此函数将其统一修正为相对于当前配置的 BackendUrl。
  */
 function normalizeTextureUrl(url: string): string {
-  if (import.meta.env.DEV) {
-    try {
-      return new URL(url).pathname;
-    } catch {
-      return url;
+  if (!url) return url;
+  try {
+    const parsed = new URL(url);
+    // 开发环境下，改为同源相对路径以支持 Vite 代理
+    if (import.meta.env.DEV) {
+      return parsed.pathname;
     }
+    // 生产环境下，尝试将其修正为相对于当前 BackendUrl 的地址
+    if (BackendUrl && BackendUrl.startsWith('http')) {
+      const backendOrigin = new URL(BackendUrl).origin;
+      return url.replace(parsed.origin, backendOrigin);
+    }
+    // 如果 BackendUrl 未配置或为相对路径，则退而求其次使用 pathname 尝试同源加载
+    return parsed.pathname;
+  } catch {
+    return url;
   }
-  return url;
 }
 
 function TextureManageDialog({ open, onClose, token, onUpdated }: TextureManageDialogProps) {
