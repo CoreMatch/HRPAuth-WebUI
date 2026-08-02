@@ -1,5 +1,6 @@
 export interface BackendConfig {
   baseUrl: string;
+  skinlibUrl: string;
 }
 
 export interface MetadataResponse {
@@ -14,7 +15,7 @@ export interface MetadataResponse {
   message: string;
 }
 
-const DEFAULT_CONFIG: BackendConfig = { baseUrl: '' };
+const DEFAULT_CONFIG: BackendConfig = { baseUrl: '', skinlibUrl: '' };
 
 let runtimeConfig: BackendConfig = DEFAULT_CONFIG;
 
@@ -28,15 +29,22 @@ let runtimeConfig: BackendConfig = DEFAULT_CONFIG;
 export let BackendUrl: string = '';
 
 /**
+ * 全局皮肤库地址。
+ */
+export let SkinlibUrl: string = '';
+
+/**
  * 项目启动时调用：一次性判断当前环境并写入 BackendUrl。
  */
 export async function initBackendUrl(): Promise<void> {
   if (import.meta.env.DEV) {
     BackendUrl = '';
+    SkinlibUrl = '';
     return;
   }
   await loadConfig();
   BackendUrl = runtimeConfig.baseUrl.replace(/\/$/, '');
+  SkinlibUrl = runtimeConfig.skinlibUrl.replace(/\/$/, '');
 }
 
 /**
@@ -50,8 +58,12 @@ export async function loadConfig(): Promise<BackendConfig> {
     const response = await fetch('/config.json', { cache: 'no-cache' });
     if (response.ok) {
       const data = await response.json() as Partial<BackendConfig>;
-      if (typeof data.baseUrl === 'string' && data.baseUrl.trim() !== '') {
-        runtimeConfig = { baseUrl: data.baseUrl };
+      if (typeof data.baseUrl === 'string' && data.baseUrl.trim() !== '' &&
+          typeof data.skinlibUrl === 'string' && data.skinlibUrl.trim() !== '') {
+        runtimeConfig = { 
+          baseUrl: data.baseUrl,
+          skinlibUrl: data.skinlibUrl
+        };
         return runtimeConfig;
       }
     }

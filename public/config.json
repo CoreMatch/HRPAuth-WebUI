@@ -1,3 +1,4 @@
 {
-  "baseUrl": "https://backend.auth.samuelcheston.com/"
+  "baseUrl": "https://backend.auth.samuelcheston.com/",
+  "skinlibUrl": "https://skin.auth.samuelcheston.com/"
 }

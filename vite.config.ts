@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-interface BackendConfig { baseUrl: string }
+interface BackendConfig { baseUrl: string, skinlibUrl: string }
 const backendConfig: BackendConfig = JSON.parse(
   readFileSync(resolve(__dirname, 'config/backend-dev.json'), 'utf-8')
 )
