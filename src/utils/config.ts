@@ -34,6 +34,13 @@ export let BackendUrl: string = '';
 export let SkinlibUrl: string = '';
 
 /**
+ * 动态更新皮肤库地址。
+ */
+export function setSkinlibUrl(url: string): void {
+  SkinlibUrl = url.replace(/\/$/, '');
+}
+
+/**
  * 项目启动时调用：一次性判断当前环境并写入 BackendUrl。
  */
 export async function initBackendUrl(): Promise<void> {

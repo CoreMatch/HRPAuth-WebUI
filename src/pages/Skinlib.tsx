@@ -26,13 +26,16 @@ import {
   FormControlLabel,
   Radio,
   FormLabel,
+  Checkbox,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import SettingsInputComponentIcon from '@mui/icons-material/SettingsInputComponent';
 import { useMeta } from '../hooks/useMeta';
 import { listTextures, getPreviewUrl, uploadTexture } from '../api/texture';
 import type { TextureItem, TextureListRequest, TextureType, SkinModel } from '../types/texture';
 import { getAuthToken, getUid } from '../utils/cookie';
+import { SkinlibUrl, setSkinlibUrl } from '../utils/config';
 
 interface UploadDialogProps {
   open: boolean;
@@ -49,6 +52,9 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ open, onClose, onSuccess })
   const [tags, setTags] = useState('');
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [securityConfirmed, setSecurityConfirmed] = useState(false);
+
+  const isCustomUrl = !!SkinlibUrl;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -69,6 +75,11 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ open, onClose, onSuccess })
   const handleUpload = async () => {
     if (!file || !name) {
       setError('请选择文件并填写材质名称');
+      return;
+    }
+
+    if (isCustomUrl && !securityConfirmed) {
+      setError('请先确认安全警告');
       return;
     }
 
@@ -116,6 +127,7 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ open, onClose, onSuccess })
     setModel('default');
     setTags('');
     setError(null);
+    setSecurityConfirmed(false);
     onClose();
   };
 
@@ -190,6 +202,25 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ open, onClose, onSuccess })
             size="small"
             placeholder="例如: 动漫, 帅气, 蓝色"
           />
+
+          {isCustomUrl && (
+            <Box sx={{ mt: 1, p: 2, border: '1px solid', borderColor: 'error.main', borderRadius: 1, bgcolor: 'rgba(211, 47, 47, 0.04)' }}>
+              <FormControlLabel
+                control={
+                  <Checkbox 
+                    checked={securityConfirmed} 
+                    onChange={(e) => setSecurityConfirmed(e.target.checked)} 
+                    color="error"
+                  />
+                }
+                label={
+                  <Typography variant="body2" color="error.main" sx={{ fontWeight: 'bold' }}>
+                    我已了解：向自定义材质源上传材质可能泄漏登录凭据。如果你无法理解这句话的含义，请立刻停止操作并清除自定义材质源后再上传材质。
+                  </Typography>
+                }
+              />
+            </Box>
+          )}
         </Box>
       </DialogContent>
       <DialogActions>
@@ -197,7 +228,8 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ open, onClose, onSuccess })
         <Button 
           onClick={handleUpload} 
           variant="contained" 
-          disabled={uploading || !file || !name}
+          disabled={uploading || !file || !name || (isCustomUrl && !securityConfirmed)}
+          color={isCustomUrl ? "error" : "primary"}
         >
           {uploading ? '上传中...' : '开始上传'}
         </Button>
@@ -219,6 +251,7 @@ const Skinlib: React.FC = () => {
   const [tag, setTag] = useState('');
   const [searchTag, setSearchTag] = useState('');
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [sourceUrl, setSourceUrl] = useState(SkinlibUrl);
 
   const fetchTextures = async () => {
     setLoading(true);
@@ -246,7 +279,7 @@ const Skinlib: React.FC = () => {
 
   useEffect(() => {
     fetchTextures();
-  }, [type, order, searchTag, page]);
+  }, [type, order, searchTag, page, sourceUrl]);
 
   const handlePageChange = (_: React.ChangeEvent<unknown>, value: number) => {
     setPage(value);
@@ -261,17 +294,48 @@ const Skinlib: React.FC = () => {
 
   return (
     <Box sx={{ py: 4 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-        <Typography variant="h4" component="h1" sx={{ fontWeight: 'bold' }}>
-          材质库
-        </Typography>
-        <Button 
-          variant="contained" 
-          startIcon={<CloudUploadIcon />}
-          onClick={() => setUploadDialogOpen(true)}
-        >
-          上传材质
-        </Button>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 4, gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
+        <Box>
+          <Typography variant="h4" component="h1" sx={{ fontWeight: 'bold' }}>
+            材质库
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            当前材质源: {sourceUrl || '(开发环境代理)'}
+          </Typography>
+        </Box>
+        
+        <Stack direction="row" spacing={2} sx={{ width: { xs: '100%', sm: 'auto' } }}>
+          <TextField
+            size="small"
+            label="材质源 URL"
+            placeholder="http://example.com"
+            value={sourceUrl}
+            onChange={(e) => {
+              const newUrl = e.target.value;
+              setSourceUrl(newUrl);
+              setSkinlibUrl(newUrl);
+              setPage(1);
+            }}
+            slotProps={{
+              input: {
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SettingsInputComponentIcon fontSize="small" />
+                  </InputAdornment>
+                ),
+              },
+            }}
+            sx={{ minWidth: 250 }}
+          />
+          <Button 
+            variant="contained" 
+            startIcon={<CloudUploadIcon />}
+            onClick={() => setUploadDialogOpen(true)}
+            sx={{ whiteSpace: 'nowrap' }}
+          >
+            上传材质
+          </Button>
+        </Stack>
       </Box>
 
       {/* 筛选栏 */}
