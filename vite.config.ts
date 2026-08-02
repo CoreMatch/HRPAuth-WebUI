@@ -11,6 +11,7 @@ const backendConfig: BackendConfig = JSON.parse(
   readFileSync(resolve(__dirname, 'config/backend-dev.json'), 'utf-8')
 )
 const backendTarget = backendConfig.baseUrl.replace(/\/$/, '')
+const skinlibTarget = backendConfig.skinlibUrl.replace(/\/$/, '')
 
 // Paths that should be served by Vite (HMR, source files, public assets, etc.)
 // and not proxied to the backend.
@@ -51,6 +52,11 @@ export default defineConfig({
   },
   server: {
     proxy: {
+      '^/texture/': {
+        target: skinlibTarget,
+        changeOrigin: true,
+        secure: true,
+      },
       // Reverse proxy: forward all non-Vite requests to the backend
       // configured in config/backend-dev.json, so the frontend can use
       // same-origin (relative) URLs in dev and avoid CORS issues.
