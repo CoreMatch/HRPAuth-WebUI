@@ -1,4 +1,13 @@
 # HRPAuth WebUI
+
+本项目是 HA-Contract 的前端界面组件。
+
+## 文档
+
+所有接口文档和开发规范已统一收口至根目录：
+- [API 标准与规范](https://github.com/CoreMatch/HA-Contract/blob/main/docs/api/README.md)
+- [HRPAuth 开发指南](https://github.com/CoreMatch/HA-Contract/blob/main/docs/dev/HRPAuth/README.md)
+
 # Requirements
   1.NPM  
   2.Node (>=22 is highly recomended)
