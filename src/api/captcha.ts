@@ -9,7 +9,7 @@ export type CaptchaFetchResult =
   | { enabled: true; token: string; imageUrl: string; expiresIn: number }
   | { enabled: false };
 
-type CaptchaErrorBody = { success?: boolean; message?: string };
+type CaptchaErrorBody = { success?: boolean; message?: string; code?: string; error?: string };
 
 /**
  * Query backend captcha global toggle (GET /captcha/enabled).
@@ -68,7 +68,7 @@ export async function requestCaptcha(): Promise<CaptchaFetchResult> {
       } catch {
         body = null;
       }
-      if (body?.message === 'Captcha is disabled') {
+      if (body?.code === 'captcha_disabled' || body?.error === 'captcha_disabled' || body?.message === 'Captcha is disabled') {
         return { enabled: false };
       }
     }
