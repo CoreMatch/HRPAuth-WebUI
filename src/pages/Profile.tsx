@@ -13,7 +13,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { Link as RouterLink } from 'react-router-dom';
 const SkinViewer3D = lazy(() => import('../components/SkinViewer3D'));
 import { request } from '../utils/api';
-import { getUserEmail, getAuthToken, getUid, getVerified, getTotpEnabled, setTotpEnabled, setAuthCookies } from '../utils/cookie';
+import { getUserEmail, getAuthToken, getUid, getVerified, getTotpEnabled, setTotpEnabled } from '../utils/cookie';
 import { BackendUrl } from '../utils/config';
 
 interface UserInfo {
@@ -523,8 +523,6 @@ export default function Profile() {
     setSaving(true);
     setSaveError(null);
     setSaveSuccess(false);
-
-    const token = getAuthToken();
 
     try {
       const resp = await request(`${BackendUrl}/change-username`, {
