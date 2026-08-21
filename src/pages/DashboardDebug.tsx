@@ -30,7 +30,7 @@ export default function DashboardDebug() {
       const token = getAuthToken();
       const uid = getUid();
       const email = getUserEmail();
-      const isLoggedIn = !!(token && uid && email);
+      const isLoggedIn = !!token;
 
       const startTime = performance.now();
       const timestamp = new Date().toISOString();
@@ -39,42 +39,32 @@ export default function DashboardDebug() {
         const base = BackendUrl;
         
         // 如果未登录，请求后端状态端点 /status；如果已登录，请求用户信息接口 /user
-        // 注意：根据 API 文档，状态端点是 /status 而不是根路径 /
         const url = isLoggedIn ? base + '/user' : base + '/status';
 
         const requestHeaders: Record<string, string> = {
           'Content-Type': 'application/json',
         };
 
+        if (isLoggedIn) {
+          requestHeaders['Authorization'] = `Bearer ${token}`;
+        }
+
         const requestParams: Record<string, string> = isLoggedIn ? {
-          uid: uid,
-          email: email,
-          remember_token: token.substring(0, 20) + '...',
+          uid: uid || 'N/A',
+          email: email || 'N/A',
+          access_token: token.substring(0, 10) + '...',
         } : {
           status: '未登录',
           mode: '获取服务状态'
         };
 
-        console.log('========== DashboardDebug 请求开始 ==========');
-        console.log('请求目标:', url);
-        console.log('BackendUrl 变量值:', `"${base}"`);
-        console.log('状态:', isLoggedIn ? '已登录' : '未登录');
-        console.log('请求方法:', isLoggedIn ? 'POST' : 'GET');
-        console.log('请求头:', requestHeaders);
-        console.log('请求参数:', requestParams);
-
         const fetchOptions: RequestInit = {
+          method: isLoggedIn ? 'POST' : 'GET',
           headers: requestHeaders,
-          credentials: isLoggedIn ? 'include' : 'omit',
         };
 
         if (isLoggedIn) {
-          fetchOptions.method = 'POST';
-          fetchOptions.body = JSON.stringify({ remember_token: token, uid, email });
-        } else {
-          fetchOptions.method = 'GET';
-          // 对于未登录的状态检查，通常不需要 credentials，可以尝试移除以减少 CORS 限制
-          // fetchOptions.credentials = 'omit';
+          fetchOptions.body = JSON.stringify({ uid, email });
         }
 
         const resp = await fetch(url, fetchOptions);

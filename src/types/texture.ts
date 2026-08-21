@@ -26,7 +26,6 @@ export interface TextureUploadRequest {
   description?: string;
   tags?: string;
   file: File;
-  remember_token: string;
 }
 
 export interface TextureListRequest {
@@ -37,24 +36,13 @@ export interface TextureListRequest {
 }
 
 export interface TextureListResponse {
-  success: boolean;
-  message: string;
-  data: {
-    items: TextureItem[];
-    filter: string;
-    order: string;
-    tag: string;
-    page: number;
-    page_size: number;
-    total: number;
-    has_more: boolean;
-  };
+  items: TextureItem[];
+  filter: string;
+  order: string;
+  tag: string;
+  page: number;
+  page_size: number;
+  total: number;
+  has_more: boolean;
 }
 
-export interface TextureApiError {
-  success: false;
-  message: string;
-  code?: string;
-}
-
-export type TextureApiResult<T> = (T | TextureApiError);

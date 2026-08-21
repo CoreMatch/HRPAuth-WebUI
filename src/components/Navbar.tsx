@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { AppBar, Toolbar, Typography, Button, Avatar, Menu, MenuItem, IconButton } from "@mui/material";
 import { Link, useNavigate } from "react-router-dom";
+import { request } from '../utils/api';
 import { getAuthToken, getUserEmail, clearAuthCookies } from '../utils/cookie';
 import { BackendUrl } from '../utils/config';
 
@@ -31,12 +32,7 @@ export default function Navbar() {
 
   const handleLogout = async () => {
     try {
-      const base = BackendUrl;
-      const url = base + '/logout';
-      await fetch(url, {
-        method: 'GET',
-        credentials: 'include',
-      });
+      await request(`${BackendUrl}/logout`, { method: 'GET' });
     } catch (error) {
       console.error('Logout API error:', error);
     } finally {

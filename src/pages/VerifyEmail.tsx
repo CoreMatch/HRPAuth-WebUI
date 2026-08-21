@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { TextField, Button, Typography, Box, Alert } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
+import { request } from '../utils/api';
 import { validateEmail } from '../utils/email';
 import { setCookie } from '../utils/cookie';
 import { BackendUrl } from '../utils/config';
@@ -60,23 +61,11 @@ export default function VerifyEmail() {
     setError(null);
 
     try {
-      const base = BackendUrl;
-      const url = base + '/email-verification';
-      const response = await fetch(url, {
+      const result = await request(`${BackendUrl}/email-verification`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'send-verification-code', email }),
       });
-
-      const text = await response.text();
-      let result;
-
-      try {
-        result = JSON.parse(text);
-      } catch {
-        setError(text);
-        return;
-      }
 
       if (result.success) {
         setCountdown(60);
@@ -100,23 +89,11 @@ export default function VerifyEmail() {
     setSuccess(null);
 
     try {
-      const base = BackendUrl;
-      const url = base + '/email-verification';
-      const response = await fetch(url, {
+      const result = await request(`${BackendUrl}/email-verification`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'verify-code', email, code: verificationCode }),
       });
-
-      const text = await response.text();
-      let result;
-
-      try {
-        result = JSON.parse(text);
-      } catch {
-        setError(text);
-        return;
-      }
 
       if (result.success) {
         setSuccess('邮箱验证成功！');

@@ -12,8 +12,9 @@ import Photo from '@mui/icons-material/Photo';
 import { QRCodeSVG } from 'qrcode.react';
 import { Link as RouterLink } from 'react-router-dom';
 const SkinViewer3D = lazy(() => import('../components/SkinViewer3D'));
-import { getUserEmail, getAuthToken, getUid, getVerified, getTotpEnabled, setTotpEnabled } from '../utils/cookie';
-import { getApiUrl, BackendUrl } from '../utils/config';
+import { request } from '../utils/api';
+import { getUserEmail, getAuthToken, getUid, getVerified, getTotpEnabled, setTotpEnabled, setAuthCookies } from '../utils/cookie';
+import { BackendUrl } from '../utils/config';
 
 interface UserInfo {
   email: string;
@@ -21,7 +22,7 @@ interface UserInfo {
   avatar?: string;
   verified?: boolean;
   totp_enabled: boolean;
-  uuid?: string;
+  uid?: number;
 }
 
 type TextureType = 'skin' | 'cape';
@@ -83,26 +84,15 @@ function TextureManageDialog({ open, onClose, token, onUpdated }: TextureManageD
 
   const fetchTextures = async () => {
     try {
-      const backendUrl = BackendUrl;
-      const response = await fetch(`${backendUrl}/texture/get`, {
+      const response = await request(`${BackendUrl}/texture/get`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          remember_token: token,
-        }),
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.data && data.data.textures) {
-          const skinTexture = data.data.textures.find((t: TextureInfo) => t.texture_type === 'skin');
-          const capeTexture = data.data.textures.find((t: TextureInfo) => t.texture_type === 'cape');
-          setSkinCurrentUrl(skinTexture?.url ? `${normalizeTextureUrl(skinTexture.url)}?${Date.now()}` : null);
-          setCapeCurrentUrl(capeTexture?.url ? `${normalizeTextureUrl(capeTexture.url)}?${Date.now()}` : null);
-        } else {
-          setSkinCurrentUrl(null);
-          setCapeCurrentUrl(null);
-        }
+      if (response.success && response.data && response.data.textures) {
+        const skinTexture = response.data.textures.find((t: TextureInfo) => t.texture_type === 'skin');
+        const capeTexture = response.data.textures.find((t: TextureInfo) => t.texture_type === 'cape');
+        setSkinCurrentUrl(skinTexture?.url ? `${normalizeTextureUrl(skinTexture.url)}?${Date.now()}` : null);
+        setCapeCurrentUrl(capeTexture?.url ? `${normalizeTextureUrl(capeTexture.url)}?${Date.now()}` : null);
       } else {
         setSkinCurrentUrl(null);
         setCapeCurrentUrl(null);
@@ -172,20 +162,16 @@ function TextureManageDialog({ open, onClose, token, onUpdated }: TextureManageD
     setError(null);
 
     try {
-      const backendUrl = BackendUrl;
       const formData = new FormData();
-      formData.append('remember_token', token);
       formData.append('texture_type', type);
       formData.append('file', file);
 
-      const response = await fetch(`${backendUrl}/texture/upload`, {
+      const response = await request(`${BackendUrl}/texture/upload`, {
         method: 'POST',
         body: formData,
       });
 
-      const data = await response.json().catch(() => null);
-
-      if (response.ok && data?.success) {
+      if (response.success) {
         setSuccess({ type, action: 'upload' });
         if (type === 'skin') {
           setSkinFile(null);
@@ -199,7 +185,7 @@ function TextureManageDialog({ open, onClose, token, onUpdated }: TextureManageD
         await fetchTextures();
         onUpdated?.();
       } else {
-        setError(data?.message || '上传失败');
+        setError(response.message || '上传失败');
       }
     } catch {
       setError('服务器错误');
@@ -213,19 +199,15 @@ function TextureManageDialog({ open, onClose, token, onUpdated }: TextureManageD
     setError(null);
 
     try {
-      const backendUrl = BackendUrl;
-      const response = await fetch(`${backendUrl}/texture/delete`, {
+      const response = await request(`${BackendUrl}/texture/delete`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          remember_token: token,
           texture_type: type,
         }),
       });
 
-      const data = await response.json().catch(() => null);
-
-      if (response.ok && data?.success) {
+      if (response.success) {
         setSuccess({ type, action: 'delete' });
         if (type === 'skin') {
           setSkinCurrentUrl(null);
@@ -234,7 +216,7 @@ function TextureManageDialog({ open, onClose, token, onUpdated }: TextureManageD
         }
         onUpdated?.();
       } else {
-        setError(data?.message || '删除失败');
+        setError(response.message || '删除失败');
       }
     } catch {
       setError('服务器错误');
@@ -419,33 +401,22 @@ export default function Profile() {
   const [capeUrl, setCapeUrl] = useState<string | null>(null);
 
   const fetchTextures = async () => {
-    const token = getAuthToken();
-    if (!token) return;
-
     try {
-      const backendUrl = BackendUrl;
-      const response = await fetch(`${backendUrl}/texture/get`, {
+      const response = await request(`${BackendUrl}/texture/get`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          remember_token: token,
-        }),
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.data && Array.isArray(data.data.textures)) {
-          const skinTexture = data.data.textures.find(
-            (t: TextureInfo) => t.texture_type === 'skin'
-          );
-          const capeTexture = data.data.textures.find(
-            (t: TextureInfo) => t.texture_type === 'cape'
-          );
-          const cacheBust = Date.now();
-          setSkinUrl(skinTexture?.url ? `${normalizeTextureUrl(skinTexture.url)}?${cacheBust}` : null);
-          setCapeUrl(capeTexture?.url ? `${normalizeTextureUrl(capeTexture.url)}?${cacheBust}` : null);
-          return;
-        }
+      if (response.success && response.data && Array.isArray(response.data.textures)) {
+        const skinTexture = response.data.textures.find(
+          (t: TextureInfo) => t.texture_type === 'skin'
+        );
+        const capeTexture = response.data.textures.find(
+          (t: TextureInfo) => t.texture_type === 'cape'
+        );
+        const cacheBust = Date.now();
+        setSkinUrl(skinTexture?.url ? `${normalizeTextureUrl(skinTexture.url)}?${cacheBust}` : null);
+        setCapeUrl(capeTexture?.url ? `${normalizeTextureUrl(capeTexture.url)}?${cacheBust}` : null);
+        return;
       }
       setSkinUrl(null);
       setCapeUrl(null);
@@ -465,59 +436,52 @@ export default function Profile() {
       const token = getAuthToken();
       const uid = getUid();
 
-      if (!email || !token || !uid) {
+      if (!token) {
         setError('未登录或登录已过期');
         setLoading(false);
         return;
       }
 
       try {
-        const resp = await fetch(getApiUrl('/user'), {
+        const resp = await request(`${BackendUrl}/user`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          credentials: 'include',
-          body: JSON.stringify({ remember_token: token, uid, email }),
+          body: JSON.stringify({ uid, email }),
         });
 
-        const data = await resp.json().catch(() => ({
-          success: false,
-          message: '服务器返回无法解析的响应',
-        }));
-
         let totpEnabled: boolean;
-        if (resp.ok && data.success && data.data) {
-          const apiTotp = data.data.totp_enabled;
+        if (resp.success && resp.data) {
+          const apiTotp = resp.data.totp_enabled;
           totpEnabled = apiTotp !== undefined ? Boolean(apiTotp) : (getTotpEnabled() ?? false);
           setUserInfo({
-            email: data.data.email || email,
-            username: data.data.username || email.split('@')[0],
-            avatar: data.data.avatar,
-            verified: Boolean(data.data.verified),
+            email: resp.data.email || email || '',
+            username: resp.data.username || (email ? email.split('@')[0] : 'User'),
+            avatar: resp.data.avatar,
+            verified: Boolean(resp.data.verified),
             totp_enabled: totpEnabled,
+            uid: resp.data.uid,
           });
         } else {
           totpEnabled = getTotpEnabled() ?? false;
           setUserInfo({
-            email,
-            username: email.split('@')[0],
+            email: email || '',
+            username: email ? email.split('@')[0] : 'User',
             verified: Boolean(getVerified()),
             totp_enabled: totpEnabled,
           });
         }
 
-        // 根据 API_DOC.md 中的 POST /totp/hasbeenenabled 权威校验 totp 状态
+        // 根据 API_DOC.md 中的 POST /totp/hasbeenenabled 权威校验 totp状态
         try {
-          const totpResp = await fetch(getApiUrl('/totp/hasbeenenabled'), {
+          const totpResp = await request(`${BackendUrl}/totp/hasbeenenabled`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({ uid, rt: token }),
+            body: JSON.stringify({ uid }),
           });
-          const totpData = await totpResp.json().catch(() => null);
-          if (totpResp.ok && totpData && totpData.success && typeof totpData.enabled !== 'undefined') {
-            const serverTotp = Boolean(Number(totpData.enabled));
+          if (totpResp.success && typeof totpResp.data?.enabled !== 'undefined') {
+            const serverTotp = Boolean(Number(totpResp.data.enabled));
             setTotpEnabled(serverTotp);
             setUserInfo(prev => prev ? { ...prev, totp_enabled: serverTotp } : prev);
           }
@@ -527,8 +491,8 @@ export default function Profile() {
       } catch {
         const cookieTotp = getTotpEnabled();
         setUserInfo({
-          email,
-          username: email.split('@')[0],
+          email: email || '',
+          username: email ? email.split('@')[0] : 'User',
           verified: Boolean(getVerified()),
           totp_enabled: cookieTotp !== undefined ? cookieTotp : false,
         });
@@ -563,29 +527,23 @@ export default function Profile() {
     const token = getAuthToken();
 
     try {
-      const resp = await fetch(getApiUrl('/change-username'), {
+      const resp = await request(`${BackendUrl}/change-username`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        credentials: 'include',
-        body: JSON.stringify({ remember_token: token, username: newUsername }),
+        body: JSON.stringify({ username: newUsername }),
       });
 
-      const data = await resp.json().catch(() => ({
-        success: false,
-        message: '服务器返回无法解析的响应',
-      }));
-
-      if (data.success) {
-        const updatedUsername = data.data?.username || newUsername;
+      if (resp.success) {
+        const updatedUsername = resp.data?.username || newUsername;
         setUserInfo(prev => prev ? { ...prev, username: updatedUsername } : null);
         setSaveSuccess(true);
         setEditMode(false);
         setNewUsername('');
         setTimeout(() => setSaveSuccess(false), 3000);
       } else {
-        setSaveError(data.message || '修改失败');
+        setSaveError(resp.message || '修改失败');
       }
     } catch {
       setSaveError('服务器错误');
@@ -618,25 +576,19 @@ export default function Profile() {
     setSetupSuccess(false);
 
     try {
-      const resp = await fetch(getApiUrl('/totp/setup'), {
+      const resp = await request(`${BackendUrl}/totp/setup`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        credentials: 'include',
-        body: JSON.stringify({ email, remtoken: token }),
+        body: JSON.stringify({ email }),
       });
 
-      const data = await resp.json().catch(() => ({
-        success: false,
-        message: '服务器返回无法解析的响应',
-      }));
-
-      if (data.success && data.totpkey) {
-        setTotpKey(data.totpkey);
+      if (resp.success && resp.data?.totpkey) {
+        setTotpKey(resp.data.totpkey);
         setTotpDialogOpen(true);
       } else {
-        setTotpError(data.message || '设置 TOTP 失败');
+        setTotpError(resp.message || '设置 TOTP 失败');
       }
     } catch {
       setTotpError('服务器错误');
@@ -670,21 +622,15 @@ export default function Profile() {
     setPasscodeError(null);
 
     try {
-      const resp = await fetch(getApiUrl('/totp/verify'), {
+      const resp = await request(`${BackendUrl}/totp/verify`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        credentials: 'include',
         body: JSON.stringify({ email, passcode }),
       });
 
-      const data = await resp.json().catch(() => ({
-        success: false,
-        message: '服务器返回无法解析的响应',
-      }));
-
-      if (data.success) {
+      if (resp.success) {
         setSetupSuccess(true);
         setUserInfo(prev => prev ? { ...prev, totp_enabled: true } : null);
         setTotpEnabled(true);
@@ -692,7 +638,7 @@ export default function Profile() {
           handleCloseTotpDialog();
         }, 1500);
       } else {
-        setPasscodeError(data.message || '验证失败');
+        setPasscodeError(resp.message || '验证失败');
       }
     } catch {
       setPasscodeError('服务器错误');

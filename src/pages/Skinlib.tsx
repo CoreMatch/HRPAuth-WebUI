@@ -106,10 +106,9 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ open, onClose, onSuccess })
         description,
         tags,
         file,
-        remember_token: token,
       });
 
-      if ('success' in result && result.success) {
+      if (result.success) {
         onSuccess();
         handleClose();
       } else {
@@ -273,7 +272,7 @@ const Skinlib: React.FC = () => {
         page
       });
 
-      if ('success' in result && result.success) {
+      if (result.success && result.data) {
         setTextures(result.data.items);
         setTotal(result.data.total);
       } else {
@@ -311,7 +310,6 @@ const Skinlib: React.FC = () => {
       const file = new File([blob as Blob], item.file_name, { type: 'image/png' });
 
       const result = await applyTextureToUser(
-        token, 
         item.type, 
         file, 
         item.type === 'skin' ? (item.model || 'default') : undefined,

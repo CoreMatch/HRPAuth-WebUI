@@ -53,34 +53,28 @@ describe('cookie utilities', () => {
   });
 
   describe('setAuthCookies', () => {
-    it('persists email, token, and uid through helpers', () => {
-      setAuthCookies('user@example.com', 'token123', '42');
+    it('persists email, tokens, and uid through helpers', () => {
+      setAuthCookies('user@example.com', 'access123', 'refresh456', '42');
       expect(getUserEmail()).toBe('user@example.com');
       expect(getUid()).toBe('42');
-      expect(getAuthToken()).toBe('token123');
+      expect(getAuthToken()).toBe('access123');
     });
 
     it('persists verified and totp flags when provided', () => {
-      setAuthCookies('user@example.com', 'token123', '42', true, false);
+      setAuthCookies('user@example.com', 'access123', 'refresh456', '42', true, false);
       expect(getVerified()).toBe(true);
       expect(getTotpEnabled()).toBe(false);
     });
 
     it('does not set verified/totp cookies when omitted', () => {
-      setAuthCookies('user@example.com', 'token123', '42');
+      setAuthCookies('user@example.com', 'access123', 'refresh456', '42');
       expect(getVerified()).toBeUndefined();
       expect(getTotpEnabled()).toBeUndefined();
     });
   });
 
   describe('getAuthToken / getUid', () => {
-    it('returns null when hrpa_auth cookie is missing', () => {
-      expect(getAuthToken()).toBeNull();
-      expect(getUid()).toBeNull();
-    });
-
-    it('returns null when hrpa_auth has malformed payload', () => {
-      setCookie('hrpa_auth', 'not-a-valid-pair');
+    it('returns null when access_token cookie is missing', () => {
       expect(getAuthToken()).toBeNull();
       expect(getUid()).toBeNull();
     });
@@ -95,7 +89,7 @@ describe('cookie utilities', () => {
     });
 
     it('clears all auth-related cookies', () => {
-      setAuthCookies('user@example.com', 'token123', '42', true, true);
+      setAuthCookies('user@example.com', 'access123', 'refresh456', '42', true, true);
       clearAuthCookies();
       expect(getUserEmail()).toBeNull();
       expect(getUid()).toBeNull();

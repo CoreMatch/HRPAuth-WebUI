@@ -62,7 +62,22 @@ export function deleteCookie(name: string, options: Pick<CookieOptions, 'domain'
   document.cookie = cookieString;
 }
 
-export function setAuthCookies(email: string, token: string, uid: string, verified?: boolean, totp?: boolean): void {
+export function setAuthCookies(
+  email: string,
+  accessToken: string,
+  refreshToken: string,
+  uid: string,
+  verified?: boolean,
+  totp?: boolean,
+  expiresIn?: number
+): void {
+  const expiryDate = new Date();
+  if (expiresIn) {
+    expiryDate.setSeconds(expiryDate.getSeconds() + expiresIn);
+  } else {
+    expiryDate.setFullYear(expiryDate.getFullYear() + 10);
+  }
+
   const farFuture = new Date();
   farFuture.setFullYear(farFuture.getFullYear() + 10);
 
@@ -73,7 +88,21 @@ export function setAuthCookies(email: string, token: string, uid: string, verifi
     secure: window.location.protocol === 'https'
   });
 
-  setCookie('hrpa_auth', `${uid}|${token}`, {
+  setCookie('access_token', accessToken, {
+    expires: expiryDate,
+    path: '/',
+    sameSite: 'lax',
+    secure: window.location.protocol === 'https'
+  });
+
+  setCookie('refresh_token', refreshToken, {
+    expires: farFuture,
+    path: '/',
+    sameSite: 'lax',
+    secure: window.location.protocol === 'https'
+  });
+
+  setCookie('uid', uid, {
     expires: farFuture,
     path: '/',
     sameSite: 'lax',
@@ -125,17 +154,19 @@ export function setTotpEnabled(totp: boolean): void {
 
 export function clearAuthCookies(): void {
   deleteCookie('user_email');
-  deleteCookie('hrpa_auth');
+  deleteCookie('access_token');
+  deleteCookie('refresh_token');
+  deleteCookie('uid');
   deleteCookie('verified');
   deleteCookie('totp_enabled');
 }
 
 export function getAuthToken(): string | null {
-  const hrpaAuth = getCookie('hrpa_auth');
-  if (!hrpaAuth) return null;
-  
-  const parts = hrpaAuth.split('|');
-  return parts.length === 2 ? parts[1] : null;
+  return getCookie('access_token');
+}
+
+export function getRefreshToken(): string | null {
+  return getCookie('refresh_token');
 }
 
 export function getUserEmail(): string | null {
@@ -143,9 +174,5 @@ export function getUserEmail(): string | null {
 }
 
 export function getUid(): string | null {
-  const hrpaAuth = getCookie('hrpa_auth');
-  if (!hrpaAuth) return null;
-  
-  const parts = hrpaAuth.split('|');
-  return parts.length === 2 ? parts[0] : null;
+  return getCookie('uid');
 }

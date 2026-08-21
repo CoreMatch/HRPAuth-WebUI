@@ -8,9 +8,8 @@ export interface RegisterRequest {
 }
 
 export interface RegisterResponse {
-  success: boolean;
-  uid?: number;
-  message: string;
+  uid: number;
+  profile_id: string;
 }
 
 export interface RegisterError {
