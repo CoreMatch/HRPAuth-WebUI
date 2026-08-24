@@ -13,6 +13,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { Link as RouterLink } from 'react-router-dom';
 const SkinViewer3D = lazy(() => import('../components/SkinViewer3D'));
 import { request } from '../utils/api';
+import { verifyTotp } from '../api/auth';
 import { getUserEmail, getAuthToken, getUid, getVerified, getTotpEnabled, setTotpEnabled } from '../utils/cookie';
 import { BackendUrl } from '../utils/config';
 
@@ -472,22 +473,6 @@ export default function Profile() {
             totp_enabled: totpEnabled,
           });
         }
-
-        // 根据 API_DOC.md 中的 POST /totp/hasbeenenabled 权威校验 totp状态
-        try {
-          const totpResp = await request(`${BackendUrl}/totp/hasbeenenabled`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ uid }),
-          });
-          if (totpResp.success && typeof totpResp.data?.enabled !== 'undefined') {
-            const serverTotp = Boolean(Number(totpResp.data.enabled));
-            setTotpEnabled(serverTotp);
-            setUserInfo(prev => prev ? { ...prev, totp_enabled: serverTotp } : prev);
-          }
-        } catch {
-          // 静默失败，沿用之前的 totp 状态
-        }
       } catch {
         const cookieTotp = getTotpEnabled();
         setUserInfo({
@@ -620,13 +605,7 @@ export default function Profile() {
     setPasscodeError(null);
 
     try {
-      const resp = await request(`${BackendUrl}/totp/verify`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, passcode }),
-      });
+      const resp = await verifyTotp(email, passcode, true);
 
       if (resp.success) {
         setSetupSuccess(true);

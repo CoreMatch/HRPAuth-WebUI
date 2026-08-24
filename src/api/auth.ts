@@ -29,12 +29,20 @@ export async function getLoginTicket(email: string, password: string): Promise<A
   });
 }
 
-export async function verifyTotp(loginTicket: string, passcode: string): Promise<ApiResponse<LoginResponse>> {
+export async function verifyTotp(
+  identifier: string,
+  passcode: string,
+  isSetup: boolean = false
+): Promise<ApiResponse<LoginResponse>> {
   const url = `${BackendUrl}/totp/verify`;
+  const body = isSetup
+    ? { email: identifier, passcode }
+    : { login_ticket: identifier, passcode };
+
   return request<LoginResponse>(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ login_ticket: loginTicket, passcode }),
+    body: JSON.stringify(body),
   });
 }
 

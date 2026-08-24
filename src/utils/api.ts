@@ -5,6 +5,10 @@ export interface ApiResponse<T = any> {
   message: string;
   data?: T;
   code?: string;
+  meta?: {
+    request_id: string;
+    [key: string]: any;
+  };
 }
 
 export async function request<T = any>(
