@@ -39,6 +39,14 @@ export async function request<T = any>(
       };
     }
 
+    if (!body || typeof body !== 'object') {
+      return {
+        success: false,
+        message: '服务器返回了无效的响应',
+        code: 'invalid_response',
+      };
+    }
+
     return body;
   } catch (error) {
     return {
