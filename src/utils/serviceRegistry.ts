@@ -1,6 +1,7 @@
 import { BackendUrl } from './config';
 import { getUid } from './cookie';
 import { registerPresence, discoverServices, type ServiceSummary } from '../api/services';
+import type { ServiceSDK } from '../types/service-sdk';
 
 /**
  * 前端 SPA 微服务注册表。
@@ -47,6 +48,20 @@ let discoveredServices: ServiceSummary[] = [];
 /** 当前发现到的微服务列表（每次心跳后更新）。 */
 export function getDiscoveredServices(): ServiceSummary[] {
   return discoveredServices;
+}
+
+/** SDK 全局对象键名约定：window[`${serviceName}-sdk`]。 */
+function sdkGlobalKey(name: string): string {
+  return `${name}-sdk`;
+}
+
+/**
+ * 读取已加载微服务的 SDK 全局对象（见 src/types/service-sdk.d.ts 的约定）。
+ * 返回 undefined 表示该 SDK 未加载或未按约定暴露全局对象。
+ */
+export function getServiceSDK<T extends ServiceSDK = ServiceSDK>(name: string): T | undefined {
+  const sdk = (window as unknown as Record<string, unknown>)[sdkGlobalKey(name)];
+  return (typeof sdk === 'object' && sdk !== null ? sdk : undefined) as T | undefined;
 }
 
 async function sendHeartbeat(): Promise<void> {
