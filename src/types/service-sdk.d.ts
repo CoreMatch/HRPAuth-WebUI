@@ -17,12 +17,25 @@ export interface ServiceSDKInitOptions {
   area: string;
 }
 
+/** 微服务在导航栏中声明的菜单项。 */
+export interface ServiceSDKMenu {
+  /** 菜单显示文本。 */
+  label: string;
+}
+
 /** 微服务 SDK 全局对象的最小约定结构。 */
 export interface ServiceSDK {
   /** 服务名（应与 presence 注册的 name 一致）。 */
   name: string;
   /** SDK 版本号。 */
   version: string;
+  /** 在导航栏菜单中声明一项（可选）。 */
+  menu?: ServiceSDKMenu;
+  /**
+   * 菜单项打开时 iframe 嵌入的 URL（可选，配合 menu 使用）。
+   * 绝对 URL 或相对路径均可；相对路径按页面当前 origin 解析。
+   */
+  iframeUrl?: string;
   /** 初始化钩子：SDK 注入后由前端调用（可选，具体语义与微服务协商）。 */
   init?: (options: ServiceSDKInitOptions) => void;
 }

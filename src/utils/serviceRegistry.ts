@@ -64,6 +64,17 @@ export function getServiceSDK<T extends ServiceSDK = ServiceSDK>(name: string): 
   return (typeof sdk === 'object' && sdk !== null ? sdk : undefined) as T | undefined;
 }
 
+type SDKLoadedListener = (name: string) => void;
+const sdkLoadedListeners = new Set<SDKLoadedListener>();
+
+/** 订阅某服务 SDK 加载完成事件，返回取消订阅函数。 */
+export function onSDKLoaded(listener: SDKLoadedListener): () => void {
+  sdkLoadedListeners.add(listener);
+  return () => {
+    sdkLoadedListeners.delete(listener);
+  };
+}
+
 async function sendHeartbeat(): Promise<void> {
   if (!isLoggedIn()) {
     return; // 未登录不注册 presence
@@ -91,7 +102,12 @@ function loadSDK(name: string): void {
   script.src = url;
   script.dataset.serviceSdk = name;
   script.async = true;
-  script.onload = () => console.log(`[Services] SDK 加载成功: ${name}`);
+  script.onload = () => {
+    console.log(`[Services] SDK 加载成功: ${name}`);
+    for (const listener of sdkLoadedListeners) {
+      listener(name);
+    }
+  };
   script.onerror = () => console.warn(`[Services] SDK 加载失败: ${name}`);
   document.head.appendChild(script);
 }
