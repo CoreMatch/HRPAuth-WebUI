@@ -94,11 +94,17 @@ async function sendHeartbeat(): Promise<void> {
 }
 
 function loadSDK(name: string, sdkUrl?: string): void {
-  if (document.querySelector(`script[data-service-sdk="${name}"]`)) {
-    return; // 已注入，避免重复加载
-  }
   // 优先使用服务声明的外部 sdk_url；未声明时回退到后端中继接口。
   const url = sdkUrl || `${BackendUrl}/services/sdk/${encodeURIComponent(name)}`;
+  const existing = document.querySelector<HTMLScriptElement>(`script[data-service-sdk="${name}"]`);
+  if (existing) {
+    // 已注入过且 URL 一致则复用；URL 变化（如服务新声明了 sdk_url）时移除旧脚本重新注入，
+    // 避免此前指向错误地址的残留脚本永久阻塞加载。
+    if (existing.getAttribute('src') === url) {
+      return;
+    }
+    existing.remove();
+  }
   const script = document.createElement('script');
   script.src = url;
   script.dataset.serviceSdk = name;
@@ -109,7 +115,10 @@ function loadSDK(name: string, sdkUrl?: string): void {
       listener(name);
     }
   };
-  script.onerror = () => console.warn(`[Services] SDK 加载失败: ${name}`);
+  script.onerror = () => {
+    console.warn(`[Services] SDK 加载失败: ${name} (${url})`);
+    script.remove(); // 失败后移除，下轮心跳可重试
+  };
   document.head.appendChild(script);
 }
 
