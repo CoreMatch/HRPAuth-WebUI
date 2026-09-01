@@ -16,6 +16,9 @@ import { getRealBackendUrl } from '../utils/config';
 import { useMeta } from '../hooks/useMeta';
 import PersonIcon from '@mui/icons-material/Person';
 import Profile from './Profile';
+import { getDiscoveredServices, getServiceSDK, onSDKLoaded } from '../utils/serviceRegistry';
+import type { ServiceSummary } from '../api/services';
+import type { ServiceSDK, ServiceSDKDashboard } from '../types/service-sdk';
 
 function CodeBlock({ children }: { children: string }) {
   return (
@@ -107,6 +110,8 @@ interface MenuItem {
   content: string;
   jsxContent?: React.ReactNode;
   icon?: React.ReactNode;
+  /** 微服务动态项：内容区 iframe 嵌入地址 */
+  url?: string;
 }
 
 const menuItems: MenuItem[] = [
@@ -118,6 +123,37 @@ const menuItems: MenuItem[] = [
 export default function PermanentDrawerLeft() {
   useMeta('dash');
   const [selectedItem, setSelectedItem] = useState<string | null>('Profile');
+  const [, setSdkTick] = useState(0);
+
+  // 微服务 SDK 异步加载，加载完成后重渲染以读取其 dashboard 声明。
+  useEffect(() => {
+    return onSDKLoaded(() => setSdkTick((t) => t + 1));
+  }, []);
+
+  // 声明了 dashboard 的微服务：追加为左侧菜单项，内容区 iframe 嵌入。
+  const serviceItems: MenuItem[] = getDiscoveredServices()
+    .map((svc) => ({ svc, sdk: getServiceSDK(svc.name) }))
+    .filter(
+      (item): item is { svc: ServiceSummary; sdk: ServiceSDK & { dashboard: ServiceSDKDashboard } } =>
+        item.sdk?.dashboard != null
+    )
+    .flatMap(({ svc, sdk }) => {
+      const url = sdk.dashboard.url ?? sdk.iframeUrl;
+      return url
+        ? [
+            {
+              id: svc.name,
+              label: sdk.dashboard.label,
+              content: '',
+              url,
+              icon: <ApiIcon />,
+            } satisfies MenuItem,
+          ]
+        : [];
+    });
+
+  const allItems: MenuItem[] = [...menuItems, ...serviceItems];
+  const selected = allItems.find((item) => item.id === selectedItem) ?? null;
 
   return (
     <Box sx={{ display: 'flex', minHeight: 'calc(100vh - 64px)' }}>
@@ -140,34 +176,39 @@ export default function PermanentDrawerLeft() {
         <Toolbar />
         <Divider />
         <List sx={{ py: 1 }}>
-          {menuItems.map((item) => (
-            <ListItem key={item.id} disablePadding sx={{ mx: 1, my: 0.5, borderRadius: 1 }}>
-              <ListItemButton
-                selected={selectedItem === item.id}
-                onClick={() => setSelectedItem(item.id)}
-                sx={{
-                  borderRadius: 1,
-                  '&.Mui-selected': {
-                    bgcolor: 'primary.main',
-                    color: 'primary.contrastText',
-                    '& .MuiListItemIcon-root': {
+          {allItems.map((item, index) => (
+            <React.Fragment key={item.id}>
+              {serviceItems.length > 0 && index === menuItems.length && (
+                <Divider sx={{ my: 1 }} />
+              )}
+              <ListItem disablePadding sx={{ mx: 1, my: 0.5, borderRadius: 1 }}>
+                <ListItemButton
+                  selected={selectedItem === item.id}
+                  onClick={() => setSelectedItem(item.id)}
+                  sx={{
+                    borderRadius: 1,
+                    '&.Mui-selected': {
+                      bgcolor: 'primary.main',
                       color: 'primary.contrastText',
+                      '& .MuiListItemIcon-root': {
+                        color: 'primary.contrastText',
+                      },
+                      '&:hover': {
+                        bgcolor: 'primary.dark',
+                      },
                     },
                     '&:hover': {
-                      bgcolor: 'primary.dark',
+                      bgcolor: 'action.hover',
                     },
-                  },
-                  '&:hover': {
-                    bgcolor: 'action.hover',
-                  },
-                }}
-              >
-                <ListItemIcon sx={{ minWidth: 40 }}>
-                  {item.icon}
-                </ListItemIcon>
-                <ListItemText primary={item.label} />
-              </ListItemButton>
-            </ListItem>
+                  }}
+                >
+                  <ListItemIcon sx={{ minWidth: 40 }}>
+                    {item.icon}
+                  </ListItemIcon>
+                  <ListItemText primary={item.label} />
+                </ListItemButton>
+              </ListItem>
+            </React.Fragment>
           ))}
         </List>
       </Drawer>
@@ -176,12 +217,25 @@ export default function PermanentDrawerLeft() {
         sx={{ flexGrow: 1, bgcolor: 'background.default', p: 3 }}
       >
         <Typography variant="h5" sx={{ marginBottom: 2 }}>
-          {menuItems.find(item => item.id === selectedItem)?.label}
+          {selected?.label}
         </Typography>
-        {menuItems.find(item => item.id === selectedItem)?.jsxContent ?? (
-          <Typography sx={{ whiteSpace: 'pre-line' }}>
-            {menuItems.find(item => item.id === selectedItem)?.content}
-          </Typography>
+        {selected?.url ? (
+          <iframe
+            title={selected.label}
+            src={selected.url}
+            style={{
+              width: '100%',
+              height: 'calc(100vh - 160px)',
+              border: 'none',
+              borderRadius: 8,
+            }}
+          />
+        ) : (
+          selected?.jsxContent ?? (
+            <Typography sx={{ whiteSpace: 'pre-line' }}>
+              {selected?.content}
+            </Typography>
+          )
         )}
       </Box>
     </Box>

@@ -23,6 +23,17 @@ export interface ServiceSDKMenu {
   label: string;
 }
 
+/** 微服务在 Dashboard 中插入的页面项。 */
+export interface ServiceSDKDashboard {
+  /** Dashboard 左侧菜单显示的标签。 */
+  label: string;
+  /**
+   * 内容区 iframe 嵌入的 URL；缺省回退到 sdk.iframeUrl。
+   * 绝对 URL 或相对路径均可，相对路径按页面当前 origin 解析。
+   */
+  url?: string;
+}
+
 /** 微服务 SDK 全局对象的最小约定结构。 */
 export interface ServiceSDK {
   /** 服务名（应与 presence 注册的 name 一致）。 */
@@ -31,6 +42,8 @@ export interface ServiceSDK {
   version: string;
   /** 在导航栏菜单中声明一项（可选）。 */
   menu?: ServiceSDKMenu;
+  /** 在 Dashboard 左侧菜单插入一项，内容区 iframe 嵌入（可选）。 */
+  dashboard?: ServiceSDKDashboard;
   /**
    * 菜单项打开时 iframe 嵌入的 URL（可选，配合 menu 使用）。
    * 绝对 URL 或相对路径均可；相对路径按页面当前 origin 解析。
