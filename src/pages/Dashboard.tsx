@@ -11,7 +11,6 @@ import ListItemText from '@mui/material/ListItemText';
 import { Box, Card, CardContent, Grid, Button } from "@mui/material";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import ApiIcon from '@mui/icons-material/Api';
-import FaceIcon from '@mui/icons-material/Face';
 import { getRealBackendUrl } from '../utils/config';
 import { useMeta } from '../hooks/useMeta';
 import PersonIcon from '@mui/icons-material/Person';
@@ -118,7 +117,6 @@ interface MenuItem {
 const menuItems: MenuItem[] = [
   { id: 'Profile', label: 'Profile', content: '', jsxContent: <Profile />, icon: <PersonIcon /> },
   { id: 'Yggdrasil API', label: 'Yggdrasil API', content: '', jsxContent: <YggdrasilDashboard />, icon: <ApiIcon /> },
-  { id: 'CustomSkinLoader', label: 'CustomSkinLoader', content: '', icon: <FaceIcon /> },
 ];
 
 export default function PermanentDrawerLeft() {
