@@ -19,6 +19,7 @@ import Profile from './Profile';
 import { getDiscoveredServices, getServiceSDK, onSDKLoaded } from '../utils/serviceRegistry';
 import type { ServiceSummary } from '../api/services';
 import type { ServiceSDK, ServiceSDKDashboard } from '../types/service-sdk';
+import ServicePanel from '../components/ServicePanel';
 
 function CodeBlock({ children }: { children: string }) {
   return (
@@ -110,7 +111,7 @@ interface MenuItem {
   content: string;
   jsxContent?: React.ReactNode;
   icon?: React.ReactNode;
-  /** 微服务动态项：内容区 iframe 嵌入地址 */
+  /** 微服务动态项：内容区嵌入地址（优先 mount 组件，回退 iframe） */
   url?: string;
 }
 
@@ -130,7 +131,7 @@ export default function PermanentDrawerLeft() {
     return onSDKLoaded(() => setSdkTick((t) => t + 1));
   }, []);
 
-  // 声明了 dashboard 的微服务：追加为左侧菜单项，内容区 iframe 嵌入。
+  // 声明了 dashboard 的微服务：追加为左侧菜单项，内容区动态加载组件（回退 iframe）。
   const serviceItems: MenuItem[] = getDiscoveredServices()
     .map((svc) => ({ svc, sdk: getServiceSDK(svc.name) }))
     .filter(
@@ -220,15 +221,11 @@ export default function PermanentDrawerLeft() {
           {selected?.label}
         </Typography>
         {selected?.url ? (
-          <iframe
-            title={selected.label}
-            src={selected.url}
-            style={{
-              width: '100%',
-              height: 'calc(100vh - 160px)',
-              border: 'none',
-              borderRadius: 8,
-            }}
+          <ServicePanel
+            name={selected.id}
+            area="webui-dash"
+            url={selected.url}
+            height="calc(100vh - 160px)"
           />
         ) : (
           selected?.jsxContent ?? (

@@ -17,6 +17,12 @@ export interface ServiceSDKInitOptions {
   area: string;
 }
 
+/** SDK mount 挂载入参。 */
+export interface ServiceSDKMountOptions {
+  /** 当前所在前端区域，如 'webui-dash' 或 'webui-service'。 */
+  area: string;
+}
+
 /** 微服务在导航栏中声明的菜单项。 */
 export interface ServiceSDKMenu {
   /** 菜单显示文本。 */
@@ -49,6 +55,12 @@ export interface ServiceSDK {
    * 绝对 URL 或相对路径均可；相对路径按页面当前 origin 解析。
    */
   iframeUrl?: string;
+  /**
+   * 动态加载组件（可选）：把组件挂载到容器，返回可选清理函数。
+   * 用任意技术渲染（原生 DOM / Web Component / 自带 React）。
+   * 存在时优先于 iframeUrl；未提供时回退 iframe 嵌入。
+   */
+  mount?: (container: HTMLElement, options: ServiceSDKMountOptions) => void | (() => void);
   /** 初始化钩子：SDK 注入后由前端调用（可选，具体语义与微服务协商）。 */
   init?: (options: ServiceSDKInitOptions) => void;
 }
