@@ -3,6 +3,7 @@ import { Box, Typography, Card, CardContent, CircularProgress, Alert, Paper, Sta
 import { getAuthToken, getUid, getUserEmail } from '../utils/cookie';
 import { BackendUrl } from '../utils/config';
 import { useMeta } from '../hooks/useMeta';
+import { getDiscoveredServices, getServiceSDK, onSDKLoaded } from '../utils/serviceRegistry';
 
 interface DebugInfo {
   requestUrl: string;
@@ -23,6 +24,7 @@ export default function DashboardDebug() {
   const [debugInfo, setDebugInfo] = useState<DebugInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [, setSdkTick] = useState(0);
   const isLoggedIn = !!(getAuthToken() && getUid() && getUserEmail());
 
   useEffect(() => {
@@ -125,6 +127,13 @@ export default function DashboardDebug() {
 
     fetchRawData();
   }, []);
+
+  // 微服务 SDK 加载完成后刷新微服务列表展示。
+  useEffect(() => {
+    return onSDKLoaded(() => setSdkTick((t) => t + 1));
+  }, []);
+
+  const services = getDiscoveredServices();
 
   if (loading) {
     return (
@@ -248,6 +257,48 @@ export default function DashboardDebug() {
           </CardContent>
         </Card>
       )}
+
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Typography variant="h6" gutterBottom color="primary">
+            已发现的微服务
+          </Typography>
+          {services.length === 0 ? (
+            <Typography variant="body2" color="text.secondary">
+              暂无已发现的微服务（可能未登录，或暂无声明了重叠前端区域的服务）。
+            </Typography>
+          ) : (
+            services.map((svc) => {
+              const sdk = getServiceSDK(svc.name);
+              return (
+                <Box key={svc.name} sx={{ mb: 2 }}>
+                  <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                    <Typography variant="subtitle1" fontWeight="medium">
+                      {svc.name}
+                    </Typography>
+                    <Chip label={`scope: ${svc.scope_name}`} size="small" variant="outlined" />
+                    <Chip
+                      label={sdk ? 'SDK 已加载' : 'SDK 未加载'}
+                      color={sdk ? 'success' : 'default'}
+                      size="small"
+                    />
+                  </Stack>
+                  {svc.sdk_url && (
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                      SDK URL: {svc.sdk_url}
+                    </Typography>
+                  )}
+                  {sdk && (
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                      版本: {sdk.version} · 导航菜单: {sdk.menu ? '有' : '无'} · Dashboard 页面: {sdk.dashboard ? '有' : '无'}
+                    </Typography>
+                  )}
+                </Box>
+              );
+            })
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardContent>

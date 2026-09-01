@@ -93,11 +93,12 @@ async function sendHeartbeat(): Promise<void> {
   }
 }
 
-function loadSDK(name: string): void {
-  const url = `${BackendUrl}/services/sdk/${encodeURIComponent(name)}`;
+function loadSDK(name: string, sdkUrl?: string): void {
   if (document.querySelector(`script[data-service-sdk="${name}"]`)) {
     return; // 已注入，避免重复加载
   }
+  // 优先使用服务声明的外部 sdk_url；未声明时回退到后端中继接口。
+  const url = sdkUrl || `${BackendUrl}/services/sdk/${encodeURIComponent(name)}`;
   const script = document.createElement('script');
   script.src = url;
   script.dataset.serviceSdk = name;
@@ -124,7 +125,7 @@ async function discoverAndLoadSDKs(): Promise<void> {
   }
   discoveredServices = res.data ?? [];
   for (const svc of discoveredServices) {
-    loadSDK(svc.name);
+    loadSDK(svc.name, svc.sdk_url);
   }
 }
 
