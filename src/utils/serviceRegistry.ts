@@ -67,9 +67,17 @@ export function getServiceSDK<T extends ServiceSDK = ServiceSDK>(name: string): 
 type SDKLoadedListener = (name: string) => void;
 const sdkLoadedListeners = new Set<SDKLoadedListener>();
 
-/** 订阅某服务 SDK 加载完成事件，返回取消订阅函数。 */
+/** 订阅某服务 SDK 加载完成事件，返回取消订阅函数。
+ *  立即对已加载的 SDK 做补偿通知——避免 initServiceRegistry 在 React 挂载前
+ *  已完成加载、listener 订阅时为时已晚的竞态问题。 */
 export function onSDKLoaded(listener: SDKLoadedListener): () => void {
   sdkLoadedListeners.add(listener);
+  // 补偿：对已发现且 SDK 全局对象已存在的服务立即通知。
+  for (const svc of discoveredServices) {
+    if (getServiceSDK(svc.name)) {
+      listener(svc.name);
+    }
+  }
   return () => {
     sdkLoadedListeners.delete(listener);
   };
