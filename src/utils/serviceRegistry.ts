@@ -101,13 +101,12 @@ async function sendHeartbeat(): Promise<void> {
   }
 }
 
-function loadSDK(name: string, sdkUrl?: string): void {
-  // 优先使用服务声明的外部 sdk_url；未声明时回退到后端中继接口。
-  const url = sdkUrl || `${BackendUrl}/services/sdk/${encodeURIComponent(name)}`;
+function loadSDK(name: string): void {
+  // 按契约，SDK 一律经后端 relay 端点加载（GET /services/sdk/:name）。
+  // discovery 中的 sdk_url 是微服务的内网地址，浏览器不可直接访问。
+  const url = `${BackendUrl}/services/sdk/${encodeURIComponent(name)}`;
   const existing = document.querySelector<HTMLScriptElement>(`script[data-service-sdk="${name}"]`);
   if (existing) {
-    // 已注入过且 URL 一致则复用；URL 变化（如服务新声明了 sdk_url）时移除旧脚本重新注入，
-    // 避免此前指向错误地址的残留脚本永久阻塞加载。
     if (existing.getAttribute('src') === url) {
       return;
     }
@@ -142,7 +141,7 @@ async function discoverAndLoadSDKs(): Promise<void> {
   }
   discoveredServices = res.data ?? [];
   for (const svc of discoveredServices) {
-    loadSDK(svc.name, svc.sdk_url);
+    loadSDK(svc.name);
   }
 }
 
