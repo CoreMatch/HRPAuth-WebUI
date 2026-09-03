@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
-import { Box, Typography, Card, CardContent, CircularProgress, Alert, Paper, Stack, Chip, Divider } from '@mui/material';
+import { useState, useEffect, useRef } from 'react';
+import { Box, Typography, Card, CardContent, CircularProgress, Alert, Paper, Stack, Chip, Divider, TextField, Button } from '@mui/material';
 import { getAuthToken, getUid, getUserEmail } from '../utils/cookie';
 import { BackendUrl } from '../utils/config';
 import { useMeta } from '../hooks/useMeta';
-import { getDiscoveredServices, getServiceSDK, onSDKLoaded } from '../utils/serviceRegistry';
+import { getDiscoveredServices, getServiceSDK, onSDKLoaded, notifySDKLoaded } from '../utils/serviceRegistry';
 
 interface DebugInfo {
   requestUrl: string;
@@ -26,6 +26,21 @@ export default function DashboardDebug() {
   const [error, setError] = useState<string | null>(null);
   const [, setSdkTick] = useState(0);
   const isLoggedIn = !!(getAuthToken() && getUid() && getUserEmail());
+
+  // 手动加载 SDK
+  const [sdkName, setSdkName] = useState('');
+  const [sdkCode] = useState(
+`// 使用 __serviceName 变量（由调试工具自动注入，值为服务名称输入框内容）
+window[__serviceName + '-sdk'] = {
+  name: __serviceName,
+  version: '1.0.0',
+  menu: { label: 'My Service' },
+  dashboard: { label: 'My Service', url: 'https://example.com' },
+};`
+  );
+  const [sdkLoadError, setSdkLoadError] = useState<string | null>(null);
+  const [sdkLoadSuccess, setSdkLoadSuccess] = useState<string | null>(null);
+  const sdkCodeRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     const fetchRawData = async () => {
@@ -134,6 +149,94 @@ export default function DashboardDebug() {
   }, []);
 
   const services = getDiscoveredServices();
+
+  const handleLoadSDK = () => {
+    setSdkLoadError(null);
+    setSdkLoadSuccess(null);
+
+    const name = sdkName.trim();
+    if (!name) {
+      setSdkLoadError('请输入服务名称');
+      return;
+    }
+
+    const code = sdkCodeRef.current?.value ?? sdkCode;
+    if (!code.trim()) {
+      setSdkLoadError('请输入 SDK 代码');
+      return;
+    }
+
+    try {
+      // 通过 script 标签执行代码，能捕获语法错误和运行时错误
+      // 注入 __serviceName 变量，SDK 代码可通过 window[__serviceName + '-sdk'] 动态挂载
+      const script = document.createElement('script');
+      script.dataset.serviceSdk = `manual-${name}`;
+      script.textContent = `var __serviceName=${JSON.stringify(name)};\n${code}`;
+
+      let capturedError: string | null = null;
+
+      script.onerror = () => {
+        // script 标签 onerror 主要捕获 src 加载失败，内联脚本的运行时错误走 window.onerror
+        if (!capturedError) {
+          capturedError = '脚本执行失败（详情请查看控制台）';
+        }
+        setSdkLoadError(capturedError);
+        script.remove();
+      };
+
+      // 拦截运行时错误
+      const prevOnError = window.onerror;
+      window.onerror = (message, _source, _lineno, _colno, error) => {
+        capturedError = String(message);
+        if (error?.stack) {
+          capturedError += '\n\n' + error.stack;
+        }
+        setSdkLoadError(capturedError);
+        window.onerror = prevOnError;
+        return true; // 阻止默认错误处理
+      };
+
+      document.head.appendChild(script);
+      window.onerror = prevOnError;
+
+      // 验证 SDK 全局对象是否正确注册
+      const globalKey = `${name}-sdk`;
+      const sdk = (window as any)[globalKey];
+
+      if (!sdk || typeof sdk !== 'object') {
+        setSdkLoadError(
+          `代码已执行，但未检测到 window['${globalKey}'] 全局对象。\n` +
+          `请确保 SDK 代码将对象挂载到 window['${globalKey}'] 上。`
+        );
+        script.remove();
+        return;
+      }
+
+      // 验证必要字段
+      if (!sdk.name || !sdk.version) {
+        setSdkLoadError(
+          `SDK 对象缺少必要字段：需要 name 和 version 属性。\n` +
+          `当前对象: ${JSON.stringify(Object.keys(sdk))}`
+        );
+        script.remove();
+        return;
+      }
+
+      // 加载成功
+      setSdkLoadSuccess(
+        `SDK 加载成功！\n` +
+        `服务名: ${sdk.name}\n` +
+        `版本: ${sdk.version}\n` +
+        `导航菜单: ${sdk.menu ? sdk.menu.label : '无'}\n` +
+        `Dashboard: ${sdk.dashboard ? sdk.dashboard.label : '无'}`
+      );
+      notifySDKLoaded(name);
+      script.remove();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setSdkLoadError(`SDK 加载出错: ${msg}`);
+    }
+  };
 
   if (loading) {
     return (
@@ -297,6 +400,87 @@ export default function DashboardDebug() {
               );
             })
           )}
+        </CardContent>
+      </Card>
+
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Typography variant="h6" gutterBottom color="primary">
+            手动加载 SDK
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            输入 SDK JavaScript 代码并指定服务名，手动加载 SDK 进行调试。
+            代码会通过 script 标签执行，服务名对应的全局对象键为 <code>{'{serviceName}-sdk'}</code>。
+          </Typography>
+
+          <Stack spacing={2}>
+            <TextField
+              label="服务名称 (serviceName)"
+              placeholder="例如 my-service"
+              size="small"
+              value={sdkName}
+              onChange={(e) => setSdkName(e.target.value)}
+              helperText="SDK 将挂载到 window['{serviceName}-sdk']"
+              sx={{ maxWidth: 400 }}
+            />
+
+            <Box>
+              <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
+                SDK JavaScript 代码：
+              </Typography>
+              <textarea
+                ref={sdkCodeRef}
+                defaultValue={sdkCode}
+                spellCheck={false}
+                style={{
+                  width: '100%',
+                  minHeight: '200px',
+                  padding: '12px',
+                  fontFamily: 'monospace',
+                  fontSize: '0.875rem',
+                  lineHeight: '1.5',
+                  backgroundColor: '#1e1e1e',
+                  color: '#e0e0e0',
+                  border: '1px solid #444',
+                  borderRadius: '4px',
+                  resize: 'vertical',
+                  outline: 'none',
+                  tabSize: 2,
+                }}
+              />
+            </Box>
+
+            <Stack direction="row" spacing={2} alignItems="center">
+              <Button variant="contained" color="primary" onClick={handleLoadSDK}>
+                加载 SDK
+              </Button>
+              {sdkLoadSuccess && (
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={() => {
+                    setSdkLoadSuccess(null);
+                    setSdkLoadError(null);
+                  }}
+                >
+                  清除结果
+                </Button>
+              )}
+            </Stack>
+
+            {sdkLoadError && (
+              <Alert severity="error" sx={{ whiteSpace: 'pre-wrap' }}>
+                <Typography variant="subtitle2" gutterBottom>SDK 加载错误：</Typography>
+                {sdkLoadError}
+              </Alert>
+            )}
+
+            {sdkLoadSuccess && (
+              <Alert severity="success" sx={{ whiteSpace: 'pre-wrap' }}>
+                {sdkLoadSuccess}
+              </Alert>
+            )}
+          </Stack>
         </CardContent>
       </Card>
 

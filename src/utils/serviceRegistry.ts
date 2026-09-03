@@ -67,6 +67,13 @@ export function getServiceSDK<T extends ServiceSDK = ServiceSDK>(name: string): 
 type SDKLoadedListener = (name: string) => void;
 const sdkLoadedListeners = new Set<SDKLoadedListener>();
 
+/** 手动触发 SDK 加载完成通知（供 Debug 页面手动加载 SDK 后使用）。 */
+export function notifySDKLoaded(name: string): void {
+  for (const listener of sdkLoadedListeners) {
+    listener(name);
+  }
+}
+
 /** 订阅某服务 SDK 加载完成事件，返回取消订阅函数。
  *  立即对已加载的 SDK 做补偿通知——避免 initServiceRegistry 在 React 挂载前
  *  已完成加载、listener 订阅时为时已晚的竞态问题。 */

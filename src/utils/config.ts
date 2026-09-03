@@ -37,7 +37,7 @@ export let SkinlibUrl: string = '';
  * 动态更新皮肤库地址。
  */
 export function setSkinlibUrl(url: string): void {
-  SkinlibUrl = url.replace(/\/$/, '');
+  SkinlibUrl = url.replace(/[`'"]/g, '').replace(/\/$/, '');
 }
 
 /**
@@ -50,8 +50,9 @@ export async function initBackendUrl(): Promise<void> {
     return;
   }
   await loadConfig();
-  BackendUrl = runtimeConfig.baseUrl.replace(/\/$/, '');
-  SkinlibUrl = runtimeConfig.skinlibUrl.replace(/\/$/, '');
+  // 清洗 URL 中的非标准字符（如反引号），防止配置文件格式错误导致 URL 失效。
+  BackendUrl = runtimeConfig.baseUrl.replace(/[`'"]/g, '').replace(/\/$/, '');
+  SkinlibUrl = runtimeConfig.skinlibUrl.replace(/[`'"]/g, '').replace(/\/$/, '');
 }
 
 /**
@@ -71,8 +72,8 @@ export async function loadConfig(): Promise<BackendConfig> {
       if (typeof data.baseUrl === 'string' && data.baseUrl.trim() !== '' &&
           typeof data.skinlibUrl === 'string' && data.skinlibUrl.trim() !== '') {
         runtimeConfig = { 
-          baseUrl: data.baseUrl,
-          skinlibUrl: data.skinlibUrl
+          baseUrl: data.baseUrl.replace(/[`'"]/g, ''),
+          skinlibUrl: data.skinlibUrl.replace(/[`'"]/g, '')
         };
         return runtimeConfig;
       } else {
