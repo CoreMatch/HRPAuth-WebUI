@@ -33,8 +33,9 @@ import {
 import SearchIcon from '@mui/icons-material/Search';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import SettingsInputComponentIcon from '@mui/icons-material/SettingsInputComponent';
+import DeleteIcon from '@mui/icons-material/Delete';
 import { useMeta } from '../hooks/useMeta';
-import { listTextures, getPreviewUrl, uploadTexture, pullTexture, applyTextureToUser } from '../api/texture';
+import { listTextures, getPreviewUrl, uploadTexture, pullTexture, applyTextureToUser, deleteTexture } from '../api/texture';
 import type { TextureItem, TextureListRequest, TextureType, SkinModel } from '../types/texture';
 import { getAuthToken, getUid } from '../utils/cookie';
 import { SkinlibUrl, setSkinlibUrl } from '../utils/config';
@@ -255,6 +256,8 @@ const Skinlib: React.FC = () => {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [sourceUrl, setSourceUrl] = useState(SkinlibUrl);
   const [usingHash, setUsingHash] = useState<string | null>(null);
+  const [deletingHash, setDeletingHash] = useState<string | null>(null);
+  const [confirmDeleteItem, setConfirmDeleteItem] = useState<TextureItem | null>(null);
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
     open: false,
     message: '',
@@ -325,6 +328,32 @@ const Skinlib: React.FC = () => {
       setSnackbar({ open: true, message: '操作过程中发生错误', severity: 'error' });
     } finally {
       setUsingHash(null);
+    }
+  };
+
+  const handleDeleteTexture = async (item: TextureItem) => {
+    const token = getAuthToken();
+    if (!token) {
+      setSnackbar({ open: true, message: '请先登录', severity: 'error' });
+      return;
+    }
+
+    setDeletingHash(item.hash);
+
+    try {
+      const result = await deleteTexture({ type: item.type, hash: item.hash });
+
+      if (result.success) {
+        setSnackbar({ open: true, message: `材质 "${item.name}" 已删除`, severity: 'success' });
+        setConfirmDeleteItem(null);
+        fetchTextures();
+      } else {
+        setSnackbar({ open: true, message: result.message || '删除失败', severity: 'error' });
+      }
+    } catch {
+      setSnackbar({ open: true, message: '删除过程中发生错误', severity: 'error' });
+    } finally {
+      setDeletingHash(null);
     }
   };
 
@@ -524,15 +553,27 @@ const Skinlib: React.FC = () => {
                       ))}
                     </Stack>
                   </CardContent>
-                  <CardActions sx={{ justifyContent: 'center', pb: 2 }}>
+                  <CardActions sx={{ justifyContent: 'center', pb: 2, gap: 1 }}>
                     <Button
                       variant="contained"
                       size="small"
-                      disabled={usingHash === item.hash}
+                      disabled={usingHash === item.hash || deletingHash === item.hash}
                       onClick={() => handleUseTexture(item)}
                     >
                       {usingHash === item.hash ? '使用中...' : '使用'}
                     </Button>
+                    {String(item.uid) === getUid() && (
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        color="error"
+                        startIcon={<DeleteIcon />}
+                        disabled={usingHash === item.hash || deletingHash === item.hash}
+                        onClick={() => setConfirmDeleteItem(item)}
+                      >
+                        删除
+                      </Button>
+                    )}
                   </CardActions>
                 </Card>
               </Grid>
@@ -550,6 +591,36 @@ const Skinlib: React.FC = () => {
           </Stack>
         </>
       )}
+
+      <Dialog
+        open={!!confirmDeleteItem}
+        onClose={() => setConfirmDeleteItem(null)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>确认删除</DialogTitle>
+        <DialogContent>
+          <Typography>
+            确定要删除材质 "{confirmDeleteItem?.name}" 吗？
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            此操作将删除原始文件和预览图，无法撤销。
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmDeleteItem(null)} disabled={deletingHash !== null}>
+            取消
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={() => confirmDeleteItem && handleDeleteTexture(confirmDeleteItem)}
+            disabled={deletingHash !== null}
+          >
+            {deletingHash ? '删除中...' : '确认删除'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Snackbar
         open={snackbar.open}

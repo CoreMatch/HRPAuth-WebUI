@@ -89,3 +89,22 @@ export async function applyTextureToUser(
 export function getPreviewUrl(previewFile: string): string {
   return `${SkinlibUrl}/texture/preview/${previewFile}`;
 }
+
+export interface TextureDeleteRequest {
+  type: 'skin' | 'cape';
+  hash: string;
+}
+
+export async function deleteTexture(
+  data: TextureDeleteRequest
+): Promise<ApiResponse<TextureItem>> {
+  const url = `${SkinlibUrl}/texture/delete`;
+  const formData = new FormData();
+  formData.append('type', data.type);
+  formData.append('hash', data.hash);
+
+  return request<TextureItem>(url, {
+    method: 'POST',
+    body: formData,
+  });
+}
