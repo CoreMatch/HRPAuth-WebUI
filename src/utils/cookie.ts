@@ -70,7 +70,8 @@ export function setAuthCookies(
   verified?: boolean,
   totp?: boolean,
   expiresIn?: number,
-  remember: boolean = true
+  remember: boolean = true,
+  mbe?: boolean
 ): void {
   const baseOptions = {
     path: '/',
@@ -127,6 +128,13 @@ export function setAuthCookies(
       ...(farFuture ? { expires: farFuture } : {}),
     });
   }
+
+  if (mbe !== undefined) {
+    setCookie('mbe_enabled', mbe.toString(), {
+      ...baseOptions,
+      ...(farFuture ? { expires: farFuture } : {}),
+    });
+  }
 }
 
 export function getVerified(): boolean | undefined {
@@ -139,6 +147,24 @@ export function getTotpEnabled(): boolean | undefined {
   const totpEnabled = getCookie('totp_enabled');
   if (totpEnabled === null) return undefined;
   return totpEnabled === 'true';
+}
+
+export function getMbeEnabled(): boolean | undefined {
+  const mbeEnabled = getCookie('mbe_enabled');
+  if (mbeEnabled === null) return undefined;
+  return mbeEnabled === 'true';
+}
+
+export function setMbeEnabled(mbe: boolean): void {
+  const farFuture = new Date();
+  farFuture.setFullYear(farFuture.getFullYear() + 10);
+
+  setCookie('mbe_enabled', mbe.toString(), {
+    expires: farFuture,
+    path: '/',
+    sameSite: 'lax',
+    secure: window.location.protocol === 'https'
+  });
 }
 
 export function setTotpEnabled(totp: boolean): void {
@@ -188,6 +214,7 @@ export function clearAuthCookies(): void {
   deleteCookie('uid');
   deleteCookie('verified');
   deleteCookie('totp_enabled');
+  deleteCookie('mbe_enabled');
   deleteCookie('remember_login');
 }
 

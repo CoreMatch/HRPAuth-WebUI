@@ -29,8 +29,9 @@ export async function completeLogin(
     const verified = userRes.success && userData ? userData.verified : undefined;
     const finalUid = userRes.success && userData ? userData.uid : uid;
     const totpEnabled = userRes.success && userData ? Boolean(userData.totp_enabled) : undefined;
+    const mbeEnabled = userRes.success && userData ? Boolean(userData.mbe) : undefined;
 
-    setAuthCookies(email, accessToken, refreshToken, String(finalUid), verified, totpEnabled, undefined, rememberMe);
+    setAuthCookies(email, accessToken, refreshToken, String(finalUid), verified, totpEnabled, undefined, rememberMe, mbeEnabled);
     setRememberLogin(rememberMe);
     return String(finalUid);
   } catch {
