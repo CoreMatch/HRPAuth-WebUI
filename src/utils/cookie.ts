@@ -69,61 +69,62 @@ export function setAuthCookies(
   uid: string,
   verified?: boolean,
   totp?: boolean,
-  expiresIn?: number
+  expiresIn?: number,
+  remember: boolean = true
 ): void {
-  const expiryDate = new Date();
-  if (expiresIn) {
-    expiryDate.setSeconds(expiryDate.getSeconds() + expiresIn);
-  } else {
-    expiryDate.setFullYear(expiryDate.getFullYear() + 10);
-  }
+  const baseOptions = {
+    path: '/',
+    sameSite: 'lax' as const,
+    secure: window.location.protocol === 'https'
+  };
 
-  const farFuture = new Date();
-  farFuture.setFullYear(farFuture.getFullYear() + 10);
+  let expiryDate: Date | undefined;
+  let farFuture: Date | undefined;
+
+  if (remember) {
+    farFuture = new Date();
+    farFuture.setFullYear(farFuture.getFullYear() + 10);
+
+    expiryDate = new Date();
+    if (expiresIn) {
+      expiryDate.setSeconds(expiryDate.getSeconds() + expiresIn);
+    } else {
+      expiryDate.setFullYear(expiryDate.getFullYear() + 10);
+    }
+  }
+  // remember=false: 不设置 expires，cookie 为会话级，关闭浏览器即过期
 
   setCookie('user_email', email, {
-    expires: farFuture,
-    path: '/',
-    sameSite: 'lax',
-    secure: window.location.protocol === 'https'
+    ...baseOptions,
+    ...(farFuture ? { expires: farFuture } : {}),
   });
 
   setCookie('access_token', accessToken, {
-    expires: expiryDate,
-    path: '/',
-    sameSite: 'lax',
-    secure: window.location.protocol === 'https'
+    ...baseOptions,
+    ...(expiryDate ? { expires: expiryDate } : {}),
   });
 
   setCookie('refresh_token', refreshToken, {
-    expires: farFuture,
-    path: '/',
-    sameSite: 'lax',
-    secure: window.location.protocol === 'https'
+    ...baseOptions,
+    ...(farFuture ? { expires: farFuture } : {}),
   });
 
   setCookie('uid', uid, {
-    expires: farFuture,
-    path: '/',
-    sameSite: 'lax',
-    secure: window.location.protocol === 'https'
+    ...baseOptions,
+    ...(farFuture ? { expires: farFuture } : {}),
   });
 
   if (verified !== undefined) {
     setCookie('verified', verified.toString(), {
-      expires: farFuture,
-      path: '/',
-      sameSite: 'lax',
-      secure: window.location.protocol === 'https'
+      ...baseOptions,
+      ...(farFuture ? { expires: farFuture } : {}),
     });
   }
 
   if (totp !== undefined) {
     setCookie('totp_enabled', totp.toString(), {
-      expires: farFuture,
-      path: '/',
-      sameSite: 'lax',
-      secure: window.location.protocol === 'https'
+      ...baseOptions,
+      ...(farFuture ? { expires: farFuture } : {}),
     });
   }
 }

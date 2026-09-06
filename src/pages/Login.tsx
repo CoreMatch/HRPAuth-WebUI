@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { TextField, Button, Typography, Box, Alert } from '@mui/material';
+import { TextField, Button, Typography, Box, Alert, Checkbox, FormControlLabel } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { validateEmail } from '../utils/email';
 import { setAuthCookies } from '../utils/cookie';
@@ -16,6 +16,7 @@ export default function Login() {
   const [showTotp, setShowTotp] = useState(false);
   const [loginTicket, setLoginTicketVal] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [remember, setRemember] = useState(true);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const navigate = useNavigate();
@@ -65,7 +66,7 @@ export default function Login() {
           setLoginTicketVal(data.login_ticket || '');
           setLoading(false);
         } else if (data?.access_token) {
-          await handleLoginSuccess(data.access_token, data.refresh_token || '', data.uid || '');
+          await handleLoginSuccess(data.access_token, data.refresh_token || '', data.uid || '', remember);
         }
       } else {
         const res = await verifyTotp(loginTicket, totpCode);
@@ -77,7 +78,7 @@ export default function Login() {
 
         const data = res.data;
         if (data?.access_token) {
-          await handleLoginSuccess(data.access_token, data.refresh_token, data.uid);
+          await handleLoginSuccess(data.access_token, data.refresh_token, data.uid, remember);
         }
       }
     } catch (err) {
@@ -86,7 +87,7 @@ export default function Login() {
     }
   }
 
-  async function handleLoginSuccess(accessToken: string, refreshToken: string, uid: string) {
+  async function handleLoginSuccess(accessToken: string, refreshToken: string, uid: string, rememberMe: boolean) {
     try {
       // Fetch user info to get verification status and final UID
       const userRes = await request(`${BackendUrl}/user`, {
@@ -103,11 +104,11 @@ export default function Login() {
       const finalUid = userRes.success && userData ? userData.uid : uid;
       const totpEnabled = userRes.success && userData ? Boolean(userData.totp_enabled) : undefined;
 
-      setAuthCookies(email, accessToken, refreshToken, String(finalUid), verified, totpEnabled);
+      setAuthCookies(email, accessToken, refreshToken, String(finalUid), verified, totpEnabled, undefined, rememberMe);
       setSuccess(true);
       setTimeout(() => navigate('/dash'), 700);
     } catch {
-      setAuthCookies(email, accessToken, refreshToken, uid, undefined, undefined);
+      setAuthCookies(email, accessToken, refreshToken, uid, undefined, undefined, undefined, rememberMe);
       setSuccess(true);
       setTimeout(() => navigate('/dash'), 700);
     }
@@ -168,6 +169,18 @@ export default function Login() {
               inputProps={{ maxLength: 6 }}
             />
           )}
+
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={remember}
+                onChange={(e) => setRemember(e.target.checked)}
+                disabled={loading}
+              />
+            }
+            label="记住登录"
+            sx={{ mb: 2 }}
+          />
 
           <Button
             variant="contained"
