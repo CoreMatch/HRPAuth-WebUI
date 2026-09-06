@@ -1,15 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { TextField, Button, Typography, Box, Alert, Checkbox, FormControlLabel } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { validateEmail } from '../utils/email';
-import { setAuthCookies, setRememberLogin } from '../utils/cookie';
 import { getLoginTicket, verifyTotp } from '../api/auth';
-import { request } from '../utils/api';
-import { BackendUrl } from '../utils/config';
+import { completeLogin } from '../utils/auth';
 import { useMeta } from '../hooks/useMeta';
 
 export default function Login() {
   useMeta('login');
+  const location = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [totpCode, setTotpCode] = useState('');
@@ -20,6 +19,19 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const navigate = useNavigate();
+
+  // If navigated from Register with a login_ticket (TOTP required after auto-register),
+  // automatically enter TOTP mode.
+  useEffect(() => {
+    const state = location.state as { login_ticket?: string; email?: string } | null;
+    if (state?.login_ticket && state?.email) {
+      setEmail(state.email);
+      setLoginTicketVal(state.login_ticket);
+      setShowTotp(true);
+      // Clear state so a page refresh won't re-trigger this
+      window.history.replaceState({}, '');
+    }
+  }, [location.state]);
 
   function validate() {
     setError(null);
@@ -88,32 +100,9 @@ export default function Login() {
   }
 
   async function handleLoginSuccess(accessToken: string, refreshToken: string, uid: string, rememberMe: boolean) {
-    try {
-      // Fetch user info to get verification status and final UID
-      const userRes = await request(`${BackendUrl}/user`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ uid, email }),
-      });
-
-      const userData = userRes.data;
-      const verified = userRes.success && userData ? userData.verified : undefined;
-      const finalUid = userRes.success && userData ? userData.uid : uid;
-      const totpEnabled = userRes.success && userData ? Boolean(userData.totp_enabled) : undefined;
-
-      setAuthCookies(email, accessToken, refreshToken, String(finalUid), verified, totpEnabled, undefined, rememberMe);
-      setRememberLogin(rememberMe);
-      setSuccess(true);
-      setTimeout(() => navigate('/dash'), 700);
-    } catch {
-      setAuthCookies(email, accessToken, refreshToken, uid, undefined, undefined, undefined, rememberMe);
-      setRememberLogin(rememberMe);
-      setSuccess(true);
-      setTimeout(() => navigate('/dash'), 700);
-    }
+    await completeLogin(accessToken, refreshToken, uid, email, rememberMe);
+    setSuccess(true);
+    setTimeout(() => navigate('/dash'), 700);
   }
 
   return (

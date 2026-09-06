@@ -11,6 +11,8 @@ import { useNavigate } from 'react-router-dom';
 import Captcha, { type CaptchaRef } from '../components/Captcha';
 import { validateEmail } from '../utils/email';
 import { register } from '../api/register';
+import { getLoginTicket } from '../api/auth';
+import { completeLogin } from '../utils/auth';
 import type { RegisterRequest } from '../types/register';
 import { useMeta } from '../hooks/useMeta';
 
@@ -112,6 +114,29 @@ export default function Register() {
       const result = await register(registerData);
 
       if (result.success === true) {
+        // Auto-login: call login-ticket API with the credentials just registered.
+        try {
+          const loginRes = await getLoginTicket(formData.email, formData.password);
+          if (loginRes.success && loginRes.data) {
+            const data = loginRes.data;
+            if (data.totp_required) {
+              // TOTP required — hand off to the login page with the ticket.
+              navigate('/login', {
+                state: { login_ticket: data.login_ticket, email: formData.email },
+              });
+              return;
+            }
+            if (data.access_token) {
+              await completeLogin(data.access_token, data.refresh_token || '', data.uid || '', formData.email);
+              setSuccess(true);
+              setTimeout(() => navigate('/dash'), 700);
+              return;
+            }
+          }
+        } catch {
+          // Auto-login failed — fall back to manual login page.
+        }
+        // Fallback: redirect to login page without credentials.
         setSuccess(true);
         setTimeout(() => navigate('/login'), 1500);
       } else {
@@ -154,7 +179,7 @@ export default function Register() {
       )}
 
       {success ? (
-        <Alert severity="success">注册成功，正在跳转到登录页…</Alert>
+        <Alert severity="success">登录成功，正在跳转…</Alert>
       ) : (
         <form onSubmit={handleSubmit}>
           <TextField
