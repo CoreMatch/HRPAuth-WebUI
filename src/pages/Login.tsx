@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { TextField, Button, Typography, Box, Alert, Checkbox, FormControlLabel } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { validateEmail } from '../utils/email';
-import { setAuthCookies } from '../utils/cookie';
+import { setAuthCookies, setRememberLogin } from '../utils/cookie';
 import { getLoginTicket, verifyTotp } from '../api/auth';
 import { request } from '../utils/api';
 import { BackendUrl } from '../utils/config';
@@ -105,10 +105,12 @@ export default function Login() {
       const totpEnabled = userRes.success && userData ? Boolean(userData.totp_enabled) : undefined;
 
       setAuthCookies(email, accessToken, refreshToken, String(finalUid), verified, totpEnabled, undefined, rememberMe);
+      setRememberLogin(rememberMe);
       setSuccess(true);
       setTimeout(() => navigate('/dash'), 700);
     } catch {
       setAuthCookies(email, accessToken, refreshToken, uid, undefined, undefined, undefined, rememberMe);
+      setRememberLogin(rememberMe);
       setSuccess(true);
       setTimeout(() => navigate('/dash'), 700);
     }

@@ -153,6 +153,34 @@ export function setTotpEnabled(totp: boolean): void {
   });
 }
 
+export function updateAccessToken(accessToken: string): void {
+  setCookie('access_token', accessToken, {
+    path: '/',
+    sameSite: 'lax',
+    secure: window.location.protocol === 'https'
+  });
+}
+
+export function setRememberLogin(remember: boolean): void {
+  const baseOptions = {
+    path: '/',
+    sameSite: 'lax' as const,
+    secure: window.location.protocol === 'https'
+  };
+
+  if (remember) {
+    const farFuture = new Date();
+    farFuture.setFullYear(farFuture.getFullYear() + 10);
+    setCookie('remember_login', 'true', { ...baseOptions, expires: farFuture });
+  } else {
+    setCookie('remember_login', 'true', baseOptions);
+  }
+}
+
+export function getRememberLogin(): boolean {
+  return getCookie('remember_login') === 'true';
+}
+
 export function clearAuthCookies(): void {
   deleteCookie('user_email');
   deleteCookie('access_token');
@@ -160,6 +188,7 @@ export function clearAuthCookies(): void {
   deleteCookie('uid');
   deleteCookie('verified');
   deleteCookie('totp_enabled');
+  deleteCookie('remember_login');
 }
 
 export function getAuthToken(): string | null {
