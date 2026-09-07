@@ -21,14 +21,18 @@ void i18n
       'zh-CN': { translation: zhCN },
       en: { translation: en },
     },
-    // 默认英文；浏览器为中文（zh / zh-CN / zh-TW 等）时由 LanguageDetector 命中 zh-CN。
+    lng: 'en',
     fallbackLng: 'en',
-    supportedLngs: SUPPORTED_LANGUAGES as unknown as string[],
-    // 允许 zh、zh-TW 等非显式 zh-CN 命中 zh-CN。
-    nonExplicitSupportedLngs: true,
-    load: 'currentOnly',
+    // 仅声明精确支持的语言代码。不要开启 nonExplicitSupportedLngs：
+    // i18next v26 在 init 时会把 zh-CN 规范化为 zh 并按 supportedLngs 过滤，
+    // 结果会把 zh-CN 误判为不支持，导致 changeLanguage 后查不到资源而 fallback 回 en。
+    supportedLngs: ['zh-CN', 'en'],
     interpolation: {
-      escapeValue: false, // React already escapes
+      escapeValue: false,
+    },
+    react: {
+      useSuspense: false,
+      bindI18n: 'languageChanged loaded',
     },
     detection: {
       order: ['localStorage', 'navigator', 'htmlTag'],
