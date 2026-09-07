@@ -134,7 +134,7 @@ function TextureManageDialog({ open, onClose, token, onUpdated }: TextureManageD
       return;
     }
 
-    if (file.size > 100 * 1024) {
+    if (file.size > 2 * 1024 * 1024) {
       setError(t('profile.textureDialog.errors.tooLarge'));
       return;
     }

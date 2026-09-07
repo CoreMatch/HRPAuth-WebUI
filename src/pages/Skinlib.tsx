@@ -68,6 +68,10 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ open, onClose, onSuccess })
         setError(t('skinlib.uploadDialog.pngOnly'));
         return;
       }
+      if (selectedFile.size > 2 * 1024 * 1024) {
+        setError(t('skinlib.uploadDialog.errors.tooLarge'));
+        return;
+      }
       setFile(selectedFile);
       setError(null);
       // 自动从文件名提取名称（如果尚未填写）

@@ -165,7 +165,7 @@
       "deletedSuccess": "{{type}} 删除成功！",
       "errors": {
         "pngOnly": "请上传 PNG 格式的图片",
-        "tooLarge": "图片大小不能超过 100KB",
+        "tooLarge": "[前端] 图片大小不能超过 2MB",
         "selectFile": "请先选择{{type}}文件",
         "uploadFailed": "上传失败",
         "deleteFailed": "删除失败"
@@ -239,6 +239,9 @@
       "securityConfirm": "我已了解：向自定义材质源上传材质可能泄漏登录凭据。如果你无法理解这句话的含义，请立刻停止操作并清除自定义材质源后再上传材质。",
       "selectFileAndName": "请选择文件并填写材质名称",
       "confirmSecurityFirst": "请先确认安全警告",
+      "errors": {
+        "tooLarge": "[前端] 材质大小不能超过 2MB"
+      },
       "uploadFailed": "上传失败",
       "uploadError": "上传过程中发生错误",
       "uploading": "上传中...",

@@ -165,7 +165,7 @@
       "deletedSuccess": "{{type}} deleted successfully!",
       "errors": {
         "pngOnly": "Please upload a PNG image",
-        "tooLarge": "Image size cannot exceed 100KB",
+        "tooLarge": "[Frontend] Image size cannot exceed 2MB",
         "selectFile": "Please select a {{type}} file first",
         "uploadFailed": "Upload failed",
         "deleteFailed": "Delete failed"
@@ -239,6 +239,9 @@
       "securityConfirm": "I understand: uploading textures to a custom texture source may leak your login credentials. If you do not understand this, stop immediately, clear the custom texture source, and try again.",
       "selectFileAndName": "Please select a file and enter the texture name",
       "confirmSecurityFirst": "Please confirm the security warning first",
+      "errors": {
+        "tooLarge": "[Frontend] Texture size cannot exceed 2MB"
+      },
       "uploadFailed": "Upload failed",
       "uploadError": "An error occurred during upload",
       "uploading": "Uploading...",
