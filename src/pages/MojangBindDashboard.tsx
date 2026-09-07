@@ -3,6 +3,7 @@ import { Box, Typography, Card, CardContent, Alert, Switch, FormControlLabel, St
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import CheckIcon from '@mui/icons-material/Check';
 import { enableMojangBind, disableMojangBind } from '../api/user';
+import { mojangTextureUrl, fetchMojangProfile } from '../api/texture';
 import { getAuthToken, getMbeEnabled, setMbeEnabled } from '../utils/cookie';
 import { BackendUrl } from '../utils/config';
 import { request } from '../utils/api';
@@ -12,8 +13,6 @@ const SkinViewer3D = lazy(() => import('../components/SkinViewer3D'));
 interface MojangProfile {
   id: string;
   name: string;
-  skinUrl: string | null;
-  capeUrl: string | null;
 }
 
 export default function MojangBindDashboard() {
@@ -23,32 +22,20 @@ export default function MojangBindDashboard() {
   const [loading, setLoading] = useState(true);
   const [mojangUuid, setMojangUuid] = useState<string | null>(null);
   const [mojangProfile, setMojangProfile] = useState<MojangProfile | null>(null);
+  const [hasCape, setHasCape] = useState(false);
   const [skinLoading, setSkinLoading] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const fetchMojangSkin = async (uuid: string) => {
+  const fetchMojangProfileLocal = async (uuid: string) => {
     setSkinLoading(true);
     try {
-      const resp = await fetch(`https://sessionserver.mojang.com/session/minecraft/profile/${uuid}`);
-      if (!resp.ok) throw new Error('Failed to fetch');
-      const data = await resp.json();
-
-      let skinUrl: string | null = null;
-      let capeUrl: string | null = null;
-
-      const texturesProp = data.properties?.find((p: { name: string }) => p.name === 'textures');
-      if (texturesProp) {
-        const decoded = JSON.parse(atob(texturesProp.value));
-        skinUrl = decoded.textures?.SKIN?.url || null;
-        capeUrl = decoded.textures?.CAPE?.url || null;
+      const profile = await fetchMojangProfile(uuid);
+      if (profile) {
+        setMojangProfile({ id: profile.id, name: profile.name });
+        setHasCape(profile.has_cape);
+      } else {
+        setMojangProfile(null);
       }
-
-      setMojangProfile({
-        id: data.id,
-        name: data.name,
-        skinUrl,
-        capeUrl,
-      });
     } catch (err) {
       console.error('Failed to fetch Mojang profile:', err);
       setMojangProfile(null);
@@ -80,7 +67,7 @@ export default function MojangBindDashboard() {
           const uuid = resp.data.mojang_uuid;
           if (uuid) {
             setMojangUuid(uuid);
-            fetchMojangSkin(uuid);
+            fetchMojangProfileLocal(uuid);
           }
         } else {
           setMbeEnabledState(getMbeEnabled() ?? false);
@@ -196,7 +183,7 @@ export default function MojangBindDashboard() {
               <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
                 <CircularProgress />
               </Box>
-            ) : mojangProfile?.skinUrl ? (
+            ) : mojangUuid ? (
               <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
                 <Box>
                   <Typography variant="subtitle2" color="text.secondary" gutterBottom>
@@ -204,8 +191,8 @@ export default function MojangBindDashboard() {
                   </Typography>
                   <Suspense fallback={<CircularProgress />}>
                     <SkinViewer3D
-                      skinUrl={mojangProfile.skinUrl}
-                      capeUrl={mojangProfile.capeUrl}
+                      skinUrl={mojangTextureUrl(mojangUuid, 'skin')}
+                      capeUrl={mojangTextureUrl(mojangUuid, 'cape')}
                       width={200}
                       height={400}
                     />
@@ -218,15 +205,15 @@ export default function MojangBindDashboard() {
                   <Stack spacing={1}>
                     <Box>
                       <Typography variant="caption" color="text.secondary">Name</Typography>
-                      <Typography variant="body1">{mojangProfile.name}</Typography>
+                      <Typography variant="body1">{mojangProfile?.name ?? '—'}</Typography>
                     </Box>
                     <Box>
                       <Typography variant="caption" color="text.secondary">UUID</Typography>
                       <Typography variant="body1" sx={{ fontFamily: 'monospace', wordBreak: 'break-all' }}>
-                        {mojangProfile.id}
+                        {mojangProfile?.id ?? mojangUuid}
                       </Typography>
                     </Box>
-                    {mojangProfile.capeUrl && (
+                    {hasCape && (
                       <Alert severity="info">Cape available</Alert>
                     )}
                   </Stack>

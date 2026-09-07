@@ -90,6 +90,35 @@ export function getPreviewUrl(previewFile: string): string {
   return `${SkinlibUrl}/texture/preview/${previewFile}`;
 }
 
+/**
+ * 生成后端材质代理 URL，用于将 Mojang 皮肤/披风图片经后端返回给前端。
+ * 返回值可直接用作 <img src> 或 skinview3d 的 skin/cape URL。
+ */
+export function mojangTextureUrl(
+  uuid: string,
+  type: 'skin' | 'cape' = 'skin',
+): string {
+  return `${BackendUrl}/texture/mojang/${uuid}?type=${type}`;
+}
+
+export interface MojangProfileResponse {
+  id: string;
+  name: string;
+  has_cape: boolean;
+}
+
+/**
+ * 通过后端代理获取 Mojang 玩家 Profile（id、name、是否有披风）。
+ * 前端不直接调用任何外部 Mojang API。
+ */
+export async function fetchMojangProfile(
+  uuid: string,
+): Promise<MojangProfileResponse | null> {
+  const resp = await request<MojangProfileResponse>(`${BackendUrl}/mojang/profile/${uuid}`);
+  if (!resp.success || !resp.data) return null;
+  return resp.data;
+}
+
 export interface TextureDeleteRequest {
   type: 'skin' | 'cape';
   hash: string;
