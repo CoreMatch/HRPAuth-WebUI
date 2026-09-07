@@ -110,13 +110,16 @@ export interface MojangProfileResponse {
 /**
  * 通过后端代理获取 Mojang 玩家 Profile（id、name、是否有披风）。
  * 前端不直接调用任何外部 Mojang API。
+ * 该端点无需鉴权，使用原生 fetch 避免 request() 附加 Bearer token 触发 401 刷新。
  */
 export async function fetchMojangProfile(
   uuid: string,
 ): Promise<MojangProfileResponse | null> {
-  const resp = await request<MojangProfileResponse>(`${BackendUrl}/mojang/profile/${uuid}`);
-  if (!resp.success || !resp.data) return null;
-  return resp.data;
+  const resp = await fetch(`${BackendUrl}/mojang/profile/${uuid}`);
+  if (!resp.ok) return null;
+  const body = await resp.json().catch(() => null);
+  if (!body?.success || !body?.id) return null;
+  return { id: body.id, name: body.name, has_cape: body.has_cape };
 }
 
 export interface TextureDeleteRequest {
