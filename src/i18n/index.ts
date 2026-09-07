@@ -21,9 +21,12 @@ void i18n
       'zh-CN': { translation: zhCN },
       en: { translation: en },
     },
-    fallbackLng: 'zh-CN',
+    // 默认英文；浏览器为中文（zh / zh-CN / zh-TW 等）时由 LanguageDetector 命中 zh-CN。
+    fallbackLng: 'en',
     supportedLngs: SUPPORTED_LANGUAGES as unknown as string[],
+    // 允许 zh、zh-TW 等非显式 zh-CN 命中 zh-CN。
     nonExplicitSupportedLngs: true,
+    load: 'currentOnly',
     interpolation: {
       escapeValue: false, // React already escapes
     },
