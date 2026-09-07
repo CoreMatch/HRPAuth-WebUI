@@ -166,6 +166,7 @@
       "errors": {
         "pngOnly": "Please upload a PNG image",
         "tooLarge": "[Frontend] Image size cannot exceed 2MB",
+        "tooWide": "[Frontend] Image dimensions cannot exceed 8192×8192",
         "selectFile": "Please select a {{type}} file first",
         "uploadFailed": "Upload failed",
         "deleteFailed": "Delete failed"
@@ -240,7 +241,8 @@
       "selectFileAndName": "Please select a file and enter the texture name",
       "confirmSecurityFirst": "Please confirm the security warning first",
       "errors": {
-        "tooLarge": "[Frontend] Texture size cannot exceed 2MB"
+        "tooLarge": "[Frontend] Texture size cannot exceed 2MB",
+        "tooWide": "[Frontend] Texture dimensions cannot exceed 8192×8192"
       },
       "uploadFailed": "Upload failed",
       "uploadError": "An error occurred during upload",

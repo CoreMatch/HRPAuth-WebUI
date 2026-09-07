@@ -166,6 +166,7 @@
       "errors": {
         "pngOnly": "请上传 PNG 格式的图片",
         "tooLarge": "[前端] 图片大小不能超过 2MB",
+        "tooWide": "[前端] 图片尺寸不能超过 8192×8192",
         "selectFile": "请先选择{{type}}文件",
         "uploadFailed": "上传失败",
         "deleteFailed": "删除失败"
@@ -240,7 +241,8 @@
       "selectFileAndName": "请选择文件并填写材质名称",
       "confirmSecurityFirst": "请先确认安全警告",
       "errors": {
-        "tooLarge": "[前端] 材质大小不能超过 2MB"
+        "tooLarge": "[前端] 材质大小不能超过 2MB",
+        "tooWide": "[前端] 材质尺寸不能超过 8192×8192"
       },
       "uploadFailed": "上传失败",
       "uploadError": "上传过程中发生错误",

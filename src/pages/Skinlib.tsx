@@ -72,12 +72,25 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ open, onClose, onSuccess })
         setError(t('skinlib.uploadDialog.errors.tooLarge'));
         return;
       }
-      setFile(selectedFile);
-      setError(null);
-      // 自动从文件名提取名称（如果尚未填写）
-      if (!name) {
-        setName(selectedFile.name.replace(/\.[^/.]+$/, ""));
-      }
+      const img = new Image();
+      const objectUrl = URL.createObjectURL(selectedFile);
+      img.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+        if (img.width > 8192 || img.height > 8192) {
+          setError(t('skinlib.uploadDialog.errors.tooWide'));
+          return;
+        }
+        setFile(selectedFile);
+        setError(null);
+        if (!name) {
+          setName(selectedFile.name.replace(/\.[^/.]+$/, ""));
+        }
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        setError(t('skinlib.uploadDialog.pngOnly'));
+      };
+      img.src = objectUrl;
     }
   };
 

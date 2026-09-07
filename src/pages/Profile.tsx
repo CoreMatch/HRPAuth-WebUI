@@ -139,19 +139,33 @@ function TextureManageDialog({ open, onClose, token, onUpdated }: TextureManageD
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const dataUrl = e.target?.result as string;
-      if (type === 'skin') {
-        setSkinLocalPreview(dataUrl);
-        setSkinFile(file);
-      } else {
-        setCapeLocalPreview(dataUrl);
-        setCapeFile(file);
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      if (img.width > 8192 || img.height > 8192) {
+        setError(t('profile.textureDialog.errors.tooWide'));
+        return;
       }
-      setError(null);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const dataUrl = e.target?.result as string;
+        if (type === 'skin') {
+          setSkinLocalPreview(dataUrl);
+          setSkinFile(file);
+        } else {
+          setCapeLocalPreview(dataUrl);
+          setCapeFile(file);
+        }
+        setError(null);
+      };
+      reader.readAsDataURL(file);
     };
-    reader.readAsDataURL(file);
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      setError(t('profile.textureDialog.errors.pngOnly'));
+    };
+    img.src = objectUrl;
   };
 
   const handleUpload = async (type: TextureType) => {
