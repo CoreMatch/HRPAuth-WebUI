@@ -24,6 +24,7 @@ export default function SkinViewer3D({
     const testCanvas = document.createElement('canvas');
     const gl = testCanvas.getContext('webgl2') || testCanvas.getContext('webgl');
     console.log('[SkinViewer3D] WebGL 支持:', gl ? 'OK' : '不支持', gl ? gl.getParameter(gl.RENDERER) : '');
+    console.log('[SkinViewer3D] init, skinUrl:', skinUrl, 'capeUrl:', capeUrl);
 
     const viewer = new SkinViewer({
       canvas: canvasRef.current,

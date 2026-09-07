@@ -29,7 +29,9 @@ export default function MojangBindDashboard() {
   const fetchMojangProfileLocal = async (uuid: string) => {
     setSkinLoading(true);
     try {
+      console.log('[MojangBind] fetchMojangProfileLocal start, uuid:', uuid);
       const profile = await fetchMojangProfile(uuid);
+      console.log('[MojangBind] fetchMojangProfile result:', profile);
       if (profile) {
         setMojangProfile({ id: profile.id, name: profile.name });
         setHasCape(profile.has_cape);
@@ -37,7 +39,7 @@ export default function MojangBindDashboard() {
         setMojangProfile(null);
       }
     } catch (err) {
-      console.error('Failed to fetch Mojang profile:', err);
+      console.error('[MojangBind] fetchMojangProfileLocal error:', err);
       setMojangProfile(null);
     } finally {
       setSkinLoading(false);
