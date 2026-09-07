@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { TextField, Button, Typography, Box, Alert } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { request } from '../utils/api';
 import { validateEmail } from '../utils/email';
 import { setCookie } from '../utils/cookie';
@@ -9,6 +10,7 @@ import { useMeta } from '../hooks/useMeta';
 
 export default function VerifyEmail() {
   useMeta('verifyemail');
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
   const [emailError, setEmailError] = useState(false);
@@ -33,7 +35,7 @@ export default function VerifyEmail() {
     setEmailError(false);
 
     if (!email || !validateEmail(email)) {
-      setError('请输入有效的邮箱地址 Please input valid email address');
+      setError(t('verifyEmail.errors.invalidEmail'));
       setEmailError(true);
       return false;
     }
@@ -46,7 +48,7 @@ export default function VerifyEmail() {
     setCodeError(false);
 
     if (!verificationCode || verificationCode.trim().length === 0) {
-      setError('请输入邮箱验证码 Please enter email verification code');
+      setError(t('verifyEmail.errors.codeRequired'));
       setCodeError(true);
       return false;
     }
@@ -69,13 +71,13 @@ export default function VerifyEmail() {
 
       if (result.success) {
         setCountdown(60);
-        setSuccess('验证码已发送，请查收邮件');
+        setSuccess(t('verifyEmail.sent'));
         setError(null);
       } else {
         setError(result.message);
       }
     } catch (err) {
-      setError('网络错误：' + (err instanceof Error ? err.message : String(err)));
+      setError(t('common.networkError') + ': ' + (err instanceof Error ? err.message : String(err)));
     } finally {
       setSendingCode(false);
     }
@@ -96,7 +98,7 @@ export default function VerifyEmail() {
       });
 
       if (result.success) {
-        setSuccess('邮箱验证成功！');
+        setSuccess(t('verifyEmail.success'));
         // 更新verified cookie为true
         const farFuture = new Date();
         farFuture.setFullYear(farFuture.getFullYear() + 10);
@@ -111,7 +113,7 @@ export default function VerifyEmail() {
         setError(result.message);
       }
     } catch (err) {
-      setError('网络错误：' + (err instanceof Error ? err.message : String(err)));
+      setError(t('common.networkError') + ': ' + (err instanceof Error ? err.message : String(err)));
     } finally {
       setLoading(false);
     }
@@ -120,7 +122,7 @@ export default function VerifyEmail() {
   return (
     <Box sx={{ maxWidth: 480 }}>
       <Typography variant="h4" gutterBottom>
-        Verify Email 邮箱验证
+        {t('verifyEmail.title')}
       </Typography>
 
       {error && (
@@ -137,7 +139,7 @@ export default function VerifyEmail() {
 
       <Box sx={{ mb: 2 }}>
         <TextField
-          label="E-mail 邮箱"
+          label={t('verifyEmail.emailLabel')}
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
@@ -150,7 +152,7 @@ export default function VerifyEmail() {
 
       <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
         <TextField
-          label="Email Code 邮箱验证码"
+          label={t('verifyEmail.codeLabel')}
           type="text"
           value={verificationCode}
           onChange={(e) => setVerificationCode(e.target.value)}
@@ -165,7 +167,7 @@ export default function VerifyEmail() {
           disabled={loading || sendingCode || countdown > 0}
           sx={{ whiteSpace: 'nowrap', minWidth: 120 }}
         >
-          {sendingCode ? '发送中...' : countdown > 0 ? `${countdown}s` : '发送验证码'}
+          {sendingCode ? t('verifyEmail.sendingCode') : countdown > 0 ? `${countdown}s` : t('verifyEmail.sendCode')}
         </Button>
       </Box>
 
@@ -176,11 +178,11 @@ export default function VerifyEmail() {
         fullWidth
         sx={{ mb: 2 }}
       >
-        {loading ? '验证中...' : '验证邮箱'}
+        {loading ? t('verifyEmail.verifying') : t('verifyEmail.verifyButton')}
       </Button>
 
       <Typography variant="body2" color="text.secondary">
-        验证码有效期为10分钟，请及时查收邮件并输入验证码。
+        {t('verifyEmail.expiryHint')}
       </Typography>
     </Box>
   );

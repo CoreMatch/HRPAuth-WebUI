@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Box, Typography, Card, CardContent, CircularProgress, Alert, Paper, Stack, Chip, Divider, TextField, Button } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import { getAuthToken, getUid, getUserEmail } from '../utils/cookie';
 import { BackendUrl } from '../utils/config';
 import { useMeta } from '../hooks/useMeta';
@@ -20,6 +21,7 @@ interface DebugInfo {
 
 export default function DashboardDebug() {
   useMeta('dashdebug');
+  const { t } = useTranslation();
   const [rawData, setRawData] = useState<any>(null);
   const [debugInfo, setDebugInfo] = useState<DebugInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -54,7 +56,7 @@ window[__serviceName + '-sdk'] = {
 
       try {
         const base = BackendUrl;
-        
+
         // 如果未登录，请求后端状态端点 /status；如果已登录，请求用户信息接口 /user
         const url = isLoggedIn ? base + '/user' : base + '/status';
 
@@ -71,8 +73,8 @@ window[__serviceName + '-sdk'] = {
           email: email || 'N/A',
           access_token: token.substring(0, 10) + '...',
         } : {
-          status: '未登录',
-          mode: '获取服务状态'
+          status: t('debug.modePortal'),
+          mode: t('debug.title')
         };
 
         const fetchOptions: RequestInit = {
@@ -109,7 +111,7 @@ window[__serviceName + '-sdk'] = {
           data = {
             isRawText: true,
             contentType: contentType || 'unknown',
-            content: text.length > 5000 ? text.substring(0, 5000) + '... (内容过长已截断)' : text
+            content: text.length > 5000 ? text.substring(0, 5000) + '... (内容过长已截)' : text
           };
         }
 
@@ -139,8 +141,8 @@ window[__serviceName + '-sdk'] = {
         setLoading(false);
       }
     };
-
     fetchRawData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // 微服务 SDK 加载完成后刷新微服务列表展示。
@@ -156,13 +158,13 @@ window[__serviceName + '-sdk'] = {
 
     const name = sdkName.trim();
     if (!name) {
-      setSdkLoadError('请输入服务名称');
+      setSdkLoadError(t('debug.nameRequired'));
       return;
     }
 
     const code = sdkCodeRef.current?.value ?? sdkCode;
     if (!code.trim()) {
-      setSdkLoadError('请输入 SDK 代码');
+      setSdkLoadError(t('debug.codeRequired'));
       return;
     }
 
@@ -204,37 +206,30 @@ window[__serviceName + '-sdk'] = {
       const sdk = (window as any)[globalKey];
 
       if (!sdk || typeof sdk !== 'object') {
-        setSdkLoadError(
-          `代码已执行，但未检测到 window['${globalKey}'] 全局对象。\n` +
-          `请确保 SDK 代码将对象挂载到 window['${globalKey}'] 上。`
-        );
+        setSdkLoadError(t('debug.noGlobalObject', { key: globalKey }));
         script.remove();
         return;
       }
 
       // 验证必要字段
       if (!sdk.name || !sdk.version) {
-        setSdkLoadError(
-          `SDK 对象缺少必要字段：需要 name 和 version 属性。\n` +
-          `当前对象: ${JSON.stringify(Object.keys(sdk))}`
-        );
+        setSdkLoadError(t('debug.missingFields', { keys: JSON.stringify(Object.keys(sdk)) }));
         script.remove();
         return;
       }
 
       // 加载成功
-      setSdkLoadSuccess(
-        `SDK 加载成功！\n` +
-        `服务名: ${sdk.name}\n` +
-        `版本: ${sdk.version}\n` +
-        `导航菜单: ${sdk.menu ? sdk.menu.label : '无'}\n` +
-        `Dashboard: ${sdk.dashboard ? sdk.dashboard.label : '无'}`
-      );
+      setSdkLoadSuccess(t('debug.loadSuccessBody', {
+        name: sdk.name,
+        version: sdk.version,
+        menu: sdk.menu ? sdk.menu.label : t('debug.menuNo'),
+        dashboard: sdk.dashboard ? sdk.dashboard.label : t('debug.menuNo'),
+      }));
       notifySDKLoaded(name);
       script.remove();
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      setSdkLoadError(`SDK 加载出错: ${msg}`);
+      setSdkLoadError(t('debug.loadFailed', { msg }));
     }
   };
 
@@ -277,14 +272,14 @@ window[__serviceName + '-sdk'] = {
     <Box>
       <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2 }}>
         <Typography variant="h4">
-          Dashboard Debug
+          {t('debug.title')}
         </Typography>
-        <Chip label="调试模式" color="info" size="small" />
-        <Chip 
-          label={isLoggedIn ? "用户模式" : "门户元数据模式"} 
-          color={isLoggedIn ? "success" : "warning"} 
+        <Chip label={t('debug.modeDebug')} color="info" size="small" />
+        <Chip
+          label={isLoggedIn ? t('debug.modeUser') : t('debug.modePortal')}
+          color={isLoggedIn ? "success" : "warning"}
           variant="outlined"
-          size="small" 
+          size="small"
         />
       </Stack>
 
@@ -293,7 +288,7 @@ window[__serviceName + '-sdk'] = {
           {error}
           {error.includes('Failed to fetch') && (
             <Typography variant="body2" sx={{ mt: 1 }}>
-              提示：这通常意味着浏览器无法连接到后端服务器。请检查后端服务是否启动，或者是否存在跨域 (CORS) 问题。
+              {t('debug.networkErrorHint')}
             </Typography>
           )}
         </Alert>
@@ -301,8 +296,7 @@ window[__serviceName + '-sdk'] = {
 
       {BackendUrl === '' && !import.meta.env.DEV && (
         <Alert severity="warning" sx={{ mb: 2 }}>
-          检测到 BackendUrl 为空。这可能意味着 /config.json 未能正确加载。
-          请检查部署目录下是否存在 config.json 且内容格式正确。
+          {t('debug.backendUrlEmpty')}
         </Alert>
       )}
 
@@ -310,27 +304,27 @@ window[__serviceName + '-sdk'] = {
         <Card sx={{ mb: 3 }}>
           <CardContent>
             <Typography variant="h6" gutterBottom color="primary">
-              请求详情
+              {t('debug.requestDetails')}
             </Typography>
 
             <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
               <Chip
-                label={`方法: ${debugInfo.requestMethod}`}
+                label={t('debug.method', { method: debugInfo.requestMethod })}
                 color="default"
                 size="small"
               />
               <Chip
-                label={`状态: ${debugInfo.responseStatus} ${debugInfo.responseStatusText}`}
+                label={t('debug.status', { status: debugInfo.responseStatus, statusText: debugInfo.responseStatusText })}
                 color={debugInfo.responseStatus >= 200 && debugInfo.responseStatus < 300 ? 'success' : 'error'}
                 size="small"
               />
               <Chip
-                label={`耗时: ${debugInfo.duration}ms`}
+                label={t('debug.duration', { ms: debugInfo.duration })}
                 color="info"
                 size="small"
               />
               <Chip
-                label={`时间: ${new Date(debugInfo.timestamp).toLocaleTimeString()}`}
+                label={t('debug.time', { time: new Date(debugInfo.timestamp).toLocaleTimeString() })}
                 color="default"
                 size="small"
               />
@@ -339,7 +333,7 @@ window[__serviceName + '-sdk'] = {
             <Divider sx={{ my: 2 }} />
 
             <Typography variant="subtitle2" gutterBottom color="text.secondary">
-              请求目标 URL
+              {t('debug.requestUrl')}
             </Typography>
             <Paper sx={{ p: 2, bgcolor: 'grey.100', mb: 2 }}>
               <Typography
@@ -354,9 +348,9 @@ window[__serviceName + '-sdk'] = {
               </Typography>
             </Paper>
 
-            {renderJsonBlock('请求头 (Request Headers)', debugInfo.requestHeaders)}
-            {renderJsonBlock('请求参数 (Request Params)', debugInfo.requestParams)}
-            {renderJsonBlock('响应头 (Response Headers)', debugInfo.responseHeaders)}
+            {renderJsonBlock(t('debug.requestHeaders'), debugInfo.requestHeaders)}
+            {renderJsonBlock(t('debug.requestParams'), debugInfo.requestParams)}
+            {renderJsonBlock(t('debug.responseHeaders'), debugInfo.responseHeaders)}
           </CardContent>
         </Card>
       )}
@@ -364,11 +358,11 @@ window[__serviceName + '-sdk'] = {
       <Card sx={{ mb: 3 }}>
         <CardContent>
           <Typography variant="h6" gutterBottom color="primary">
-            已发现的微服务
+            {t('debug.discoveredServices')}
           </Typography>
           {services.length === 0 ? (
             <Typography variant="body2" color="text.secondary">
-              暂无已发现的微服务（可能未登录，或暂无声明了重叠前端区域的服务）。
+              {t('debug.noServices')}
             </Typography>
           ) : (
             services.map((svc) => {
@@ -381,19 +375,23 @@ window[__serviceName + '-sdk'] = {
                     </Typography>
                     <Chip label={`scope: ${svc.scope_name}`} size="small" variant="outlined" />
                     <Chip
-                      label={sdk ? 'SDK 已加载' : 'SDK 未加载'}
+                      label={sdk ? t('debug.sdkLoaded') : t('debug.sdkNotLoaded')}
                       color={sdk ? 'success' : 'default'}
                       size="small"
                     />
                   </Stack>
                   {svc.sdk_url && (
                     <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                      SDK URL: {svc.sdk_url}
+                      {t('debug.sdkUrl', { url: svc.sdk_url })}
                     </Typography>
                   )}
                   {sdk && (
                     <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                      版本: {sdk.version} · 导航菜单: {sdk.menu ? '有' : '无'} · Dashboard 页面: {sdk.dashboard ? '有' : '无'}
+                      {t('debug.sdkVersion', {
+                        version: sdk.version,
+                        menu: sdk.menu ? t('debug.menuYes') : t('debug.menuNo'),
+                        dashboard: sdk.dashboard ? t('debug.menuYes') : t('debug.menuNo'),
+                      })}
                     </Typography>
                   )}
                 </Box>
@@ -406,27 +404,26 @@ window[__serviceName + '-sdk'] = {
       <Card sx={{ mb: 3 }}>
         <CardContent>
           <Typography variant="h6" gutterBottom color="primary">
-            手动加载 SDK
+            {t('debug.manualLoadSDK')}
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            输入 SDK JavaScript 代码并指定服务名，手动加载 SDK 进行调试。
-            代码会通过 script 标签执行，服务名对应的全局对象键为 <code>{'{serviceName}-sdk'}</code>。
+            {t('debug.manualLoadSDKDesc')}
           </Typography>
 
           <Stack spacing={2}>
             <TextField
-              label="服务名称 (serviceName)"
-              placeholder="例如 my-service"
+              label={t('debug.serviceNameLabel')}
+              placeholder={t('debug.serviceNamePlaceholder')}
               size="small"
               value={sdkName}
               onChange={(e) => setSdkName(e.target.value)}
-              helperText="SDK 将挂载到 window['{serviceName}-sdk']"
+              helperText={t('debug.serviceNameHelper')}
               sx={{ maxWidth: 400 }}
             />
 
             <Box>
               <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
-                SDK JavaScript 代码：
+                {t('debug.sdkCodeLabel')}
               </Typography>
               <textarea
                 ref={sdkCodeRef}
@@ -452,7 +449,7 @@ window[__serviceName + '-sdk'] = {
 
             <Stack direction="row" spacing={2} alignItems="center">
               <Button variant="contained" color="primary" onClick={handleLoadSDK}>
-                加载 SDK
+                {t('debug.loadSDK')}
               </Button>
               {sdkLoadSuccess && (
                 <Button
@@ -463,14 +460,14 @@ window[__serviceName + '-sdk'] = {
                     setSdkLoadError(null);
                   }}
                 >
-                  清除结果
+                  {t('debug.clearResult')}
                 </Button>
               )}
             </Stack>
 
             {sdkLoadError && (
               <Alert severity="error" sx={{ whiteSpace: 'pre-wrap' }}>
-                <Typography variant="subtitle2" gutterBottom>SDK 加载错误：</Typography>
+                <Typography variant="subtitle2" gutterBottom>{t('debug.loadErrorTitle')}</Typography>
                 {sdkLoadError}
               </Alert>
             )}
@@ -487,7 +484,7 @@ window[__serviceName + '-sdk'] = {
       <Card>
         <CardContent>
           <Typography variant="h6" gutterBottom color="primary">
-            后端响应内容 (Response Body)
+            {t('debug.responseBody')}
           </Typography>
           <Paper
             sx={{
@@ -511,7 +508,7 @@ window[__serviceName + '-sdk'] = {
               ) : (
                 JSON.stringify(rawData, null, 2)
               )
-            ) : '暂无数据'}
+            ) : t('debug.noData')}
             </pre>
           </Paper>
         </CardContent>

@@ -8,6 +8,7 @@ import {
   CircularProgress,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import Captcha, { type CaptchaRef } from '../components/Captcha';
 import { validateEmail } from '../utils/email';
 import { register } from '../api/register';
@@ -18,6 +19,7 @@ import { useMeta } from '../hooks/useMeta';
 
 export default function Register() {
   useMeta('register');
+  const { t } = useTranslation();
   const [formData, setFormData] = useState<RegisterRequest>({
     email: '',
     username: '',
@@ -46,39 +48,39 @@ export default function Register() {
     setCaptchaError(false);
 
     if (!formData.email || !validateEmail(formData.email)) {
-      setError('请输入有效的邮箱地址');
+      setError(t('register.errors.invalidEmail'));
       return false;
     }
 
     if (!formData.username || formData.username.trim().length < 3) {
-      setError('用户名太短，至少需要3个字符');
+      setError(t('register.errors.usernameTooShort'));
       return false;
     }
 
     if (!formData.password || formData.password.length < 6) {
-      setError('密码太短，至少需要6个字符');
+      setError(t('register.errors.passwordTooShort'));
       return false;
     }
 
     if (formData.password !== formData.password2) {
-      setError('两次输入的密码不一致');
+      setError(t('register.errors.passwordMismatch'));
       return false;
     }
 
     const captchaRequired = captchaRef.current?.isEnabled() ?? false;
     if (captchaRequired) {
       if (!captchaCode || captchaCode.trim().length === 0) {
-        setError('请输入验证码');
+        setError(t('register.errors.captchaRequired'));
         setCaptchaError(true);
         return false;
       }
       if (captchaCode.trim().length !== 4) {
-        setError('请输入 4 位验证码');
+        setError(t('register.errors.captchaLength'));
         setCaptchaError(true);
         return false;
       }
       if (!captchaRef.current?.getToken()) {
-        setError('验证码尚未加载完成，请稍候');
+        setError(t('register.errors.captchaLoading'));
         setCaptchaError(true);
         return false;
       }
@@ -142,19 +144,19 @@ export default function Register() {
       } else {
         if (result.code === 'invalid_captcha') {
           setCaptchaError(true);
-          setError(result.message || '验证码错误或已过期，请重新输入');
+          setError(result.message || t('register.errors.captchaInvalid'));
           await captchaRef.current?.refresh();
           setCaptchaCode('');
         } else if (result.code === 'rate_limit') {
-          setError(result.message || '请求过于频繁，请稍后重试');
+          setError(result.message || t('register.errors.rateLimit'));
           await captchaRef.current?.refresh();
           setCaptchaCode('');
         } else {
-          setError(result.message || '注册失败');
+          setError(result.message || t('register.errors.registerFailed'));
         }
       }
     } catch {
-      setError('网络错误：无法连接到后端');
+      setError(t('register.errors.networkError'));
       await captchaRef.current?.refresh();
       setCaptchaCode('');
     } finally {
@@ -169,7 +171,7 @@ export default function Register() {
   return (
     <Box sx={{ maxWidth: 520 }}>
       <Typography variant="h4" gutterBottom>
-        注册
+        {t('register.title')}
       </Typography>
 
       {error && (
@@ -179,11 +181,11 @@ export default function Register() {
       )}
 
       {success ? (
-        <Alert severity="success">登录成功，正在跳转…</Alert>
+        <Alert severity="success">{t('register.successRedirecting')}</Alert>
       ) : (
         <form onSubmit={handleSubmit}>
           <TextField
-            label="邮箱"
+            label={t('register.emailLabel')}
             type="email"
             value={formData.email}
             onChange={handleInputChange('email')}
@@ -191,22 +193,22 @@ export default function Register() {
             fullWidth
             sx={{ mb: 2 }}
             disabled={loading}
-            placeholder="请输入邮箱地址"
+            placeholder={t('register.emailPlaceholder')}
           />
 
           <TextField
-            label="用户名"
+            label={t('register.usernameLabel')}
             value={formData.username}
             onChange={handleInputChange('username')}
             required
             fullWidth
             sx={{ mb: 2 }}
             disabled={loading}
-            placeholder="请输入用户名"
+            placeholder={t('register.usernamePlaceholder')}
           />
 
           <TextField
-            label="密码"
+            label={t('register.passwordLabel')}
             type="password"
             value={formData.password}
             onChange={handleInputChange('password')}
@@ -214,11 +216,11 @@ export default function Register() {
             fullWidth
             sx={{ mb: 2 }}
             disabled={loading}
-            placeholder="请输入密码（至少6个字符）"
+            placeholder={t('register.passwordPlaceholder')}
           />
 
           <TextField
-            label="确认密码"
+            label={t('register.password2Label')}
             type="password"
             value={formData.password2}
             onChange={handleInputChange('password2')}
@@ -226,7 +228,7 @@ export default function Register() {
             fullWidth
             sx={{ mb: 2 }}
             disabled={loading}
-            placeholder="请再次输入密码"
+            placeholder={t('register.password2Placeholder')}
           />
 
           <Captcha
@@ -246,7 +248,7 @@ export default function Register() {
             {loading ? (
               <CircularProgress size={24} />
             ) : (
-              '注册'
+              t('register.submit')
             )}
           </Button>
 
@@ -257,7 +259,7 @@ export default function Register() {
             fullWidth
             sx={{ mt: 1 }}
           >
-            刷新验证码
+            {t('register.refreshCaptcha')}
           </Button>
         </form>
       )}

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { TextField, Button, Typography, Box, Alert, Checkbox, FormControlLabel } from '@mui/material';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { validateEmail } from '../utils/email';
 import { getLoginTicket, verifyTotp } from '../api/auth';
 import { completeLogin } from '../utils/auth';
@@ -8,6 +9,7 @@ import { useMeta } from '../hooks/useMeta';
 
 export default function Login() {
   useMeta('login');
+  const { t } = useTranslation();
   const location = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -37,18 +39,18 @@ export default function Login() {
     setError(null);
 
     if (!email || !validateEmail(email)) {
-      setError('请输入有效的邮箱地址。');
+      setError(t('login.errors.invalidEmail'));
       return false;
     }
 
     if (!showTotp) {
       if (!password) {
-        setError('请输入密码。');
+        setError(t('login.errors.passwordRequired'));
         return false;
       }
     } else {
       if (!totpCode || totpCode.length !== 6) {
-        setError('请输入6位TOTP验证码。');
+        setError(t('login.errors.totpRequired'));
         return false;
       }
     }
@@ -67,7 +69,7 @@ export default function Login() {
       if (!showTotp) {
         const res = await getLoginTicket(email, password);
         if (!res.success) {
-          setError(res.message || '登录失败');
+          setError(res.message || t('login.errors.loginFailed'));
           setLoading(false);
           return;
         }
@@ -83,7 +85,7 @@ export default function Login() {
       } else {
         const res = await verifyTotp(loginTicket, totpCode);
         if (!res.success) {
-          setError(res.message || '验证码错误');
+          setError(res.message || t('login.errors.codeIncorrect'));
           setLoading(false);
           return;
         }
@@ -94,7 +96,7 @@ export default function Login() {
         }
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : '网络错误');
+      setError(err instanceof Error ? err.message : t('login.errors.networkError'));
       setLoading(false);
     }
   }
@@ -108,7 +110,7 @@ export default function Login() {
   return (
     <Box sx={{ maxWidth: 480 }}>
       <Typography variant="h4" gutterBottom>
-        登录
+        {t('login.title')}
       </Typography>
 
       {error && (
@@ -119,14 +121,14 @@ export default function Login() {
 
       {success ? (
         <Alert severity="success">
-          登录成功，正在跳转…
+          {t('login.successRedirecting')}
         </Alert>
       ) : (
         <form onSubmit={handleSubmit}>
           {!showTotp ? (
             <>
               <TextField
-                label="E-mail 邮箱"
+                label={t('login.emailLabel')}
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -136,7 +138,7 @@ export default function Login() {
                 disabled={loading}
               />
               <TextField
-                label="Password 密码"
+                label={t('login.passwordLabel')}
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -148,11 +150,11 @@ export default function Login() {
             </>
           ) : (
             <TextField
-              label="TOTP 验证码"
+              label={t('login.totpLabel')}
               type="text"
               value={totpCode}
               onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              placeholder="请输入6位数字验证码"
+              placeholder={t('login.totpPlaceholder')}
               required
               fullWidth
               sx={{ mb: 2 }}
@@ -169,7 +171,7 @@ export default function Login() {
                 disabled={loading}
               />
             }
-            label="记住登录"
+            label={t('login.remember')}
             sx={{ mb: 2 }}
           />
 
@@ -179,7 +181,7 @@ export default function Login() {
             disabled={loading}
             fullWidth
           >
-            {loading ? '请稍候...' : (showTotp ? '验证并登录' : '登录')}
+            {loading ? t('common.pleaseWait') : (showTotp ? t('login.submitTotp') : t('login.submit'))}
           </Button>
         </form>
       )}

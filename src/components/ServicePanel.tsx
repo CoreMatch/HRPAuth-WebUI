@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { getServiceSDK, onSDKLoaded } from '../utils/serviceRegistry';
 
 export interface ServicePanelProps {
@@ -17,6 +18,7 @@ export interface ServicePanelProps {
  * SDK 异步加载，加载完成后自动重渲染。
  */
 export default function ServicePanel({ name, area, url, height }: ServicePanelProps) {
+  const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [sdk, setSdk] = useState(() => getServiceSDK(name));
 
@@ -56,5 +58,5 @@ export default function ServicePanel({ name, area, url, height }: ServicePanelPr
     );
   }
 
-  return <p>服务 {name} 未提供可嵌入内容（未声明 mount 或 iframeUrl）。</p>;
+  return <p>{t('servicePanel.noContent', { name })}</p>;
 }

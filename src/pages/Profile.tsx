@@ -11,6 +11,7 @@ import Delete from '@mui/icons-material/Delete';
 import Photo from '@mui/icons-material/Photo';
 import { QRCodeSVG } from 'qrcode.react';
 import { Link as RouterLink } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 const SkinViewer3D = lazy(() => import('../components/SkinViewer3D'));
 import { request } from '../utils/api';
 import { verifyTotp } from '../api/auth';
@@ -68,6 +69,7 @@ function normalizeTextureUrl(url: string): string {
 }
 
 function TextureManageDialog({ open, onClose, token, onUpdated }: TextureManageDialogProps) {
+  const { t } = useTranslation();
   const [skinCurrentUrl, setSkinCurrentUrl] = useState<string | null>(null);
   const [capeCurrentUrl, setCapeCurrentUrl] = useState<string | null>(null);
   const [skinLocalPreview, setSkinLocalPreview] = useState<string | null>(null);
@@ -128,12 +130,12 @@ function TextureManageDialog({ open, onClose, token, onUpdated }: TextureManageD
     if (!file) return;
 
     if (!file.type.startsWith('image/png')) {
-      setError('请上传 PNG 格式的图片');
+      setError(t('profile.textureDialog.errors.pngOnly'));
       return;
     }
 
     if (file.size > 100 * 1024) {
-      setError('图片大小不能超过 100KB');
+      setError(t('profile.textureDialog.errors.tooLarge'));
       return;
     }
 
@@ -155,7 +157,7 @@ function TextureManageDialog({ open, onClose, token, onUpdated }: TextureManageD
   const handleUpload = async (type: TextureType) => {
     const file = type === 'skin' ? skinFile : capeFile;
     if (!file) {
-      setError(`请先选择${type === 'skin' ? '皮肤' : '披风'}文件`);
+      setError(t('profile.textureDialog.errors.selectFile', { type: t(type === 'skin' ? 'profile.textureDialog.skin' : 'profile.textureDialog.cape') }));
       return;
     }
 
@@ -186,10 +188,10 @@ function TextureManageDialog({ open, onClose, token, onUpdated }: TextureManageD
         await fetchTextures();
         onUpdated?.();
       } else {
-        setError(response.message || '上传失败');
+        setError(response.message || t('profile.textureDialog.errors.uploadFailed'));
       }
     } catch {
-      setError('服务器错误');
+      setError(t('common.serverError'));
     } finally {
       setUploading(null);
     }
@@ -217,10 +219,10 @@ function TextureManageDialog({ open, onClose, token, onUpdated }: TextureManageD
         }
         onUpdated?.();
       } else {
-        setError(response.message || '删除失败');
+        setError(response.message || t('profile.textureDialog.errors.deleteFailed'));
       }
     } catch {
-      setError('服务器错误');
+      setError(t('common.serverError'));
     } finally {
       setDeleting(null);
       setConfirmDeleteType(null);
@@ -233,7 +235,7 @@ function TextureManageDialog({ open, onClose, token, onUpdated }: TextureManageD
   const isLoading = uploading !== null || deleting !== null;
 
   const renderUploadSection = (type: TextureType) => {
-    const label = type === 'skin' ? 'Skin' : 'Cape';
+    const label = t(type === 'skin' ? 'profile.textureDialog.skin' : 'profile.textureDialog.cape');
     const file = type === 'skin' ? skinFile : capeFile;
     const currentUrl = type === 'skin' ? skinCurrentUrl : capeCurrentUrl;
     const fileInputRef = type === 'skin' ? skinFileInputRef : capeFileInputRef;
@@ -263,7 +265,7 @@ function TextureManageDialog({ open, onClose, token, onUpdated }: TextureManageD
                 fullWidth
                 disabled={isLoading}
               >
-                Choose File
+                {t('profile.textureDialog.chooseFile')}
               </Button>
             </label>
             {file && (
@@ -273,7 +275,7 @@ function TextureManageDialog({ open, onClose, token, onUpdated }: TextureManageD
                 disabled={isLoading}
                 sx={{ minWidth: 100 }}
               >
-                {isUploading ? 'Uploading...' : 'Upload'}
+                {isUploading ? t('profile.textureDialog.uploading') : t('profile.textureDialog.upload')}
               </Button>
             )}
           </Stack>
@@ -285,12 +287,12 @@ function TextureManageDialog({ open, onClose, token, onUpdated }: TextureManageD
               onClick={() => setConfirmDeleteType(type)}
               disabled={isLoading}
             >
-              {isDeleting ? 'Deleting...' : `Delete ${label}`}
+              {isDeleting ? t('profile.textureDialog.deleting') : t('profile.textureDialog.delete') + ' ' + label}
             </Button>
           )}
           {file && (
             <Typography variant="caption" color="text.secondary">
-              Selected: {file.name}
+              {t('profile.textureDialog.selected', { name: file.name })}
             </Typography>
           )}
         </Stack>
@@ -300,7 +302,7 @@ function TextureManageDialog({ open, onClose, token, onUpdated }: TextureManageD
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-      <DialogTitle>Manage Skin & Cape</DialogTitle>
+      <DialogTitle>{t('profile.textureDialog.title')}</DialogTitle>
       <DialogContent>
         {error && (
           <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
@@ -309,18 +311,22 @@ function TextureManageDialog({ open, onClose, token, onUpdated }: TextureManageD
         )}
         {success && !confirmDeleteType && (
           <Alert severity="success" sx={{ mb: 2 }}>
-            {success.type === 'skin' ? 'Skin' : 'Cape'} {success.action === 'upload' ? 'uploaded' : 'deleted'} successfully!
+            {t(success.action === 'upload' ? 'profile.textureDialog.uploadedSuccess' : 'profile.textureDialog.deletedSuccess', {
+              type: t(success.type === 'skin' ? 'profile.textureDialog.skin' : 'profile.textureDialog.cape'),
+            })}
           </Alert>
         )}
 
         {confirmDeleteType ? (
           <Box sx={{ mt: 2 }}>
             <Alert severity="warning" sx={{ mb: 2 }}>
-              确定要删除当前的 {confirmDeleteType === 'skin' ? 'Skin' : 'Cape'} 吗？此操作无法撤销。
+              {t('profile.textureDialog.deleteConfirm', {
+                type: t(confirmDeleteType === 'skin' ? 'profile.textureDialog.skin' : 'profile.textureDialog.cape'),
+              })}
             </Alert>
             <Stack direction="row" spacing={2} justifyContent="flex-end">
               <Button onClick={() => setConfirmDeleteType(null)} disabled={isLoading}>
-                取消
+                {t('common.cancel')}
               </Button>
               <Button
                 variant="contained"
@@ -328,7 +334,7 @@ function TextureManageDialog({ open, onClose, token, onUpdated }: TextureManageD
                 onClick={() => handleDelete(confirmDeleteType)}
                 disabled={isLoading}
               >
-                {deleting ? '删除中...' : '确认删除'}
+                {deleting ? t('profile.textureDialog.deleting') : t('common.confirm') + t('common.delete')}
               </Button>
             </Stack>
           </Box>
@@ -336,7 +342,7 @@ function TextureManageDialog({ open, onClose, token, onUpdated }: TextureManageD
           <Box sx={{ display: 'flex', gap: 4, mt: 2, flexDirection: { xs: 'column', md: 'row' } }}>
             <Box sx={{ flex: 1 }}>
               <Typography variant="body1" sx={{ mb: 2 }}>
-                Preview:
+                {t('profile.textureDialog.preview')}
               </Typography>
               {hasPreview ? (
                 <Box sx={{ position: 'relative', width: 200, height: 400, margin: '0 auto' }}>
@@ -372,13 +378,14 @@ function TextureManageDialog({ open, onClose, token, onUpdated }: TextureManageD
         )}
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Close</Button>
+        <Button onClick={onClose}>{t('profile.textureDialog.close')}</Button>
       </DialogActions>
     </Dialog>
   );
 }
 
 export default function Profile() {
+  const { t } = useTranslation();
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -438,7 +445,7 @@ export default function Profile() {
       const uid = getUid();
 
       if (!token) {
-        setError('未登录或登录已过期');
+        setError(t('profile.notLoggedIn'));
         setLoading(false);
         return;
       }
@@ -487,21 +494,21 @@ export default function Profile() {
     };
 
     fetchData();
-  }, []);
+  }, [t]);
 
   const handleSaveUsername = async () => {
     if (!newUsername.trim()) {
-      setSaveError('名称不能为空');
+      setSaveError(t('profile.usernameEmpty'));
       return;
     }
 
     if (newUsername.length < 3 || newUsername.length > 16) {
-      setSaveError('名称长度必须在3-16个字符之间');
+      setSaveError(t('profile.usernameLength'));
       return;
     }
 
     if (!/^[a-zA-Z0-9_]+$/.test(newUsername)) {
-      setSaveError('名称只能包含字母、数字和下划线');
+      setSaveError(t('profile.usernameInvalid'));
       return;
     }
 
@@ -526,10 +533,10 @@ export default function Profile() {
         setNewUsername('');
         setTimeout(() => setSaveSuccess(false), 3000);
       } else {
-        setSaveError(resp.message || '修改失败');
+        setSaveError(resp.message || t('profile.saveFailed'));
       }
     } catch {
-      setSaveError('服务器错误');
+      setSaveError(t('common.serverError'));
     } finally {
       setSaving(false);
     }
@@ -547,7 +554,7 @@ export default function Profile() {
     const token = getAuthToken();
 
     if (!email || !token) {
-      setTotpError('未登录或登录已过期');
+      setTotpError(t('profile.notLoggedInError'));
       return;
     }
 
@@ -571,10 +578,10 @@ export default function Profile() {
         setTotpKey(resp.data.totpkey);
         setTotpDialogOpen(true);
       } else {
-        setTotpError(resp.message || '设置 TOTP 失败');
+        setTotpError(resp.message || t('profile.totpSetupFailed'));
       }
     } catch {
-      setTotpError('服务器错误');
+      setTotpError(t('common.serverError'));
     } finally {
       setTotpLoading(false);
     }
@@ -591,13 +598,13 @@ export default function Profile() {
 
   const handleVerifyPasscode = async () => {
     if (!passcode || passcode.length !== 6 || !/^\d+$/.test(passcode)) {
-      setPasscodeError('请输入6位数字验证码');
+      setPasscodeError(t('profile.passcodeInvalid'));
       return;
     }
 
     const email = getUserEmail();
     if (!email) {
-      setPasscodeError('用户信息获取失败');
+      setPasscodeError(t('profile.userInfoFailed'));
       return;
     }
 
@@ -615,10 +622,10 @@ export default function Profile() {
           handleCloseTotpDialog();
         }, 1500);
       } else {
-        setPasscodeError(resp.message || '验证失败');
+        setPasscodeError(resp.message || t('profile.verifyFailed'));
       }
     } catch {
-      setPasscodeError('服务器错误');
+      setPasscodeError(t('common.serverError'));
     } finally {
       setVerifying(false);
     }
@@ -645,7 +652,7 @@ export default function Profile() {
         {error}
         <Box sx={{ mt: 1 }}>
           <Link component={RouterLink} to="/verifyemail" color="primary">
-            Verify email now
+            {t('profile.verifyEmailNow')}
           </Link>
         </Box>
       </Alert>
@@ -662,10 +669,10 @@ export default function Profile() {
     <Box>
       {!userInfo.verified && (
         <Alert severity="warning" sx={{ mb: 2 }}>
-          Your email is not verified. Please verify your email to access full features.
+          {t('profile.notVerifiedWarning')}
           <Box sx={{ mt: 1 }}>
             <Link component={RouterLink} to="/verifyemail" color="primary">
-              Verify email now
+              {t('profile.verifyEmailNow')}
             </Link>
           </Box>
         </Alert>
@@ -689,10 +696,10 @@ export default function Profile() {
             {editMode ? (
               <Box sx={{ mb: 2 }}>
                 <TextField
-                  label="New Username"
+                  label={t('profile.newUsernameLabel')}
                   value={newUsername}
                   onChange={(e) => setNewUsername(e.target.value)}
-                  placeholder="3-16 characters, letters, numbers, underscores"
+                  placeholder={t('profile.newUsernamePlaceholder')}
                   fullWidth
                   margin="dense"
                   error={!!saveError}
@@ -705,14 +712,14 @@ export default function Profile() {
                     onClick={handleSaveUsername}
                     disabled={saving}
                   >
-                    {saving ? 'Saving...' : 'Save'}
+                    {saving ? t('profile.saving') : t('profile.save')}
                   </Button>
                   <Button
                     variant="outlined"
                     onClick={handleCancelEdit}
                     disabled={saving}
                   >
-                    Cancel
+                    {t('profile.cancel')}
                   </Button>
                 </Stack>
               </Box>
@@ -728,12 +735,12 @@ export default function Profile() {
                     size="small"
                     color="primary"
                   >
-                    Edit
+                    {t('profile.edit')}
                   </Button>
                 </Box>
                 {saveSuccess && (
                   <Alert severity="success" sx={{ mt: 1, mb: 2 }}>
-                    Username updated successfully!
+                    {t('profile.saveSuccess')}
                   </Alert>
                 )}
               </>
@@ -744,7 +751,7 @@ export default function Profile() {
             <Stack direction="row" alignItems="center" spacing={1}>
               <Chip
                 icon={userInfo.verified ? <CheckCircle /> : <Warning />}
-                label={userInfo.verified ? 'Email verified' : 'Email not verified'}
+                label={userInfo.verified ? t('profile.emailVerified') : t('profile.emailNotVerified')}
                 color={userInfo.verified ? 'success' : 'warning'}
                 size="small"
                 variant="outlined"
@@ -759,10 +766,10 @@ export default function Profile() {
           <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
             <Box>
               <Typography variant="h6" gutterBottom>
-                Skin & Cape
+                {t('profile.skinCapeTitle')}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Preview and manage your skin and cape
+                {t('profile.skinCapeSubtitle')}
               </Typography>
             </Box>
             <Button
@@ -770,7 +777,7 @@ export default function Profile() {
               startIcon={<CloudUpload />}
               onClick={() => setTextureDialogOpen(true)}
             >
-              Manage
+              {t('profile.manage')}
             </Button>
           </Stack>
           <Box sx={{
@@ -796,7 +803,7 @@ export default function Profile() {
               <Stack alignItems="center" spacing={1}>
                 <Photo sx={{ width: 48, height: 48, color: 'grey.500' }} />
                 <Typography variant="body2" color="text.secondary">
-                  No skin or cape uploaded yet
+                  {t('profile.noSkinOrCape')}
                 </Typography>
               </Stack>
             )}
@@ -809,12 +816,12 @@ export default function Profile() {
           <Stack direction="row" alignItems="center" justifyContent="space-between">
             <Box>
               <Typography variant="h6" gutterBottom>
-                Two-Factor Authentication
+                {t('profile.totpTitle')}
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 {userInfo.totp_enabled
-                  ? 'TOTP has been enabled for your account'
-                  : 'Protect your account with TOTP authenticator'
+                  ? t('profile.totpEnabled')
+                  : t('profile.totpDisabled')
                 }
               </Typography>
             </Box>
@@ -824,7 +831,7 @@ export default function Profile() {
               onClick={handleOpenTotpDialog}
               disabled={totpLoading}
             >
-              {totpLoading ? 'Loading...' : userInfo.totp_enabled ? 'Reset' : 'Enable'}
+              {totpLoading ? t('profile.totpLoading') : userInfo.totp_enabled ? t('profile.totpReset') : t('profile.totpEnable')}
             </Button>
           </Stack>
         </CardContent>
@@ -838,11 +845,11 @@ export default function Profile() {
       />
 
       <Dialog open={totpDialogOpen} onClose={handleCloseTotpDialog} maxWidth="sm" fullWidth>
-        <DialogTitle>Set up TOTP Authenticator</DialogTitle>
+        <DialogTitle>{t('profile.setupDialogTitle')}</DialogTitle>
         <DialogContent>
           {setupSuccess ? (
             <Alert severity="success" sx={{ mt: 2 }}>
-              TOTP has been successfully enabled!
+              {t('profile.setupSuccess')}
             </Alert>
           ) : (
             <>
@@ -854,7 +861,7 @@ export default function Profile() {
               {totpKey && (
                 <>
                   <Typography variant="body1" sx={{ mb: 2 }}>
-                    Scan the QR code with your authenticator app:
+                    {t('profile.scanHint')}
                   </Typography>
                   <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
                     <QRCodeSVG
@@ -864,10 +871,10 @@ export default function Profile() {
                     />
                   </Box>
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 2, textAlign: 'center' }}>
-                    Or manually enter this secret key: <strong>{totpKey}</strong>
+                    {t('profile.manualKeyHint')} <strong>{totpKey}</strong>
                   </Typography>
                   <TextField
-                    label="Enter 6-digit code"
+                    label={t('profile.passcodeLabel')}
                     value={passcode}
                     onChange={(e) => setPasscode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                     fullWidth
@@ -892,14 +899,14 @@ export default function Profile() {
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseTotpDialog}>Cancel</Button>
+          <Button onClick={handleCloseTotpDialog}>{t('profile.cancel')}</Button>
           {!setupSuccess && totpKey && (
             <Button
               variant="contained"
               onClick={handleVerifyPasscode}
               disabled={verifying || passcode.length !== 6}
             >
-              {verifying ? 'Verifying...' : 'Verify'}
+              {verifying ? t('profile.verifying') : t('profile.verify')}
             </Button>
           )}
         </DialogActions>

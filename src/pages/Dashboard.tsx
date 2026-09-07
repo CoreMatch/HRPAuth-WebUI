@@ -21,6 +21,7 @@ import { getDiscoveredServices, getServiceSDK, onSDKLoaded } from '../utils/serv
 import type { ServiceSummary } from '../api/services';
 import type { ServiceSDK, ServiceSDKDashboard } from '../types/service-sdk';
 import ServicePanel from '../components/ServicePanel';
+import { useTranslation } from 'react-i18next';
 
 function CodeBlock({ children }: { children: string }) {
   return (
@@ -44,6 +45,7 @@ function CodeBlock({ children }: { children: string }) {
 }
 
 function YggdrasilDashboard() {
+  const { t } = useTranslation();
   const [baseUrl, setBaseUrl] = useState('');
   const [copied, setCopied] = useState(false);
 
@@ -66,13 +68,13 @@ function YggdrasilDashboard() {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-      <Typography variant="h6">There is a built-in Yggdrasil API service (Zggdrasil) available.</Typography>
+      <Typography variant="h6">{t('dashboard.yggdrasil.intro')}</Typography>
 
       <Grid container spacing={2}>
         <Grid size={{ xs: 12, md: 6 }}>
           <Card sx={{ height: '100%' }}>
             <CardContent>
-              <Typography variant="subtitle2" color="text.secondary" gutterBottom>Server Address</Typography>
+              <Typography variant="subtitle2" color="text.secondary" gutterBottom>{t('dashboard.yggdrasil.serverAddress')}</Typography>
               <CodeBlock>{baseUrl}</CodeBlock>
               <Button
                 variant="contained"
@@ -81,7 +83,7 @@ function YggdrasilDashboard() {
                 sx={{ mt: 2 }}
                 fullWidth
               >
-                {copied ? 'Copied!' : 'Copy URL'}
+                {copied ? t('dashboard.yggdrasil.copied') : t('dashboard.yggdrasil.copyUrl')}
               </Button>
             </CardContent>
           </Card>
@@ -90,12 +92,12 @@ function YggdrasilDashboard() {
 
       <Card>
         <CardContent>
-          <Typography variant="subtitle2" color="text.secondary" gutterBottom>Usage Instructions</Typography>
+          <Typography variant="subtitle2" color="text.secondary" gutterBottom>{t('dashboard.yggdrasil.usageInstructions')}</Typography>
           <Typography variant="body2" component="div">
             <Box component="ol" sx={{ pl: 2, m: 0 }}>
-              <li>Add the server address to your Minecraft launcher</li>
-              <li>Use your credentials to authenticate</li>
-              <li>Skins and capes will be loaded automatically</li>
+              <li>{t('dashboard.yggdrasil.steps.1')}</li>
+              <li>{t('dashboard.yggdrasil.steps.2')}</li>
+              <li>{t('dashboard.yggdrasil.steps.3')}</li>
             </Box>
           </Typography>
         </CardContent>
@@ -116,14 +118,9 @@ interface MenuItem {
   url?: string;
 }
 
-const menuItems: MenuItem[] = [
-  { id: 'Profile', label: 'Profile', content: '', jsxContent: <Profile />, icon: <PersonIcon /> },
-  { id: 'MojangBind', label: '正版账号绑定', content: '', jsxContent: <MojangBindDashboard />, icon: <VpnKeyIcon /> },
-  { id: 'Yggdrasil API', label: 'Yggdrasil API', content: '', jsxContent: <YggdrasilDashboard />, icon: <ApiIcon /> },
-];
-
 export default function PermanentDrawerLeft() {
   useMeta('dash');
+  const { t } = useTranslation();
   const [selectedItem, setSelectedItem] = useState<string | null>('Profile');
   const [, setSdkTick] = useState(0);
 
@@ -131,6 +128,12 @@ export default function PermanentDrawerLeft() {
   useEffect(() => {
     return onSDKLoaded(() => setSdkTick((t) => t + 1));
   }, []);
+
+  const baseItems: MenuItem[] = [
+    { id: 'Profile', label: t('dashboard.sidebar.profile'), content: '', jsxContent: <Profile />, icon: <PersonIcon /> },
+    { id: 'MojangBind', label: t('dashboard.sidebar.mojangBind'), content: '', jsxContent: <MojangBindDashboard />, icon: <VpnKeyIcon /> },
+    { id: 'Yggdrasil API', label: t('dashboard.sidebar.yggdrasil'), content: '', jsxContent: <YggdrasilDashboard />, icon: <ApiIcon /> },
+  ];
 
   // 声明了 dashboard 的微服务：追加为左侧菜单项，内容区动态加载组件（回退 iframe）。
   const serviceItems: MenuItem[] = getDiscoveredServices()
@@ -154,7 +157,7 @@ export default function PermanentDrawerLeft() {
         : [];
     });
 
-  const allItems: MenuItem[] = [...menuItems, ...serviceItems];
+  const allItems: MenuItem[] = [...baseItems, ...serviceItems];
   const selected = allItems.find((item) => item.id === selectedItem) ?? null;
 
   return (
@@ -180,7 +183,7 @@ export default function PermanentDrawerLeft() {
         <List sx={{ py: 1 }}>
           {allItems.map((item, index) => (
             <React.Fragment key={item.id}>
-              {serviceItems.length > 0 && index === menuItems.length && (
+              {serviceItems.length > 0 && index === baseItems.length && (
                 <Divider sx={{ my: 1 }} />
               )}
               <ListItem disablePadding sx={{ mx: 1, my: 0.5, borderRadius: 1 }}>

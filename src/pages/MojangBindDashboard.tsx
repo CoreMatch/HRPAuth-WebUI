@@ -2,6 +2,7 @@ import { useState, useEffect, lazy, Suspense } from 'react';
 import { Box, Typography, Card, CardContent, Alert, Switch, FormControlLabel, Stack, CircularProgress, Chip } from '@mui/material';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import CheckIcon from '@mui/icons-material/Check';
+import { useTranslation } from 'react-i18next';
 import { enableMojangBind, disableMojangBind } from '../api/user';
 import { mojangTextureUrl, fetchMojangProfile } from '../api/texture';
 import { getAuthToken, getMbeEnabled, setMbeEnabled } from '../utils/cookie';
@@ -16,6 +17,7 @@ interface MojangProfile {
 }
 
 export default function MojangBindDashboard() {
+  const { t } = useTranslation();
   const [mbeEnabled, setMbeEnabledState] = useState(false);
   const [mbeLoading, setMbeLoading] = useState(false);
   const [mbeError, setMbeError] = useState<string | null>(null);
@@ -103,10 +105,10 @@ export default function MojangBindDashboard() {
         setMbeEnabledState(newMbe);
         setMbeEnabled(newMbe);
       } else {
-        setMbeError(resp.message || '操作失败');
+        setMbeError(resp.message || t('mojangBind.operationFailed'));
       }
     } catch {
-      setMbeError('服务器错误');
+      setMbeError(t('common.serverError'));
     } finally {
       setMbeLoading(false);
     }
@@ -127,12 +129,12 @@ export default function MojangBindDashboard() {
           <Stack direction="row" alignItems="center" justifyContent="space-between">
             <Box sx={{ flex: 1, mr: 2 }}>
               <Typography variant="h6" gutterBottom>
-                Mojang Account Binding
+                {t('mojangBind.title')}
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 {mbeEnabled
-                  ? 'Allow Mojang players with the same username to bind to your account'
-                  : 'HA priority: Mojang players with the same username will be rejected'
+                  ? t('mojangBind.subtitleEnabled')
+                  : t('mojangBind.subtitleDisabled')
                 }
               </Typography>
               {mbeError && (
@@ -149,7 +151,7 @@ export default function MojangBindDashboard() {
                   disabled={mbeLoading}
                 />
               }
-              label={mbeLoading ? '...' : mbeEnabled ? 'On' : 'Off'}
+              label={mbeLoading ? '...' : mbeEnabled ? t('mojangBind.on') : t('mojangBind.off')}
             />
           </Stack>
         </CardContent>
@@ -159,11 +161,11 @@ export default function MojangBindDashboard() {
         <Card>
           <CardContent>
             <Typography variant="h6" gutterBottom>
-              Bound Account
+              {t('mojangBind.boundAccount')}
             </Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
               <Typography variant="body2" color="text.secondary">
-                UUID:
+                {t('mojangBind.uuidLabel')}
               </Typography>
               <Chip
                 label={mojangUuid}
@@ -187,7 +189,7 @@ export default function MojangBindDashboard() {
               <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
                 <Box>
                   <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                    Skin Preview
+                    {t('mojangBind.skinPreview')}
                   </Typography>
                   <Suspense fallback={<CircularProgress />}>
                     <SkinViewer3D
@@ -200,27 +202,27 @@ export default function MojangBindDashboard() {
                 </Box>
                 <Box sx={{ flex: 1, minWidth: 200 }}>
                   <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                    Player Info
+                    {t('mojangBind.playerInfo')}
                   </Typography>
                   <Stack spacing={1}>
                     <Box>
-                      <Typography variant="caption" color="text.secondary">Name</Typography>
+                      <Typography variant="caption" color="text.secondary">{t('mojangBind.name')}</Typography>
                       <Typography variant="body1">{mojangProfile?.name ?? '—'}</Typography>
                     </Box>
                     <Box>
-                      <Typography variant="caption" color="text.secondary">UUID</Typography>
+                      <Typography variant="caption" color="text.secondary">{t('mojangBind.uuid')}</Typography>
                       <Typography variant="body1" sx={{ fontFamily: 'monospace', wordBreak: 'break-all' }}>
                         {mojangProfile?.id ?? mojangUuid}
                       </Typography>
                     </Box>
                     {hasCape && (
-                      <Alert severity="info">Cape available</Alert>
+                      <Alert severity="info">{t('mojangBind.capeAvailable')}</Alert>
                     )}
                   </Stack>
                 </Box>
               </Box>
             ) : (
-              <Alert severity="info">No skin data available</Alert>
+              <Alert severity="info">{t('mojangBind.noSkinData')}</Alert>
             )}
           </CardContent>
         </Card>

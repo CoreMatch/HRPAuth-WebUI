@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { AppBar, Toolbar, Typography, Button, Avatar, Menu, MenuItem, IconButton } from "@mui/material";
 import { Link, useNavigate } from "react-router-dom";
+import { useTranslation } from 'react-i18next';
+import LanguageSwitcher from './LanguageSwitcher';
 import { request } from '../utils/api';
 import { getAuthToken, getUserEmail, clearAuthCookies } from '../utils/cookie';
 import { BackendUrl } from '../utils/config';
@@ -9,6 +11,7 @@ import type { ServiceSummary } from '../api/services';
 import type { ServiceSDK, ServiceSDKMenu } from '../types/service-sdk';
 
 export default function Navbar() {
+  const { t } = useTranslation();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [, setSdkTick] = useState(0);
@@ -68,6 +71,8 @@ export default function Navbar() {
           HRPAuth
         </Typography>
 
+        <LanguageSwitcher />
+
         {isLoggedIn ? (
           <>
             <IconButton
@@ -93,13 +98,13 @@ export default function Navbar() {
               }}
             >
               <MenuItem component={Link} to="/dash" onClick={handleMenuClose}>
-                Dashboard
+                {t('navbar.dashboard')}
               </MenuItem>
               <MenuItem component={Link} to="/dashdebug" onClick={handleMenuClose}>
-                Debug
+                {t('navbar.debug')}
               </MenuItem>
               <MenuItem component={Link} to="/skinlib" onClick={handleMenuClose}>
-                SkinLib
+                {t('navbar.skinlib')}
               </MenuItem>
               {/* 微服务通过 SDK 声明的菜单项 */}
               {getDiscoveredServices()
@@ -119,17 +124,17 @@ export default function Navbar() {
                   </MenuItem>
                 ))}
               <MenuItem onClick={handleLogout}>
-                Logout
+                {t('navbar.logout')}
               </MenuItem>
             </Menu>
           </>
         ) : (
           <>
             <Button color="inherit" component={Link} to="/login">
-              Login
+              {t('navbar.login')}
             </Button>
             <Button color="inherit" component={Link} to="/register">
-              Register
+              {t('navbar.register')}
             </Button>
           </>
         )}

@@ -1,4 +1,5 @@
 import { Box, Typography, } from "@mui/material";
+import { Trans } from 'react-i18next';
 import logo from "/revolution.png";
 import { useMeta } from '../hooks/useMeta';
 
@@ -26,16 +27,20 @@ export default function Home() {
 			<Box sx={{ px: "2%" }}>
 				<Box sx={{ maxWidth: "1200px", mx: "auto" }}>
 					<Typography id="home-header" variant="h3" gutterBottom>
-						Here`s <span style={{ color: "#1976d2" }}>HRPAuth</span>
+						<Trans i18nKey="home.title" components={{ 1: <span style={{ color: "#1976d2" }} /> }} />
 					</Typography>
 
 					<Typography variant="body1" paragraph>
-						A minecraft authentication service, which is designed for <a href="//mc.samuelchest.com/" target="_blank" rel="noopener noreferrer">RevolutionMC</a>.
+						<Trans
+							i18nKey="home.description"
+							components={{
+								2: <a href="//mc.samuelchest.com/" target="_blank" rel="noopener noreferrer" />,
+							}}
+						/>
 					</Typography>
-				
+
 				</Box>
 			</Box>
 		</>
 	);
 }
-

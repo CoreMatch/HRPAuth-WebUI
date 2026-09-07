@@ -8,6 +8,7 @@ import {
 } from 'react';
 import { Box, TextField, Typography, CircularProgress } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import { useTranslation } from 'react-i18next';
 import {
   getCaptchaEnabled,
   requestCaptcha,
@@ -34,6 +35,7 @@ interface CaptchaProps {
 type Status = 'loading' | 'ready' | 'disabled' | 'error' | 'expired';
 
 const Captcha = forwardRef<CaptchaRef, CaptchaProps>(({ value, onChange, error }, ref) => {
+  const { t } = useTranslation();
   const [status, setStatus] = useState<Status>('loading');
   const [token, setToken] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState<string>('');
@@ -74,11 +76,11 @@ const Captcha = forwardRef<CaptchaRef, CaptchaProps>(({ value, onChange, error }
         load();
       }, refreshIn);
     } catch (err) {
-      const message = err instanceof Error ? err.message : '加载验证码失败';
+      const message = err instanceof Error ? err.message : t('captcha.loadFailed');
       setErrorMsg(message);
       setStatus('error');
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     load();
@@ -117,7 +119,7 @@ const Captcha = forwardRef<CaptchaRef, CaptchaProps>(({ value, onChange, error }
             overflow: 'hidden',
             flexShrink: 0,
           }}
-          title="点击刷新验证码"
+          title={t('captcha.title')}
         >
           {status === 'loading' && <CircularProgress size={24} />}
           {status === 'ready' && imageUrl && (
@@ -134,25 +136,25 @@ const Captcha = forwardRef<CaptchaRef, CaptchaProps>(({ value, onChange, error }
           )}
         </Box>
         <TextField
-          label="验证码"
+          label={t('captcha.label')}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           error={error}
           helperText={
             error
-              ? '验证码错误或已过期'
+              ? t('captcha.errorExpired')
               : status === 'error'
-                ? errorMsg || '加载失败，点击图片重试'
+                ? errorMsg || t('captcha.errorLoad')
                 : status === 'expired'
-                  ? '验证码已过期，请点击图片刷新'
-                  : '请输入图中 4 位字符（不区分大小写）'
+                  ? t('captcha.expiredHint')
+                  : t('captcha.helper')
           }
           sx={{ flex: 1 }}
           inputProps={{ maxLength: 4, autoComplete: 'off' }}
         />
       </Box>
       <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-        点击图片可刷新验证码
+        {t('captcha.tip')}
       </Typography>
     </Box>
   );
