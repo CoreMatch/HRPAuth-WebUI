@@ -29,9 +29,7 @@ export default function MojangBindDashboard() {
   const fetchMojangProfileLocal = async (uuid: string) => {
     setSkinLoading(true);
     try {
-      console.log('[MojangBind] fetchMojangProfileLocal start, uuid:', uuid);
       const profile = await fetchMojangProfile(uuid);
-      console.log('[MojangBind] fetchMojangProfile result:', profile);
       if (profile) {
         setMojangProfile({ id: profile.id, name: profile.name });
         setHasCape(profile.has_cape);
