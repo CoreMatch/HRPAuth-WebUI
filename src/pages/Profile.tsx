@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import type { ChangeEvent } from 'react';
-import { Box, Typography, Card, CardContent, Avatar, CircularProgress, Alert, Chip, Stack, Link, TextField, Button, Dialog, DialogTitle, DialogContent, DialogActions, InputAdornment, Switch, FormControlLabel } from '@mui/material';
+import { Box, Typography, Card, CardContent, Avatar, CircularProgress, Alert, Chip, Stack, Link, TextField, Button, Dialog, DialogTitle, DialogContent, DialogActions, InputAdornment } from '@mui/material';
 import CheckCircle from '@mui/icons-material/CheckCircle';
 import Warning from '@mui/icons-material/Warning';
 import Edit from '@mui/icons-material/Edit';
@@ -14,8 +14,7 @@ import { Link as RouterLink } from 'react-router-dom';
 const SkinViewer3D = lazy(() => import('../components/SkinViewer3D'));
 import { request } from '../utils/api';
 import { verifyTotp } from '../api/auth';
-import { enableMojangBind, disableMojangBind } from '../api/user';
-import { getUserEmail, getAuthToken, getUid, getVerified, getTotpEnabled, setTotpEnabled, getMbeEnabled, setMbeEnabled } from '../utils/cookie';
+import { getUserEmail, getAuthToken, getUid, getVerified, getTotpEnabled, setTotpEnabled } from '../utils/cookie';
 import { BackendUrl } from '../utils/config';
 
 interface UserInfo {
@@ -24,7 +23,6 @@ interface UserInfo {
   avatar?: string;
   verified?: boolean;
   totp_enabled: boolean;
-  mbe_enabled: boolean;
   uid?: number;
 }
 
@@ -403,9 +401,6 @@ export default function Profile() {
   const [skinUrl, setSkinUrl] = useState<string | null>(null);
   const [capeUrl, setCapeUrl] = useState<string | null>(null);
 
-  const [mbeLoading, setMbeLoading] = useState(false);
-  const [mbeError, setMbeError] = useState<string | null>(null);
-
   const fetchTextures = async () => {
     try {
       const response = await request(`${BackendUrl}/texture/get`, {
@@ -458,41 +453,33 @@ export default function Profile() {
         });
 
         let totpEnabled: boolean;
-        let mbeEnabled: boolean;
         if (resp.success && resp.data) {
           const apiTotp = resp.data.totp_enabled;
           totpEnabled = apiTotp !== undefined ? Boolean(apiTotp) : (getTotpEnabled() ?? false);
-          const apiMbe = resp.data.mbe;
-          mbeEnabled = apiMbe !== undefined ? Boolean(apiMbe) : (getMbeEnabled() ?? false);
           setUserInfo({
             email: resp.data.email || email || '',
             username: resp.data.username || (email ? email.split('@')[0] : 'User'),
             avatar: resp.data.avatar,
             verified: Boolean(resp.data.verified),
             totp_enabled: totpEnabled,
-            mbe_enabled: mbeEnabled,
             uid: resp.data.uid,
           });
         } else {
           totpEnabled = getTotpEnabled() ?? false;
-          mbeEnabled = getMbeEnabled() ?? false;
           setUserInfo({
             email: email || '',
             username: email ? email.split('@')[0] : 'User',
             verified: Boolean(getVerified()),
             totp_enabled: totpEnabled,
-            mbe_enabled: mbeEnabled,
           });
         }
       } catch {
         const cookieTotp = getTotpEnabled();
-        const cookieMbe = getMbeEnabled();
         setUserInfo({
           email: email || '',
           username: email ? email.split('@')[0] : 'User',
           verified: Boolean(getVerified()),
           totp_enabled: cookieTotp !== undefined ? cookieTotp : false,
-          mbe_enabled: cookieMbe !== undefined ? cookieMbe : false,
         });
       } finally {
         setLoading(false);
@@ -553,29 +540,6 @@ export default function Profile() {
     setNewUsername('');
     setSaveError(null);
     setSaveSuccess(false);
-  };
-
-  const handleToggleMbe = async () => {
-    setMbeLoading(true);
-    setMbeError(null);
-
-    try {
-      const resp = userInfo?.mbe_enabled
-        ? await disableMojangBind()
-        : await enableMojangBind();
-
-      if (resp.success) {
-        const newMbe = Boolean(resp.data?.mbe);
-        setUserInfo(prev => prev ? { ...prev, mbe_enabled: newMbe } : null);
-        setMbeEnabled(newMbe);
-      } else {
-        setMbeError(resp.message || '操作失败');
-      }
-    } catch {
-      setMbeError('服务器错误');
-    } finally {
-      setMbeLoading(false);
-    }
   };
 
   const handleOpenTotpDialog = async () => {
@@ -862,39 +826,6 @@ export default function Profile() {
             >
               {totpLoading ? 'Loading...' : userInfo.totp_enabled ? 'Reset' : 'Enable'}
             </Button>
-          </Stack>
-        </CardContent>
-      </Card>
-
-      <Card sx={{ maxWidth: 500, mt: 2 }}>
-        <CardContent>
-          <Stack direction="row" alignItems="center" justifyContent="space-between">
-            <Box sx={{ flex: 1, mr: 2 }}>
-              <Typography variant="h6" gutterBottom>
-                Mojang Account Binding
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {userInfo.mbe_enabled
-                  ? 'Allow Mojang players with the same username to bind to your account'
-                  : 'HA priority: Mojang players with the same username will be rejected'
-                }
-              </Typography>
-              {mbeError && (
-                <Alert severity="error" sx={{ mt: 1 }} onClose={() => setMbeError(null)}>
-                  {mbeError}
-                </Alert>
-              )}
-            </Box>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={userInfo.mbe_enabled}
-                  onChange={handleToggleMbe}
-                  disabled={mbeLoading}
-                />
-              }
-              label={mbeLoading ? '...' : userInfo.mbe_enabled ? 'On' : 'Off'}
-            />
           </Stack>
         </CardContent>
       </Card>

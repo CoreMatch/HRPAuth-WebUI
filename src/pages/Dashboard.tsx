@@ -14,7 +14,9 @@ import ApiIcon from '@mui/icons-material/Api';
 import { getRealBackendUrl } from '../utils/config';
 import { useMeta } from '../hooks/useMeta';
 import PersonIcon from '@mui/icons-material/Person';
+import VpnKeyIcon from '@mui/icons-material/VpnKey';
 import Profile from './Profile';
+import MojangBindDashboard from './MojangBindDashboard';
 import { getDiscoveredServices, getServiceSDK, onSDKLoaded } from '../utils/serviceRegistry';
 import type { ServiceSummary } from '../api/services';
 import type { ServiceSDK, ServiceSDKDashboard } from '../types/service-sdk';
@@ -116,6 +118,7 @@ interface MenuItem {
 
 const menuItems: MenuItem[] = [
   { id: 'Profile', label: 'Profile', content: '', jsxContent: <Profile />, icon: <PersonIcon /> },
+  { id: 'MojangBind', label: '正版账号绑定', content: '', jsxContent: <MojangBindDashboard />, icon: <VpnKeyIcon /> },
   { id: 'Yggdrasil API', label: 'Yggdrasil API', content: '', jsxContent: <YggdrasilDashboard />, icon: <ApiIcon /> },
 ];
 
