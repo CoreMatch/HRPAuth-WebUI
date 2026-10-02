@@ -31,6 +31,19 @@ export interface WebAuthnBeginResponse {
   options?: Record<string, unknown>;
 }
 
+export interface WebAuthnCredentialRecord {
+  id: number;
+  name?: string;
+  created_at?: string;
+  updated_at?: string;
+  last_used_at?: string | null;
+}
+
+export interface WebAuthnCredentialListResponse {
+  credentials?: WebAuthnCredentialRecord[];
+  enabled?: boolean | number;
+}
+
 export async function getLoginTicket(email: string, password: string): Promise<ApiResponse<LoginTicketResponse>> {
   const url = `${BackendUrl}/oauth/login-ticket`;
   return request<LoginTicketResponse>(url, {
@@ -135,5 +148,57 @@ export async function finishWebAuthnSecondFactor(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ flow_id: flowId, credential }),
+  });
+}
+
+export async function beginWebAuthnRegistration(
+  name?: string,
+  attachment?: 'platform' | 'cross-platform'
+): Promise<ApiResponse<WebAuthnBeginResponse>> {
+  const url = `${BackendUrl}/webauthn/register/begin`;
+  const body = JSON.stringify({
+    ...(name ? { name } : {}),
+    ...(attachment ? { attachment } : {}),
+  });
+
+  return request<WebAuthnBeginResponse>(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body,
+  });
+}
+
+export async function finishWebAuthnRegistration(
+  flowId: string,
+  credential: Record<string, unknown>
+): Promise<ApiResponse> {
+  const url = `${BackendUrl}/webauthn/register/finish`;
+  return request(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ flow_id: flowId, credential }),
+  });
+}
+
+export async function listWebAuthnCredentials(): Promise<ApiResponse<WebAuthnCredentialListResponse | WebAuthnCredentialRecord[]>> {
+  const url = `${BackendUrl}/webauthn/credentials`;
+  return request<WebAuthnCredentialListResponse | WebAuthnCredentialRecord[]>(url, {
+    method: 'GET',
+  });
+}
+
+export async function deleteWebAuthnCredential(id: number): Promise<ApiResponse> {
+  const url = `${BackendUrl}/webauthn/credentials/${id}`;
+  return request(url, {
+    method: 'DELETE',
+  });
+}
+
+export async function toggleWebAuthnSecondFactor(enabled: boolean): Promise<ApiResponse<WebAuthnCredentialListResponse>> {
+  const url = `${BackendUrl}/webauthn/2fa/toggle`;
+  return request<WebAuthnCredentialListResponse>(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ enabled }),
   });
 }

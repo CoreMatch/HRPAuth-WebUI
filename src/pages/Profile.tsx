@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import type { ChangeEvent } from 'react';
-import { Box, Typography, Card, CardContent, Avatar, CircularProgress, Alert, Chip, Stack, Link, TextField, Button, Dialog, DialogTitle, DialogContent, DialogActions, InputAdornment } from '@mui/material';
+import { Box, Typography, Card, CardContent, Avatar, CircularProgress, Alert, Chip, Stack, Link, TextField, Button, Dialog, DialogTitle, DialogContent, DialogActions, InputAdornment, FormControlLabel, Switch } from '@mui/material';
 import CheckCircle from '@mui/icons-material/CheckCircle';
 import Warning from '@mui/icons-material/Warning';
 import Edit from '@mui/icons-material/Edit';
@@ -14,9 +14,22 @@ import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 const SkinViewer3D = lazy(() => import('../components/SkinViewer3D'));
 import { request } from '../utils/api';
-import { getTotpStatus, requestAccountDeletion, setupTotp, toggleTotp, verifyTotp } from '../api/auth';
+import {
+  beginWebAuthnRegistration,
+  deleteWebAuthnCredential,
+  finishWebAuthnRegistration,
+  getTotpStatus,
+  listWebAuthnCredentials,
+  requestAccountDeletion,
+  setupTotp,
+  toggleTotp,
+  toggleWebAuthnSecondFactor,
+  type WebAuthnCredentialRecord,
+  verifyTotp,
+} from '../api/auth';
 import { clearAuthCookies, getUserEmail, getAuthToken, getUid, getVerified, getTotpEnabled, setTotpEnabled } from '../utils/cookie';
 import { BackendUrl } from '../utils/config';
+import { isWebAuthnSupported, registerWithWebAuthn } from '../utils/webauthn';
 
 interface UserInfo {
   email: string;
@@ -24,6 +37,7 @@ interface UserInfo {
   avatar?: string;
   verified?: boolean;
   totp_enabled: boolean;
+  webauthn_2fa_enabled?: boolean;
   uid?: number;
 }
 
@@ -425,6 +439,14 @@ export default function Profile() {
   const [setupSuccess, setSetupSuccess] = useState(false);
   const [disableTotpDialogOpen, setDisableTotpDialogOpen] = useState(false);
   const [twoFactorFeedback, setTwoFactorFeedback] = useState<ActionFeedback | null>(null);
+  const [webauthnCredentials, setWebauthnCredentials] = useState<WebAuthnCredentialRecord[]>([]);
+  const [webauthn2faEnabled, setWebauthn2faEnabled] = useState(false);
+  const [webauthnLoading, setWebauthnLoading] = useState(false);
+  const [webauthnFeedback, setWebauthnFeedback] = useState<ActionFeedback | null>(null);
+  const [webauthnDialogOpen, setWebauthnDialogOpen] = useState(false);
+  const [webauthnName, setWebauthnName] = useState('');
+  const [webauthnNameError, setWebauthnNameError] = useState<string | null>(null);
+  const [credentialToDelete, setCredentialToDelete] = useState<WebAuthnCredentialRecord | null>(null);
 
   const [textureDialogOpen, setTextureDialogOpen] = useState(false);
   const [skinUrl, setSkinUrl] = useState<string | null>(null);
@@ -479,6 +501,84 @@ export default function Profile() {
     return parseEnabledFlag(resp.data?.enabled ?? resp.enabled);
   };
 
+  const readWebAuthnEnabledFromValue = (value: unknown): boolean | undefined => {
+    if (!value || typeof value !== 'object') {
+      return undefined;
+    }
+
+    const record = value as {
+      enabled?: boolean | number;
+      webauthn_2fa_enabled?: boolean | number;
+      data?: {
+        enabled?: boolean | number;
+        webauthn_2fa_enabled?: boolean | number;
+      };
+    };
+
+    return parseEnabledFlag(
+      record.data?.webauthn_2fa_enabled
+      ?? record.data?.enabled
+      ?? record.webauthn_2fa_enabled
+      ?? record.enabled
+    );
+  };
+
+  const normalizeWebAuthnCredentials = (value: unknown): WebAuthnCredentialRecord[] => {
+    const records = Array.isArray(value)
+      ? value
+      : value && typeof value === 'object' && Array.isArray((value as { credentials?: unknown[] }).credentials)
+        ? (value as { credentials: unknown[] }).credentials
+        : [];
+
+    const normalized: WebAuthnCredentialRecord[] = [];
+
+    records.forEach((item) => {
+      if (!item || typeof item !== 'object') {
+        return;
+      }
+
+      const record = item as Record<string, unknown>;
+      const id = typeof record.id === 'number' ? record.id : Number(record.id);
+      if (!Number.isFinite(id) || id <= 0) {
+        return;
+      }
+
+      normalized.push({
+        id,
+        name: typeof record.name === 'string' ? record.name : undefined,
+        created_at: typeof record.created_at === 'string' ? record.created_at : undefined,
+        updated_at: typeof record.updated_at === 'string' ? record.updated_at : undefined,
+        last_used_at: typeof record.last_used_at === 'string' || record.last_used_at === null
+          ? record.last_used_at as string | null
+          : undefined,
+      });
+    });
+
+    return normalized;
+  };
+
+  const applyWebAuthnState = (value: unknown, fallbackEnabled?: boolean) => {
+    const credentials = normalizeWebAuthnCredentials(value);
+    const enabled = readWebAuthnEnabledFromValue(value) ?? fallbackEnabled ?? false;
+    setWebauthnCredentials(credentials);
+    setWebauthn2faEnabled(enabled);
+    setUserInfo((prev) => (prev ? { ...prev, webauthn_2fa_enabled: enabled } : prev));
+    return { credentials, enabled };
+  };
+
+  const refreshWebAuthnStatus = async (fallbackEnabled?: boolean) => {
+    try {
+      const resp = await listWebAuthnCredentials();
+      if (resp.success) {
+        applyWebAuthnState(resp.data, fallbackEnabled);
+      } else {
+        applyWebAuthnState([], fallbackEnabled);
+      }
+    } catch {
+      applyWebAuthnState([], fallbackEnabled);
+    }
+  };
+
   const refreshTotpStatus = async (fallback?: boolean): Promise<boolean> => {
     const fallbackValue = fallback ?? getTotpEnabled() ?? false;
 
@@ -509,7 +609,7 @@ export default function Profile() {
       }
 
       try {
-        const [resp, totpResp] = await Promise.all([
+        const [resp, totpResp, webauthnResp] = await Promise.all([
           request(`${BackendUrl}/user`, {
             method: 'POST',
             headers: {
@@ -518,6 +618,7 @@ export default function Profile() {
             body: JSON.stringify({ uid, email }),
           }),
           getTotpStatus(),
+          listWebAuthnCredentials(),
         ]);
 
         let totpEnabled = getTotpEnabled() ?? false;
@@ -527,6 +628,11 @@ export default function Profile() {
           setTotpEnabled(totpEnabled);
         }
 
+        const webauthnEnabledFromApi = webauthnResp.success ? readWebAuthnEnabledFromValue(webauthnResp.data) : undefined;
+        const webauthnEnabledFromUser = resp.success ? readWebAuthnEnabledFromValue(resp.data) : undefined;
+        const webauthnEnabled = webauthnEnabledFromApi ?? webauthnEnabledFromUser ?? false;
+        applyWebAuthnState(webauthnResp.success ? webauthnResp.data : [], webauthnEnabled);
+
         if (resp.success && resp.data) {
           setUserInfo({
             email: resp.data.email || email || '',
@@ -534,6 +640,7 @@ export default function Profile() {
             avatar: resp.data.avatar,
             verified: Boolean(resp.data.verified),
             totp_enabled: totpEnabled,
+            webauthn_2fa_enabled: webauthnEnabled,
             uid: resp.data.uid,
           });
         } else {
@@ -542,15 +649,18 @@ export default function Profile() {
             username: email ? email.split('@')[0] : 'User',
             verified: Boolean(getVerified()),
             totp_enabled: totpEnabled,
+            webauthn_2fa_enabled: webauthnEnabled,
           });
         }
       } catch {
         const cookieTotp = getTotpEnabled();
+        applyWebAuthnState([], false);
         setUserInfo({
           email: email || '',
           username: email ? email.split('@')[0] : 'User',
           verified: Boolean(getVerified()),
           totp_enabled: cookieTotp !== undefined ? cookieTotp : false,
+          webauthn_2fa_enabled: false,
         });
       } finally {
         setLoading(false);
@@ -784,6 +894,178 @@ export default function Profile() {
     return `otpauth://totp/${encodedIssuer}:${encodedAccount}?secret=${secret}&issuer=${encodedIssuer}&algorithm=SHA1&digits=6&period=30`;
   };
 
+  const mapWebAuthnError = (message?: string, code?: string) => {
+    if (code === 'oauth_login_required') {
+      return t('profile.notLoggedInError');
+    }
+    if (code === 'webauthn_verification_failed') {
+      return t('profile.webauthnRegisterFailed');
+    }
+    if (code === 'webauthn_credential_not_found') {
+      return t('profile.webauthnCredentialDeleteFailed');
+    }
+    if (code === 'webauthn_not_configured') {
+      return t('profile.webauthnEmpty');
+    }
+    return message || t('profile.webauthnOperationFailed');
+  };
+
+  const formatDateTime = (value?: string | null) => {
+    if (!value) {
+      return t('profile.webauthnNeverUsed');
+    }
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return value;
+    }
+
+    return date.toLocaleString();
+  };
+
+  const handleOpenWebAuthnDialog = () => {
+    setWebauthnDialogOpen(true);
+    setWebauthnName('');
+    setWebauthnNameError(null);
+  };
+
+  const handleCloseWebAuthnDialog = () => {
+    if (webauthnLoading) {
+      return;
+    }
+    setWebauthnDialogOpen(false);
+    setWebauthnName('');
+    setWebauthnNameError(null);
+  };
+
+  const handleRegisterWebAuthn = async () => {
+    const trimmedName = webauthnName.trim();
+    if (trimmedName.length > 64) {
+      setWebauthnNameError(t('profile.webauthnNameTooLong'));
+      return;
+    }
+
+    if (!isWebAuthnSupported()) {
+      setWebauthnFeedback({
+        severity: 'error',
+        message: t('profile.webauthnUnsupported'),
+      });
+      return;
+    }
+
+    setWebauthnLoading(true);
+    setWebauthnFeedback(null);
+    setWebauthnNameError(null);
+
+    try {
+      const beginResp = await beginWebAuthnRegistration(trimmedName || undefined);
+      const flowId = beginResp.data?.flow_id;
+      const options = beginResp.data?.options;
+
+      if (!beginResp.success || !flowId || !options) {
+        setWebauthnFeedback({
+          severity: 'error',
+          message: mapWebAuthnError(beginResp.message, beginResp.code),
+        });
+        return;
+      }
+
+      const credential = await registerWithWebAuthn(options);
+      const finishResp = await finishWebAuthnRegistration(flowId, credential);
+
+      if (!finishResp.success) {
+        setWebauthnFeedback({
+          severity: 'error',
+          message: mapWebAuthnError(finishResp.message, finishResp.code),
+        });
+        return;
+      }
+
+      await refreshWebAuthnStatus(webauthn2faEnabled);
+      setWebauthnDialogOpen(false);
+      setWebauthnName('');
+      setWebauthnFeedback({
+        severity: 'success',
+        message: t('profile.webauthnRegisterSuccess'),
+      });
+    } catch (err) {
+      setWebauthnFeedback({
+        severity: 'error',
+        message: err instanceof Error && err.message === 'WebAuthn is not supported in this browser'
+          ? t('profile.webauthnUnsupported')
+          : (err instanceof Error ? err.message : t('profile.webauthnRegisterFailed')),
+      });
+    } finally {
+      setWebauthnLoading(false);
+    }
+  };
+
+  const handleToggleWebAuthn2fa = async (enabled: boolean) => {
+    setWebauthnLoading(true);
+    setWebauthnFeedback(null);
+
+    try {
+      const resp = await toggleWebAuthnSecondFactor(enabled);
+      if (!resp.success) {
+        setWebauthnFeedback({
+          severity: 'error',
+          message: mapWebAuthnError(resp.message, resp.code),
+        });
+        return;
+      }
+
+      const nextEnabled = readWebAuthnEnabledFromValue(resp.data) ?? enabled;
+      await refreshWebAuthnStatus(nextEnabled);
+      setWebauthnFeedback({
+        severity: 'success',
+        message: enabled ? t('profile.webauthnSecondFactorEnabled') : t('profile.webauthnSecondFactorDisabled'),
+      });
+    } catch {
+      setWebauthnFeedback({
+        severity: 'error',
+        message: t('profile.webauthnOperationFailed'),
+      });
+    } finally {
+      setWebauthnLoading(false);
+    }
+  };
+
+  const handleDeleteWebAuthnCredential = async () => {
+    if (!credentialToDelete) {
+      return;
+    }
+
+    setWebauthnLoading(true);
+    setWebauthnFeedback(null);
+
+    try {
+      const resp = await deleteWebAuthnCredential(credentialToDelete.id);
+      if (!resp.success) {
+        setWebauthnFeedback({
+          severity: 'error',
+          message: mapWebAuthnError(resp.message, resp.code),
+        });
+        return;
+      }
+
+      const nextCredentialCount = Math.max(webauthnCredentials.length - 1, 0);
+      const nextEnabled = nextCredentialCount > 0 ? webauthn2faEnabled : false;
+      await refreshWebAuthnStatus(nextEnabled);
+      setCredentialToDelete(null);
+      setWebauthnFeedback({
+        severity: 'success',
+        message: t('profile.webauthnCredentialDeleteSuccess'),
+      });
+    } catch {
+      setWebauthnFeedback({
+        severity: 'error',
+        message: t('profile.webauthnCredentialDeleteFailed'),
+      });
+    } finally {
+      setWebauthnLoading(false);
+    }
+  };
+
   const handleOpenDeleteDialog = () => {
     setDeleteDialogOpen(true);
     setDeletePassword('');
@@ -849,6 +1131,7 @@ export default function Profile() {
   }
 
   const userInitial = userInfo.username ? userInfo.username.charAt(0).toUpperCase() : 'U';
+  const webauthnSupported = isWebAuthnSupported();
 
   return (
     <Box>
@@ -1053,6 +1336,104 @@ export default function Profile() {
       <Card sx={{ maxWidth: 500, mt: 2 }}>
         <CardContent>
           <Stack spacing={2}>
+            <Stack direction="row" alignItems="center" justifyContent="space-between">
+              <Box>
+                <Typography variant="h6" gutterBottom>
+                  {t('profile.webauthnTitle')}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {webauthnSupported
+                    ? t('profile.webauthnSubtitle')
+                    : t('profile.webauthnUnsupportedHint')}
+                </Typography>
+              </Box>
+              <Button
+                variant="contained"
+                startIcon={<Key />}
+                onClick={handleOpenWebAuthnDialog}
+                disabled={webauthnLoading || !webauthnSupported}
+              >
+                {webauthnLoading ? t('profile.totpLoading') : t('profile.webauthnRegister')}
+              </Button>
+            </Stack>
+
+            {!webauthnSupported && (
+              <Alert severity="info">
+                {t('profile.webauthnUnsupported')}
+              </Alert>
+            )}
+
+            {webauthnFeedback && (
+              <Alert severity={webauthnFeedback.severity}>
+                {webauthnFeedback.message}
+              </Alert>
+            )}
+
+            <Box sx={{ p: 1.5, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+              <FormControlLabel
+                control={(
+                  <Switch
+                    checked={webauthn2faEnabled}
+                    onChange={(e) => handleToggleWebAuthn2fa(e.target.checked)}
+                    disabled={webauthnLoading || webauthnCredentials.length === 0}
+                  />
+                )}
+                label={t('profile.webauthnSecondFactorLabel')}
+              />
+              <Typography variant="body2" color="text.secondary">
+                {webauthnCredentials.length > 0
+                  ? t('profile.webauthnSecondFactorDescription')
+                  : t('profile.webauthnSecondFactorDisabledHint')}
+              </Typography>
+            </Box>
+
+            <Stack spacing={1.5}>
+              <Typography variant="subtitle2">
+                {t('profile.webauthnCredentialsTitle')}
+              </Typography>
+              {webauthnCredentials.length > 0 ? (
+                webauthnCredentials.map((credential) => (
+                  <Box
+                    key={credential.id}
+                    sx={{ p: 1.5, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}
+                  >
+                    <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={2}>
+                      <Box>
+                        <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                          {credential.name || t('profile.webauthnUnnamedCredential')}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" display="block">
+                          {t('profile.webauthnCreatedAt', { value: formatDateTime(credential.created_at) })}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" display="block">
+                          {t('profile.webauthnLastUsedAt', { value: formatDateTime(credential.last_used_at) })}
+                        </Typography>
+                      </Box>
+                      <Button
+                        color="error"
+                        variant="text"
+                        startIcon={<Delete />}
+                        onClick={() => setCredentialToDelete(credential)}
+                        disabled={webauthnLoading}
+                      >
+                        {t('profile.webauthnDeleteCredential')}
+                      </Button>
+                    </Stack>
+                  </Box>
+                ))
+              ) : (
+                <Typography variant="body2" color="text.secondary">
+                  {t('profile.webauthnEmpty')}
+                </Typography>
+              )}
+            </Stack>
+          </Stack>
+        </CardContent>
+      </Card>
+
+      <Card sx={{ maxWidth: 500, mt: 2 }}>
+        <CardContent>
+          <Stack spacing={2}>
             <Box>
               <Typography variant="h6" gutterBottom>
                 {t('profile.deleteAccountTitle')}
@@ -1084,6 +1465,64 @@ export default function Profile() {
         token={getAuthToken() || ''}
         onUpdated={fetchTextures}
       />
+
+      <Dialog open={webauthnDialogOpen} onClose={handleCloseWebAuthnDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>{t('profile.webauthnRegisterDialogTitle')}</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <Typography variant="body2" color="text.secondary">
+              {t('profile.webauthnRegisterHint')}
+            </Typography>
+            <TextField
+              label={t('profile.webauthnNameLabel')}
+              value={webauthnName}
+              onChange={(e) => {
+                setWebauthnName(e.target.value);
+                if (webauthnNameError) {
+                  setWebauthnNameError(null);
+                }
+              }}
+              placeholder={t('profile.webauthnNamePlaceholder')}
+              error={!!webauthnNameError}
+              helperText={webauthnNameError || t('profile.webauthnNameHelper')}
+              fullWidth
+              disabled={webauthnLoading}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseWebAuthnDialog} disabled={webauthnLoading}>
+            {t('common.cancel')}
+          </Button>
+          <Button variant="contained" onClick={handleRegisterWebAuthn} disabled={webauthnLoading}>
+            {webauthnLoading ? t('profile.totpLoading') : t('profile.webauthnRegister')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(credentialToDelete)}
+        onClose={() => (webauthnLoading ? undefined : setCredentialToDelete(null))}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>{t('profile.webauthnDeleteDialogTitle')}</DialogTitle>
+        <DialogContent>
+          <Typography sx={{ mt: 1 }}>
+            {t('profile.webauthnDeleteDialogDescription', {
+              name: credentialToDelete?.name || t('profile.webauthnUnnamedCredential'),
+            })}
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCredentialToDelete(null)} disabled={webauthnLoading}>
+            {t('common.cancel')}
+          </Button>
+          <Button color="error" variant="contained" onClick={handleDeleteWebAuthnCredential} disabled={webauthnLoading}>
+            {webauthnLoading ? t('profile.totpLoading') : t('profile.webauthnDeleteCredential')}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Dialog open={totpDialogOpen} onClose={handleCloseTotpDialog} maxWidth="sm" fullWidth>
         <DialogTitle>{t('profile.setupDialogTitle')}</DialogTitle>

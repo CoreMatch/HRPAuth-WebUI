@@ -52,6 +52,46 @@ function toRequestOptions(options: Record<string, unknown>): PublicKeyCredential
   } as PublicKeyCredentialRequestOptions;
 }
 
+function toCreationOptions(options: Record<string, unknown>): PublicKeyCredentialCreationOptions {
+  const challenge = options.challenge;
+  const user = options.user as Record<string, unknown> | undefined;
+
+  if (typeof challenge !== 'string') {
+    throw new Error('Invalid WebAuthn challenge');
+  }
+
+  if (!user || typeof user.id !== 'string') {
+    throw new Error('Invalid WebAuthn user');
+  }
+
+  const excludeCredentials = Array.isArray(options.excludeCredentials)
+    ? options.excludeCredentials.map((credential) => {
+      const record = credential as Record<string, unknown>;
+      if (typeof record.id !== 'string') {
+        throw new Error('Invalid WebAuthn credential descriptor');
+      }
+
+      return {
+        transports: Array.isArray(record.transports)
+          ? record.transports as AuthenticatorTransport[]
+          : undefined,
+        type: record.type === 'public-key' ? 'public-key' : 'public-key',
+        id: base64UrlToArrayBuffer(record.id),
+      } satisfies PublicKeyCredentialDescriptor;
+    })
+    : undefined;
+
+  return {
+    ...options,
+    challenge: base64UrlToArrayBuffer(challenge),
+    user: {
+      ...user,
+      id: base64UrlToArrayBuffer(user.id),
+    },
+    excludeCredentials,
+  } as PublicKeyCredentialCreationOptions;
+}
+
 function serializeAuthenticationCredential(credential: PublicKeyCredential) {
   const response = credential.response;
   if (!(response instanceof AuthenticatorAssertionResponse)) {
@@ -67,6 +107,28 @@ function serializeAuthenticationCredential(credential: PublicKeyCredential) {
       authenticatorData: arrayBufferToBase64Url(response.authenticatorData),
       signature: arrayBufferToBase64Url(response.signature),
       userHandle: response.userHandle ? arrayBufferToBase64Url(response.userHandle) : null,
+    },
+    clientExtensionResults: credential.getClientExtensionResults(),
+    authenticatorAttachment: credential.authenticatorAttachment ?? null,
+  };
+}
+
+function serializeRegistrationCredential(credential: PublicKeyCredential) {
+  const response = credential.response;
+  if (!(response instanceof AuthenticatorAttestationResponse)) {
+    throw new Error('Unexpected WebAuthn response type');
+  }
+
+  return {
+    id: credential.id,
+    type: credential.type,
+    rawId: arrayBufferToBase64Url(credential.rawId),
+    response: {
+      clientDataJSON: arrayBufferToBase64Url(response.clientDataJSON),
+      attestationObject: arrayBufferToBase64Url(response.attestationObject),
+      transports: typeof response.getTransports === 'function'
+        ? response.getTransports()
+        : undefined,
     },
     clientExtensionResults: credential.getClientExtensionResults(),
     authenticatorAttachment: credential.authenticatorAttachment ?? null,
@@ -94,4 +156,20 @@ export async function authenticateWithWebAuthn(options: Record<string, unknown>)
   }
 
   return serializeAuthenticationCredential(credential);
+}
+
+export async function registerWithWebAuthn(options: Record<string, unknown>) {
+  if (!isWebAuthnSupported()) {
+    throw new Error('WebAuthn is not supported in this browser');
+  }
+
+  const credential = await navigator.credentials.create({
+    publicKey: toCreationOptions(options),
+  });
+
+  if (!(credential instanceof PublicKeyCredential)) {
+    throw new Error('No WebAuthn credential was returned');
+  }
+
+  return serializeRegistrationCredential(credential);
 }
