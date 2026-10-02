@@ -340,7 +340,7 @@
     "responseBody": "Response Body",
     "noData": "No data yet",
     "discoveredServices": "Discovered Microservices",
-    "noServices": "No discovered microservices (you may not be logged in, or no service declares the current frontend area).",
+    "noServices": "No discovered microservices were found, or no service declares the current frontend area.",
     "sdkLoaded": "SDK loaded",
     "sdkNotLoaded": "SDK not loaded",
     "sdkUrl": "SDK URL: {{url}}",
@@ -377,6 +377,7 @@
     "loadFailed": "Failed to load captcha"
   },
   "servicePanel": {
+    "unavailableInArea": "Service {{name}} does not declare support for frontend area {{area}}.",
     "noContent": "Service {{name}} has no embeddable content (no mount or iframeUrl declared)."
   }
 }

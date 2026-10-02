@@ -1,53 +1,46 @@
 import { BackendUrl } from './config';
-import { getUid } from './cookie';
-import { registerPresence, discoverServices, type ServiceSummary } from '../api/services';
+import { discoverServices, type ServiceSummary } from '../api/services';
 import type { ServiceSDK } from '../types/service-sdk';
 
 /**
  * 前端 SPA 微服务注册表。
- * 生命周期：应用启动时注册自身 -> 周期性心跳刷新 -> 发现相关微服务 -> 注入各服务 SDK。
+ * 生命周期：应用启动时拉取服务列表 -> 周期性刷新 -> 注入各服务 SDK。
  * 全程静默降级：任何失败只写 console 日志，不影响应用启动与正常运行。
  */
 
-/** 每个页面实例生成一次随机 3 位后缀，避免多标签页共享同名注册。 */
-const RANDOM_DIGITS = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-
-/** 是否已登录：presence 只在登录后注册。 */
-function isLoggedIn(): boolean {
-  const uid = getUid();
-  return uid !== null && uid.trim() !== '';
-}
-
-/**
- * 前端自身在 HRPAuth 中注册的服务名。
- * 格式：{uid}-hrpauth-webui-{3 位随机数}，仅登录后调用。
- */
-function getServiceName(): string {
-  return `${getUid()}-hrpauth-webui-${RANDOM_DIGITS}`;
-}
-
-/** 前端声明的区域，与页面路由一一对应。微服务只有声明了重叠区域才会被发现。 */
+/** 前端识别的区域集合，前端据此解释服务的 frontend_areas。 */
 export const FRONTEND_AREAS = [
   'webui-home',
   'webui-skinlib',
   'webui-dash',
+  'webui-service',
   'webui-login',
   'webui-register',
   'webui-verifyemail',
 ] as const;
 
-/** 心跳 TTL（秒）：后端过期前需刷新，记录才会保留。 */
-const HEARTBEAT_TTL_SECONDS = 120;
+export type FrontendArea = (typeof FRONTEND_AREAS)[number];
 
-/** 心跳刷新周期（毫秒）。 */
-const HEARTBEAT_INTERVAL_MS = 60_000;
+/** 服务发现刷新周期（毫秒）。 */
+const DISCOVERY_INTERVAL_MS = 60_000;
 
-let heartbeatTimer: number | null = null;
+let discoveryTimer: number | null = null;
 let discoveredServices: ServiceSummary[] = [];
 
-/** 当前发现到的微服务列表（每次心跳后更新）。 */
+/** 当前发现到的微服务列表（每次刷新后更新）。 */
 export function getDiscoveredServices(): ServiceSummary[] {
   return discoveredServices;
+}
+
+/** 按前端区域读取当前已发现的微服务。 */
+export function getDiscoveredServicesByArea(area: FrontendArea): ServiceSummary[] {
+  return discoveredServices.filter((svc) => svc.frontend_areas.includes(area));
+}
+
+/** 判断某个微服务是否声明了指定前端区域。 */
+export function isServiceAvailableInArea(name: string, area: FrontendArea): boolean {
+  const service = discoveredServices.find((svc) => svc.name === name);
+  return service?.frontend_areas.includes(area) ?? false;
 }
 
 /** SDK 全局对象键名约定：window[`${serviceName}-sdk`]。 */
@@ -90,24 +83,6 @@ export function onSDKLoaded(listener: SDKLoadedListener): () => void {
   };
 }
 
-async function sendHeartbeat(): Promise<void> {
-  if (!isLoggedIn()) {
-    return; // 未登录不注册 presence
-  }
-  const res = await registerPresence({
-    name: getServiceName(),
-    ttl_seconds: HEARTBEAT_TTL_SECONDS,
-    scope: {
-      name: 'hrpauth-webui',
-      frontend_areas: [...FRONTEND_AREAS],
-    },
-    security_level: 0,
-  });
-  if (!res.success) {
-    console.warn(`[Services] presence 心跳失败: ${res.message} (${res.code ?? 'unknown'})`);
-  }
-}
-
 function loadSDK(name: string): void {
   // 按契约，SDK 一律经后端 relay 端点加载（GET /services/sdk/:name）。
   // discovery 中的 sdk_url 是微服务的内网地址，浏览器不可直接访问。
@@ -137,16 +112,16 @@ function loadSDK(name: string): void {
 }
 
 async function discoverAndLoadSDKs(): Promise<void> {
-  if (!isLoggedIn()) {
-    discoveredServices = []; // 未登录不发现服务
-    return;
-  }
-  const res = await discoverServices(getServiceName());
+  const res = await discoverServices();
   if (!res.success) {
     console.warn(`[Services] 服务发现失败: ${res.message} (${res.code ?? 'unknown'})`);
     return;
   }
-  discoveredServices = res.data ?? [];
+  discoveredServices = (res.data ?? []).filter((svc) =>
+    svc.frontend_areas.some((area): area is FrontendArea =>
+      (FRONTEND_AREAS as readonly string[]).includes(area)
+    )
+  );
   for (const svc of discoveredServices) {
     loadSDK(svc.name);
   }
@@ -154,17 +129,18 @@ async function discoverAndLoadSDKs(): Promise<void> {
 
 /**
  * 初始化微服务注册表（幂等）。
- * 立即注册并发现一次，之后按 HEARTBEAT_INTERVAL_MS 周期刷新心跳与发现。
+ * 契约更新后，前端不再通过 /services/presence 注册自身，只作为 SDK 消费方公开拉取服务列表。
+ * 立即发现一次，之后按 DISCOVERY_INTERVAL_MS 周期刷新。
  * 调用方无需 await；失败静默降级。
  */
 export function initServiceRegistry(): void {
-  if (heartbeatTimer !== null) {
+  if (discoveryTimer !== null) {
     return;
   }
 
-  void sendHeartbeat().then(discoverAndLoadSDKs);
+  void discoverAndLoadSDKs();
 
-  heartbeatTimer = window.setInterval(() => {
-    void sendHeartbeat().then(discoverAndLoadSDKs);
-  }, HEARTBEAT_INTERVAL_MS);
+  discoveryTimer = window.setInterval(() => {
+    void discoverAndLoadSDKs();
+  }, DISCOVERY_INTERVAL_MS);
 }

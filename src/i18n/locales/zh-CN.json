@@ -340,7 +340,7 @@
     "responseBody": "后端响应内容 (Response Body)",
     "noData": "暂无数据",
     "discoveredServices": "已发现的微服务",
-    "noServices": "暂无已发现的微服务（可能未登录，或暂无声明了重叠前端区域的服务）。",
+    "noServices": "暂无已发现的微服务（或暂无服务声明了当前前端区域）。",
     "sdkLoaded": "SDK 已加载",
     "sdkNotLoaded": "SDK 未加载",
     "sdkUrl": "SDK URL: {{url}}",
@@ -377,6 +377,7 @@
     "loadFailed": "加载验证码失败"
   },
   "servicePanel": {
+    "unavailableInArea": "服务 {{name}} 未声明支持当前前端区域 {{area}}。",
     "noContent": "服务 {{name}} 未提供可嵌入内容（未声明 mount 或 iframeUrl）。"
   }
 }

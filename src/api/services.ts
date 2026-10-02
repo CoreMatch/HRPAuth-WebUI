@@ -4,7 +4,7 @@ import { request, type ApiResponse } from '../utils/api';
 /**
  * HRPAuth 微服务扩展层 API。
  * 契约定义见 HA-Contract/docs/dev/HRPAuth/microservices.md。
- * 前端 SPA 作为参与者，通过 presence 注册自身、发现相关服务并加载其 SDK。
+ * 前端 SPA 作为 SDK 消费方，公开发现相关服务并加载其 SDK。
  */
 
 export interface PresenceScope {
@@ -33,6 +33,7 @@ export interface PresenceData {
 export interface ServiceSummary {
   name: string;
   scope_name: string;
+  frontend_areas: string[];
   sdk_url?: string;
 }
 
@@ -73,11 +74,11 @@ export function registerPresence(req: PresenceRequest): Promise<ApiResponse<Pres
 }
 
 /**
- * 拉取与指定前端区域重叠的微服务列表。
- * 公开接口，无需鉴权；name 为已注册的前端服务名。
+ * 拉取当前可用的前端 SDK 微服务列表。
+ * 公开接口，无需鉴权；前端不需要先通过 /services/presence 注册自身。
  */
-export function discoverServices(name: string): Promise<ApiResponse<ServiceSummary[]>> {
-  return request<ServiceSummary[]>(`${BackendUrl}/services/list?name=${encodeURIComponent(name)}`, {
+export function discoverServices(): Promise<ApiResponse<ServiceSummary[]>> {
+  return request<ServiceSummary[]>(`${BackendUrl}/services/list`, {
     method: 'GET',
   });
 }

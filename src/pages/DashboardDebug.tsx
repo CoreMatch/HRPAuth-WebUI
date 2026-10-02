@@ -374,6 +374,9 @@ window[__serviceName + '-sdk'] = {
                       {svc.name}
                     </Typography>
                     <Chip label={`scope: ${svc.scope_name}`} size="small" variant="outlined" />
+                    {svc.frontend_areas.map((area) => (
+                      <Chip key={`${svc.name}-${area}`} label={area} size="small" variant="outlined" />
+                    ))}
                     <Chip
                       label={sdk ? t('debug.sdkLoaded') : t('debug.sdkNotLoaded')}
                       color={sdk ? 'success' : 'default'}

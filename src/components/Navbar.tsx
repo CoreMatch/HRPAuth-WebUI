@@ -6,7 +6,7 @@ import LanguageSwitcher from './LanguageSwitcher';
 import { request } from '../utils/api';
 import { getAuthToken, getUserEmail, clearAuthCookies } from '../utils/cookie';
 import { BackendUrl } from '../utils/config';
-import { getDiscoveredServices, getServiceSDK, onSDKLoaded } from '../utils/serviceRegistry';
+import { getDiscoveredServicesByArea, getServiceSDK, onSDKLoaded } from '../utils/serviceRegistry';
 import type { ServiceSummary } from '../api/services';
 import type { ServiceSDK, ServiceSDKMenu } from '../types/service-sdk';
 
@@ -107,7 +107,7 @@ export default function Navbar() {
                 {t('navbar.skinlib')}
               </MenuItem>
               {/* 微服务通过 SDK 声明的菜单项 */}
-              {getDiscoveredServices()
+              {getDiscoveredServicesByArea('webui-service')
                 .map((svc) => ({ svc, sdk: getServiceSDK(svc.name) }))
                 .filter(
                   (item): item is { svc: ServiceSummary; sdk: ServiceSDK & { menu: ServiceSDKMenu } } =>

@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { getServiceSDK, onSDKLoaded } from '../utils/serviceRegistry';
+import { getServiceSDK, isServiceAvailableInArea, onSDKLoaded, type FrontendArea } from '../utils/serviceRegistry';
 
 export interface ServicePanelProps {
   /** 服务名，用于读取 SDK 全局对象。 */
   name: string;
   /** 当前所在前端区域，传入 SDK 的 mount。 */
-  area: string;
+  area: FrontendArea;
   /** iframe 回退地址；缺省用 sdk.iframeUrl。 */
   url?: string;
   /** iframe 回退高度。 */
@@ -21,6 +21,7 @@ export default function ServicePanel({ name, area, url, height }: ServicePanelPr
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [sdk, setSdk] = useState(() => getServiceSDK(name));
+  const availableInArea = isServiceAvailableInArea(name, area);
 
   // SDK 异步加载，加载完成后重读并重渲染。
   useEffect(() => {
@@ -31,23 +32,27 @@ export default function ServicePanel({ name, area, url, height }: ServicePanelPr
     });
   }, [name]);
 
-  const hasMount = typeof sdk?.mount === 'function';
+  const hasMount = availableInArea && typeof sdk?.mount === 'function';
 
   // mount 挂载组件；清理函数在卸载或 SDK 变化时调用。
   useEffect(() => {
     const mountFn = sdk?.mount;
-    if (typeof mountFn !== 'function' || !containerRef.current) {
+    if (!availableInArea || typeof mountFn !== 'function' || !containerRef.current) {
       return;
     }
     const cleanup = mountFn(containerRef.current, { area });
     return typeof cleanup === 'function' ? cleanup : undefined;
-  }, [sdk, area]);
+  }, [sdk, area, availableInArea]);
 
   if (hasMount) {
     return <div ref={containerRef} style={{ width: '100%' }} />;
   }
 
-  const iframeUrl = url ?? sdk?.iframeUrl;
+  if (!availableInArea) {
+    return <p>{t('servicePanel.unavailableInArea', { name, area })}</p>;
+  }
+
+  const iframeUrl = availableInArea ? (url ?? sdk?.iframeUrl) : undefined;
   if (iframeUrl) {
     return (
       <iframe

@@ -17,7 +17,7 @@ import PersonIcon from '@mui/icons-material/Person';
 import VpnKeyIcon from '@mui/icons-material/VpnKey';
 import Profile from './Profile';
 import MojangBindDashboard from './MojangBindDashboard';
-import { getDiscoveredServices, getServiceSDK, onSDKLoaded } from '../utils/serviceRegistry';
+import { getDiscoveredServicesByArea, getServiceSDK, onSDKLoaded } from '../utils/serviceRegistry';
 import type { ServiceSummary } from '../api/services';
 import type { ServiceSDK, ServiceSDKDashboard } from '../types/service-sdk';
 import ServicePanel from '../components/ServicePanel';
@@ -136,7 +136,7 @@ export default function PermanentDrawerLeft() {
   ];
 
   // 声明了 dashboard 的微服务：追加为左侧菜单项，内容区动态加载组件（回退 iframe）。
-  const serviceItems: MenuItem[] = getDiscoveredServices()
+  const serviceItems: MenuItem[] = getDiscoveredServicesByArea('webui-dash')
     .map((svc) => ({ svc, sdk: getServiceSDK(svc.name) }))
     .filter(
       (item): item is { svc: ServiceSummary; sdk: ServiceSDK & { dashboard: ServiceSDKDashboard } } =>

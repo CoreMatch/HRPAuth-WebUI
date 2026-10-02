@@ -16,7 +16,7 @@ async function bootstrap() {
   await initBackendUrl();
   // 暴露后端地址供微服务 SDK 读取（避免 SDK 自行请求 /status）。
   window.__BACKEND_URL__ = BackendUrl;
-  // 微服务注册与发现，失败静默降级，不阻塞应用启动。
+  // 微服务发现与 SDK 加载，失败静默降级，不阻塞应用启动。
   initServiceRegistry();
 
   createRoot(document.getElementById('root')!).render(
