@@ -9,6 +9,7 @@ import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import { Box, Card, CardContent, Grid, Button } from "@mui/material";
+import { alpha } from '@mui/material/styles';
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import ApiIcon from '@mui/icons-material/Api';
 import { getRealBackendUrl } from '../utils/config';
@@ -161,7 +162,7 @@ export default function PermanentDrawerLeft() {
   const selected = allItems.find((item) => item.id === selectedItem) ?? null;
 
   return (
-    <Box sx={{ display: 'flex', minHeight: 'calc(100vh - 64px)' }}>
+    <Box sx={{ display: 'flex', gap: 2, minHeight: 'calc(100vh - 64px)' }}>
       <Drawer
         sx={{
           width: drawerWidth,
@@ -171,46 +172,60 @@ export default function PermanentDrawerLeft() {
             boxSizing: 'border-box',
             position: 'relative',
             height: '100%',
-            borderRight: '1px solid',
-            borderColor: 'divider',
+            border: 'none',
+            borderRadius: 0,
+            backgroundColor: 'transparent',
+            boxShadow: 'none',
+            overflow: 'visible',
           },
         }}
         variant="permanent"
         anchor="left"
       >
-        <Toolbar />
-        <Divider />
-        <List sx={{ py: 1 }}>
+        <Toolbar sx={{ minHeight: 20 }} />
+        <List sx={{ py: 1, pr: 1.5 }}>
           {allItems.map((item, index) => (
             <React.Fragment key={item.id}>
               {serviceItems.length > 0 && index === baseItems.length && (
-                <Divider sx={{ my: 1 }} />
+                <Divider sx={{ my: 1.25, mr: 1.5, borderColor: alpha('#1d1b20', 0.08) }} />
               )}
-              <ListItem disablePadding sx={{ mx: 1, my: 0.5, borderRadius: 1 }}>
+              <ListItem disablePadding sx={{ my: 0.25, borderRadius: 999 }}>
                 <ListItemButton
                   selected={selectedItem === item.id}
                   onClick={() => setSelectedItem(item.id)}
                   sx={{
-                    borderRadius: 1,
+                    minHeight: 48,
+                    px: 1.75,
+                    borderRadius: 999,
                     '&.Mui-selected': {
-                      bgcolor: 'primary.main',
-                      color: 'primary.contrastText',
+                      bgcolor: alpha('#6750a4', 0.08),
+                      color: 'primary.main',
+                      '& .MuiListItemText-primary': {
+                        fontWeight: 600,
+                      },
                       '& .MuiListItemIcon-root': {
-                        color: 'primary.contrastText',
+                        color: 'primary.main',
                       },
                       '&:hover': {
-                        bgcolor: 'primary.dark',
+                        bgcolor: alpha('#6750a4', 0.12),
                       },
                     },
                     '&:hover': {
-                      bgcolor: 'action.hover',
+                      bgcolor: alpha('#6750a4', 0.05),
                     },
                   }}
                 >
-                  <ListItemIcon sx={{ minWidth: 40 }}>
+                  <ListItemIcon sx={{ minWidth: 40, color: 'text.secondary' }}>
                     {item.icon}
                   </ListItemIcon>
-                  <ListItemText primary={item.label} />
+                  <ListItemText
+                    primary={item.label}
+                    slotProps={{
+                      primary: {
+                        variant: 'body2',
+                      },
+                    }}
+                  />
                 </ListItemButton>
               </ListItem>
             </React.Fragment>
@@ -219,7 +234,7 @@ export default function PermanentDrawerLeft() {
       </Drawer>
       <Box
         component="main"
-        sx={{ flexGrow: 1, bgcolor: 'background.default', p: 3 }}
+        sx={{ flexGrow: 1, minWidth: 0, p: 3 }}
       >
         <Typography variant="h5" sx={{ marginBottom: 2 }}>
           {selected?.label}
