@@ -79,12 +79,11 @@ export default function Navbar() {
           maxWidth: 1280,
           mx: 'auto',
           px: { xs: 2, md: 2.5 },
-          py: 1.5,
+          py: 1.25,
           borderRadius: 4,
-          border: `1px solid ${alpha('#172033', 0.1)}`,
-          backgroundColor: alpha('#ffffff', 0.82),
-          backdropFilter: 'blur(18px)',
-          boxShadow: `0 14px 36px ${alpha('#172033', 0.08)}`,
+          border: `1px solid ${alpha('#cac4d0', 0.9)}`,
+          backgroundColor: '#fffbfe',
+          boxShadow: `0 1px 3px ${alpha('#000000', 0.12)}`,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -109,11 +108,10 @@ export default function Navbar() {
               borderRadius: 2.5,
               display: 'grid',
               placeItems: 'center',
-              backgroundColor: alpha('#4f6bdc', 0.08),
-              border: `1px solid ${alpha('#4f6bdc', 0.16)}`,
+              backgroundColor: alpha('#6750a4', 0.08),
             }}
           >
-            <ShieldOutlinedIcon sx={{ color: 'secondary.main' }} />
+            <ShieldOutlinedIcon sx={{ color: 'primary.main' }} />
           </Box>
           <Box sx={{ minWidth: 0 }}>
             <Typography variant="h6" sx={{ lineHeight: 1.05, fontWeight: 800 }}>
@@ -132,7 +130,7 @@ export default function Navbar() {
             <>
               <Button
                 variant="text"
-                color="inherit"
+                color="primary"
                 component={Link}
                 to="/dash"
                 startIcon={<DashboardOutlinedIcon />}
@@ -154,7 +152,7 @@ export default function Navbar() {
                   sx={{
                     width: 36,
                     height: 36,
-                    bgcolor: 'secondary.main',
+                    bgcolor: 'primary.main',
                     color: '#ffffff',
                     fontWeight: 800,
                   }}
@@ -210,7 +208,7 @@ export default function Navbar() {
               <Button variant="text" color="inherit" component={Link} to="/login">
                 {t('navbar.login')}
               </Button>
-              <Button variant="contained" component={Link} to="/register">
+              <Button variant="contained" color="primary" component={Link} to="/register">
                 {t('navbar.register')}
               </Button>
             </>

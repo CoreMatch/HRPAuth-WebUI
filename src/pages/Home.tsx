@@ -73,7 +73,7 @@ export default function Home() {
               letterSpacing: '0.01em',
             }}
           >
-            {t('home.featureSecurityTitle')} / {t('home.featureServiceTitle')} / {t('home.featureAssetTitle')}
+            {t('home.panelFootnote')}
           </Typography>
         </Box>
       </Box>
