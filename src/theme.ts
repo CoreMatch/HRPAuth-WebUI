@@ -1,17 +1,20 @@
 import { alpha, createTheme } from '@mui/material/styles';
 
-const primaryMain = '#7c8cff';
-const primaryLight = '#a4b3ff';
-const primaryDark = '#5e6ae6';
-const accentMain = '#45d0ff';
-const successMain = '#59d38c';
-const warningMain = '#ffb86b';
-const backgroundDefault = '#08101f';
-const backgroundPaper = '#12192d';
+const primaryMain = '#4f6bdc';
+const primaryLight = '#7f95eb';
+const primaryDark = '#3d56b1';
+const accentMain = '#2c8ca3';
+const successMain = '#3fa76c';
+const warningMain = '#c9892f';
+const backgroundDefault = '#f5f7fb';
+const backgroundPaper = '#ffffff';
+const textPrimary = '#172033';
+const textSecondary = alpha(textPrimary, 0.72);
+const borderColor = alpha(textPrimary, 0.1);
 
 export const appTheme = createTheme({
   palette: {
-    mode: 'dark',
+    mode: 'light',
     primary: {
       main: primaryMain,
       light: primaryLight,
@@ -28,12 +31,12 @@ export const appTheme = createTheme({
     },
     background: {
       default: backgroundDefault,
-      paper: alpha(backgroundPaper, 0.88),
+      paper: alpha(backgroundPaper, 0.9),
     },
-    divider: alpha('#d7e3ff', 0.12),
+    divider: borderColor,
     text: {
-      primary: '#f4f7ff',
-      secondary: alpha('#f4f7ff', 0.72),
+      primary: textPrimary,
+      secondary: textSecondary,
     },
   },
   shape: {
@@ -78,15 +81,14 @@ export const appTheme = createTheme({
         body: {
           backgroundColor: backgroundDefault,
           backgroundImage: [
-            'radial-gradient(circle at top left, rgba(69, 208, 255, 0.16), transparent 28%)',
-            'radial-gradient(circle at 80% 10%, rgba(124, 140, 255, 0.22), transparent 24%)',
-            'linear-gradient(180deg, #0b1223 0%, #08101f 100%)',
+            'radial-gradient(circle at top left, rgba(79, 107, 220, 0.08), transparent 24%)',
+            'radial-gradient(circle at 100% 0%, rgba(44, 140, 163, 0.06), transparent 18%)',
           ].join(','),
           backgroundAttachment: 'fixed',
         },
         '::selection': {
-          backgroundColor: alpha(accentMain, 0.35),
-          color: '#f7fbff',
+          backgroundColor: alpha(primaryMain, 0.18),
+          color: textPrimary,
         },
       },
     },
@@ -94,9 +96,9 @@ export const appTheme = createTheme({
       styleOverrides: {
         root: {
           backgroundImage: 'none',
-          border: `1px solid ${alpha('#d7e3ff', 0.08)}`,
-          backdropFilter: 'blur(18px)',
-          boxShadow: `0 24px 80px ${alpha('#000814', 0.3)}`,
+          border: `1px solid ${borderColor}`,
+          backdropFilter: 'blur(16px)',
+          boxShadow: `0 18px 48px ${alpha('#15203b', 0.08)}`,
         },
       },
     },
@@ -104,9 +106,9 @@ export const appTheme = createTheme({
       styleOverrides: {
         root: {
           backgroundImage: 'none',
-          border: `1px solid ${alpha('#d7e3ff', 0.08)}`,
-          backgroundColor: alpha(backgroundPaper, 0.78),
-          boxShadow: `0 20px 60px ${alpha('#000814', 0.28)}`,
+          border: `1px solid ${borderColor}`,
+          backgroundColor: alpha(backgroundPaper, 0.84),
+          boxShadow: `0 18px 44px ${alpha('#15203b', 0.06)}`,
         },
       },
     },
@@ -121,12 +123,16 @@ export const appTheme = createTheme({
           minHeight: 44,
         },
         containedPrimary: {
-          backgroundImage: `linear-gradient(135deg, ${primaryMain} 0%, ${accentMain} 100%)`,
-          boxShadow: `0 14px 32px ${alpha(primaryMain, 0.28)}`,
+          backgroundColor: primaryMain,
+          color: '#ffffff',
+          boxShadow: `0 10px 24px ${alpha(primaryMain, 0.16)}`,
+          '&:hover': {
+            backgroundColor: primaryDark,
+          },
         },
         outlined: {
-          borderColor: alpha('#d7e3ff', 0.16),
-          backgroundColor: alpha('#ffffff', 0.02),
+          borderColor: alpha(textPrimary, 0.14),
+          backgroundColor: alpha('#ffffff', 0.75),
         },
       },
     },
@@ -134,20 +140,20 @@ export const appTheme = createTheme({
       styleOverrides: {
         root: {
           borderRadius: 999,
-          border: `1px solid ${alpha('#d7e3ff', 0.12)}`,
-          backgroundColor: alpha('#ffffff', 0.04),
+          border: `1px solid ${alpha(textPrimary, 0.1)}`,
+          backgroundColor: alpha('#ffffff', 0.8),
         },
       },
     },
     MuiOutlinedInput: {
       styleOverrides: {
         root: {
-          backgroundColor: alpha('#ffffff', 0.03),
+          backgroundColor: alpha('#ffffff', 0.78),
           '& fieldset': {
-            borderColor: alpha('#d7e3ff', 0.12),
+            borderColor: alpha(textPrimary, 0.12),
           },
           '&:hover fieldset': {
-            borderColor: alpha('#d7e3ff', 0.22),
+            borderColor: alpha(textPrimary, 0.2),
           },
         },
       },
@@ -155,14 +161,14 @@ export const appTheme = createTheme({
     MuiDrawer: {
       styleOverrides: {
         paper: {
-          backgroundColor: alpha(backgroundPaper, 0.82),
+          backgroundColor: alpha(backgroundPaper, 0.92),
         },
       },
     },
     MuiMenu: {
       styleOverrides: {
         paper: {
-          backgroundColor: alpha(backgroundPaper, 0.94),
+          backgroundColor: alpha(backgroundPaper, 0.96),
           borderRadius: 16,
         },
       },

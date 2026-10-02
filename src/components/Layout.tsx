@@ -13,11 +13,11 @@ export default function Layout() {
           inset: 0,
           pointerEvents: 'none',
           backgroundImage: `
-            linear-gradient(${alpha('#d7e3ff', 0.045)} 1px, transparent 1px),
-            linear-gradient(90deg, ${alpha('#d7e3ff', 0.045)} 1px, transparent 1px)
+            linear-gradient(${alpha('#172033', 0.03)} 1px, transparent 1px),
+            linear-gradient(90deg, ${alpha('#172033', 0.03)} 1px, transparent 1px)
           `,
-          backgroundSize: '48px 48px',
-          maskImage: 'linear-gradient(180deg, rgba(0,0,0,0.65), transparent 90%)',
+          backgroundSize: '56px 56px',
+          maskImage: 'linear-gradient(180deg, rgba(0,0,0,0.45), transparent 88%)',
         }}
       />
       <Box
@@ -30,8 +30,8 @@ export default function Layout() {
           height: 360,
           borderRadius: '50%',
           pointerEvents: 'none',
-          bgcolor: alpha('#45d0ff', 0.12),
-          filter: 'blur(90px)',
+          bgcolor: alpha('#4f6bdc', 0.08),
+          filter: 'blur(100px)',
         }}
       />
       <Box
@@ -44,7 +44,7 @@ export default function Layout() {
           height: 320,
           borderRadius: '50%',
           pointerEvents: 'none',
-          bgcolor: alpha('#7c8cff', 0.16),
+          bgcolor: alpha('#2c8ca3', 0.07),
           filter: 'blur(100px)',
         }}
       />

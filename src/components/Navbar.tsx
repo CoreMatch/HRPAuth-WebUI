@@ -81,10 +81,10 @@ export default function Navbar() {
           px: { xs: 2, md: 2.5 },
           py: 1.5,
           borderRadius: 4,
-          border: `1px solid ${alpha('#d7e3ff', 0.12)}`,
-          backgroundColor: alpha('#0d1427', 0.72),
-          backdropFilter: 'blur(20px)',
-          boxShadow: `0 20px 48px ${alpha('#000814', 0.26)}`,
+          border: `1px solid ${alpha('#172033', 0.1)}`,
+          backgroundColor: alpha('#ffffff', 0.82),
+          backdropFilter: 'blur(18px)',
+          boxShadow: `0 14px 36px ${alpha('#172033', 0.08)}`,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -109,11 +109,11 @@ export default function Navbar() {
               borderRadius: 2.5,
               display: 'grid',
               placeItems: 'center',
-              backgroundImage: 'linear-gradient(135deg, rgba(124, 140, 255, 0.9), rgba(69, 208, 255, 0.9))',
-              boxShadow: `0 14px 28px ${alpha('#7c8cff', 0.28)}`,
+              backgroundColor: alpha('#4f6bdc', 0.08),
+              border: `1px solid ${alpha('#4f6bdc', 0.16)}`,
             }}
           >
-            <ShieldOutlinedIcon sx={{ color: '#f7fbff' }} />
+            <ShieldOutlinedIcon sx={{ color: 'secondary.main' }} />
           </Box>
           <Box sx={{ minWidth: 0 }}>
             <Typography variant="h6" sx={{ lineHeight: 1.05, fontWeight: 800 }}>
@@ -155,7 +155,7 @@ export default function Navbar() {
                     width: 36,
                     height: 36,
                     bgcolor: 'secondary.main',
-                    color: '#06111c',
+                    color: '#ffffff',
                     fontWeight: 800,
                   }}
                 >
