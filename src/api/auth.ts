@@ -46,6 +46,8 @@ export interface WebAuthnCredentialRecord {
 export interface WebAuthnCredentialListResponse {
   credentials?: WebAuthnCredentialRecord[];
   enabled?: boolean | number;
+  available?: boolean;
+  availability_error?: string;
 }
 
 export async function getLoginTicket(email: string, password: string): Promise<ApiResponse<LoginTicketResponse>> {

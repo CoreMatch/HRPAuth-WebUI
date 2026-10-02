@@ -17,7 +17,9 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [totpCode, setTotpCode] = useState('');
   const [showTotp, setShowTotp] = useState(false);
+  const [totpAvailable, setTotpAvailable] = useState(false);
   const [webauthnRequired, setWebauthnRequired] = useState(false);
+  const [webauthnAvailable, setWebauthnAvailable] = useState(false);
   const [loginTicket, setLoginTicketVal] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [remember, setRemember] = useState(true);
@@ -33,8 +35,10 @@ export default function Login() {
     if (state?.login_ticket && state?.email) {
       setEmail(state.email);
       setLoginTicketVal(state.login_ticket);
+      setTotpAvailable(true);
       setShowTotp(true);
       setWebauthnRequired(false);
+      setWebauthnAvailable(false);
       // Clear state so a page refresh won't re-trigger this
       window.history.replaceState({}, '');
     }
@@ -177,11 +181,21 @@ export default function Login() {
 
         const data = res.data;
         if (data?.totp_required) {
+          const secondFactors = data.second_factors ?? [];
+          const nextTotpAvailable = secondFactors.length > 0 ? secondFactors.includes('totp') : true;
+          const nextWebauthnAvailable = secondFactors.length > 0
+            ? secondFactors.includes('webauthn')
+            : Boolean(data.webauthn_required);
+
+          setTotpAvailable(nextTotpAvailable);
+          setWebauthnAvailable(nextWebauthnAvailable);
           setShowTotp(true);
-          setWebauthnRequired(Boolean(data.webauthn_required));
+          setWebauthnRequired(nextWebauthnAvailable);
           setLoginTicketVal(data.login_ticket || '');
           setLoading(false);
         } else if (data?.webauthn_required) {
+          setTotpAvailable(false);
+          setWebauthnAvailable(true);
           setShowTotp(false);
           setWebauthnRequired(true);
           setLoginTicketVal(data.login_ticket || '');
@@ -214,7 +228,8 @@ export default function Login() {
     setTimeout(() => navigate('/dash'), 700);
   }
 
-  const awaitingSecondFactor = Boolean(loginTicket) && (showTotp || webauthnRequired);
+  const awaitingSecondFactor = Boolean(loginTicket) && (totpAvailable || webauthnAvailable);
+  const showSecondFactorSelector = awaitingSecondFactor && totpAvailable && webauthnAvailable;
 
   return (
     <Box sx={{ maxWidth: 480 }}>
@@ -235,6 +250,43 @@ export default function Login() {
       ) : (
         <Stack spacing={2}>
           <form onSubmit={handleSubmit}>
+            {showSecondFactorSelector && (
+              <Stack spacing={1.5} sx={{ mb: 2 }}>
+                <Typography variant="subtitle2">
+                  {t('login.secondFactorTitle')}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {t('login.secondFactorSelectorHint')}
+                </Typography>
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                  <Button
+                    type="button"
+                    variant={showTotp ? 'contained' : 'outlined'}
+                    onClick={() => {
+                      setShowTotp(true);
+                      setError(null);
+                    }}
+                    disabled={loading || webauthnLoading}
+                    fullWidth
+                  >
+                    {t('login.useAuthenticatorSecondFactor')}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={!showTotp ? 'contained' : 'outlined'}
+                    onClick={() => {
+                      setShowTotp(false);
+                      setError(null);
+                    }}
+                    disabled={loading || webauthnLoading}
+                    fullWidth
+                  >
+                    {t('login.usePasskeySecondFactorOption')}
+                  </Button>
+                </Stack>
+              </Stack>
+            )}
+
             {!awaitingSecondFactor ? (
               <>
                 <TextField
@@ -272,7 +324,7 @@ export default function Login() {
                   disabled={loading || webauthnLoading}
                   slotProps={{ htmlInput: { maxLength: 6 } }}
                 />
-                {webauthnRequired && (
+                {webauthnAvailable && (
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                     {t('login.webauthnAlternative')}
                   </Typography>
@@ -319,7 +371,7 @@ export default function Login() {
             </Button>
           )}
 
-          {isWebAuthnSupported() && webauthnRequired && loginTicket && (
+          {isWebAuthnSupported() && webauthnAvailable && loginTicket && !showTotp && (
             <Button
               variant="outlined"
               onClick={handleWebAuthnSecondFactorLogin}

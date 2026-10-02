@@ -468,6 +468,7 @@ export default function Profile() {
   const [twoFactorFeedback, setTwoFactorFeedback] = useState<ActionFeedback | null>(null);
   const [webauthnCredentials, setWebauthnCredentials] = useState<WebAuthnCredentialRecord[]>([]);
   const [webauthn2faEnabled, setWebauthn2faEnabled] = useState(false);
+  const [webauthnBackendAvailable, setWebauthnBackendAvailable] = useState(true);
   const [webauthnLoading, setWebauthnLoading] = useState(false);
   const [webauthnFeedback, setWebauthnFeedback] = useState<ActionFeedback | null>(null);
   const [webauthnDialogOpen, setWebauthnDialogOpen] = useState(false);
@@ -551,6 +552,28 @@ export default function Profile() {
     );
   };
 
+  const readWebAuthnAvailabilityFromValue = (value: unknown): boolean | undefined => {
+    if (!value || typeof value !== 'object') {
+      return undefined;
+    }
+
+    const record = value as {
+      available?: boolean;
+      data?: {
+        available?: boolean;
+      };
+    };
+
+    if (typeof record.data?.available === 'boolean') {
+      return record.data.available;
+    }
+    if (typeof record.available === 'boolean') {
+      return record.available;
+    }
+
+    return undefined;
+  };
+
   const normalizeWebAuthnCredentials = (value: unknown): WebAuthnCredentialRecord[] => {
     const records = Array.isArray(value)
       ? value
@@ -588,10 +611,12 @@ export default function Profile() {
   const applyWebAuthnState = (value: unknown, fallbackEnabled?: boolean) => {
     const credentials = normalizeWebAuthnCredentials(value);
     const enabled = readWebAuthnEnabledFromValue(value) ?? fallbackEnabled ?? false;
+    const available = readWebAuthnAvailabilityFromValue(value) ?? true;
     setWebauthnCredentials(credentials);
     setWebauthn2faEnabled(enabled);
+    setWebauthnBackendAvailable(available);
     setUserInfo((prev) => (prev ? { ...prev, webauthn_2fa_enabled: enabled } : prev));
-    return { credentials, enabled };
+    return { credentials, enabled, available };
   };
 
   const refreshWebAuthnStatus = async (fallbackEnabled?: boolean) => {
@@ -949,7 +974,7 @@ export default function Profile() {
     return `otpauth://totp/${encodedIssuer}:${encodedAccount}?secret=${secret}&issuer=${encodedIssuer}&algorithm=SHA1&digits=6&period=30`;
   };
 
-  const mapWebAuthnError = (message?: string, code?: string) => {
+  const mapWebAuthnError = (message?: string, code?: string, context: 'register' | 'toggle' | 'delete' | 'generic' = 'generic') => {
     if (code === 'oauth_login_required') {
       return t('profile.notLoggedInError');
     }
@@ -960,7 +985,9 @@ export default function Profile() {
       return t('profile.webauthnCredentialDeleteFailed');
     }
     if (code === 'webauthn_not_configured') {
-      return t('profile.webauthnBackendNotConfigured');
+      return context === 'register'
+        ? t('profile.webauthnBackendNotConfigured')
+        : t('profile.webauthnSecondFactorDisabledHint');
     }
     return message || t('profile.webauthnOperationFailed');
   };
@@ -985,6 +1012,10 @@ export default function Profile() {
 
     if (!isWebAuthnSupported()) {
       return t('profile.webauthnUnsupported');
+    }
+
+    if (!webauthnBackendAvailable) {
+      return t('profile.webauthnBackendNotConfigured');
     }
 
     return null;
@@ -1060,9 +1091,12 @@ export default function Profile() {
         // #endregion
 
         if (!beginResp.success || !flowId || !options) {
+          if (beginResp.code === 'webauthn_not_configured') {
+            setWebauthnBackendAvailable(false);
+          }
           setWebauthnFeedback({
             severity: 'error',
-            message: mapWebAuthnError(beginResp.message, beginResp.code),
+            message: mapWebAuthnError(beginResp.message, beginResp.code, 'register'),
           });
           return;
         }
@@ -1099,9 +1133,12 @@ export default function Profile() {
       // #endregion
 
       if (!finishResp.success) {
+        if (finishResp.code === 'webauthn_not_configured') {
+          setWebauthnBackendAvailable(false);
+        }
         setWebauthnFeedback({
           severity: 'error',
-          message: mapWebAuthnError(finishResp.message, finishResp.code),
+          message: mapWebAuthnError(finishResp.message, finishResp.code, 'register'),
         });
         return;
       }
@@ -1150,7 +1187,7 @@ export default function Profile() {
       if (!resp.success) {
         setWebauthnFeedback({
           severity: 'error',
-          message: mapWebAuthnError(resp.message, resp.code),
+          message: mapWebAuthnError(resp.message, resp.code, 'toggle'),
         });
         return;
       }
@@ -1184,7 +1221,7 @@ export default function Profile() {
       if (!resp.success) {
         setWebauthnFeedback({
           severity: 'error',
-          message: mapWebAuthnError(resp.message, resp.code),
+          message: mapWebAuthnError(resp.message, resp.code, 'delete'),
         });
         return;
       }
@@ -1273,7 +1310,14 @@ export default function Profile() {
 
   const userInitial = userInfo.username ? userInfo.username.charAt(0).toUpperCase() : 'U';
   const webauthnAvailabilityError = getWebAuthnAvailabilityError();
-  const webauthnSupported = !webauthnAvailabilityError;
+  const webauthnRegistrationReady = !webauthnAvailabilityError;
+  const webauthnClientSupported = typeof window !== 'undefined' && window.isSecureContext && isWebAuthnSupported();
+  const webauthnCredentialSummary = webauthnCredentials.length > 0
+    ? t('profile.webauthnCredentialCount', { count: webauthnCredentials.length })
+    : t('profile.webauthnNotRegistered');
+  const webauthnPrimaryActionLabel = webauthnCredentials.length > 0
+    ? t('profile.webauthnManage')
+    : t('profile.webauthnRegister');
 
   return (
     <Box>
@@ -1424,82 +1468,130 @@ export default function Profile() {
       <Card sx={{ maxWidth: 500, mt: 2 }}>
         <CardContent>
           <Stack spacing={2}>
-            <Stack direction="row" alignItems="center" justifyContent="space-between">
-              <Box>
-                <Typography variant="h6" gutterBottom>
-                  {t('profile.totpTitle')}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {userInfo.totp_enabled
-                    ? t('profile.totpEnabled')
-                    : t('profile.totpDisabled')
-                  }
-                </Typography>
-              </Box>
-              {userInfo.totp_enabled ? (
-                <Stack direction="row" spacing={1}>
+            <Box>
+              <Typography variant="h6" gutterBottom>
+                {t('profile.twoFactorSectionTitle')}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {t('profile.twoFactorSectionSubtitle')}
+              </Typography>
+            </Box>
+
+            <Box sx={{ p: 1.5, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+              <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={2}>
+                <Box>
+                  <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                      {t('profile.totpTitle')}
+                    </Typography>
+                    <Chip
+                      label={userInfo.totp_enabled ? t('profile.statusEnabled') : t('profile.statusDisabled')}
+                      color={userInfo.totp_enabled ? 'success' : 'default'}
+                      size="small"
+                      variant="outlined"
+                    />
+                  </Stack>
+                  <Typography variant="body2" color="text.secondary">
+                    {userInfo.totp_enabled
+                      ? t('profile.totpEnabled')
+                      : t('profile.totpDisabled')
+                    }
+                  </Typography>
+                </Box>
+                {userInfo.totp_enabled ? (
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                    <Button
+                      variant="outlined"
+                      startIcon={<Key />}
+                      onClick={handleOpenTotpDialog}
+                      disabled={totpLoading}
+                    >
+                      {totpLoading ? t('profile.totpLoading') : t('profile.totpReset')}
+                    </Button>
+                    <Button
+                      color="warning"
+                      variant="text"
+                      onClick={() => setDisableTotpDialogOpen(true)}
+                      disabled={totpLoading}
+                    >
+                      {t('profile.totpDisable')}
+                    </Button>
+                  </Stack>
+                ) : (
                   <Button
-                    variant="outlined"
+                    variant="contained"
                     startIcon={<Key />}
-                    onClick={handleOpenTotpDialog}
+                    onClick={handleEnableTotp}
                     disabled={totpLoading}
                   >
-                    {totpLoading ? t('profile.totpLoading') : t('profile.totpReset')}
+                    {totpLoading ? t('profile.totpLoading') : t('profile.totpEnable')}
                   </Button>
-                  <Button
-                    color="warning"
-                    variant="text"
-                    onClick={() => setDisableTotpDialogOpen(true)}
-                    disabled={totpLoading}
-                  >
-                    {t('profile.totpDisable')}
-                  </Button>
-                </Stack>
-              ) : (
-                <Button
-                  variant="contained"
-                  startIcon={<Key />}
-                  onClick={handleEnableTotp}
-                  disabled={totpLoading}
-                >
-                  {totpLoading ? t('profile.totpLoading') : t('profile.totpEnable')}
-                </Button>
-              )}
-            </Stack>
+                )}
+              </Stack>
+            </Box>
+
             {twoFactorFeedback && (
               <Alert severity={twoFactorFeedback.severity}>
                 {twoFactorFeedback.message}
               </Alert>
             )}
-          </Stack>
-        </CardContent>
-      </Card>
 
-      <Card sx={{ maxWidth: 500, mt: 2 }}>
-        <CardContent>
-          <Stack spacing={2}>
-            <Stack direction="row" alignItems="center" justifyContent="space-between">
+            <Box sx={{ p: 1.5, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
               <Box>
-                <Typography variant="h6" gutterBottom>
-                  {t('profile.webauthnTitle')}
-                </Typography>
+                <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                    {t('profile.webauthnTitle')}
+                  </Typography>
+                  <Chip
+                    label={webauthnCredentialSummary}
+                    color={webauthnCredentials.length > 0 ? 'success' : 'default'}
+                    size="small"
+                    variant="outlined"
+                  />
+                </Stack>
                 <Typography variant="body2" color="text.secondary">
-                  {webauthnSupported
+                  {webauthnClientSupported
                     ? t('profile.webauthnSubtitle')
                     : t('profile.webauthnUnsupportedHint')}
                 </Typography>
               </Box>
-              <Button
-                variant="contained"
-                startIcon={<Key />}
-                onClick={handleOpenWebAuthnDialog}
-                disabled={webauthnLoading || !webauthnSupported}
-              >
-                {webauthnLoading ? t('profile.totpLoading') : t('profile.webauthnRegister')}
-              </Button>
-            </Stack>
 
-            {!webauthnSupported && (
+              <Stack
+                direction={{ xs: 'column', sm: 'row' }}
+                alignItems={{ xs: 'stretch', sm: 'center' }}
+                justifyContent="space-between"
+                spacing={2}
+                sx={{ mt: 2 }}
+              >
+                <Button
+                  variant="contained"
+                  startIcon={<Key />}
+                  onClick={handleOpenWebAuthnDialog}
+                  disabled={webauthnLoading || !webauthnRegistrationReady}
+                >
+                  {webauthnLoading ? t('profile.totpLoading') : webauthnPrimaryActionLabel}
+                </Button>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <FormControlLabel
+                    control={(
+                      <Switch
+                        checked={webauthn2faEnabled}
+                        onChange={(e) => handleToggleWebAuthn2fa(e.target.checked)}
+                        disabled={webauthnLoading || webauthnCredentials.length === 0}
+                      />
+                    )}
+                    label={t('profile.webauthnSecondFactorLabel')}
+                  />
+                  <Typography variant="body2" color="text.secondary">
+                    {webauthnCredentials.length > 0
+                      ? t('profile.webauthnSecondFactorDescription')
+                      : t('profile.webauthnSecondFactorDisabledHint')}
+                  </Typography>
+                </Box>
+              </Stack>
+            </Box>
+
+            {webauthnAvailabilityError && (
               <Alert severity="info">
                 {webauthnAvailabilityError}
               </Alert>
@@ -1510,24 +1602,6 @@ export default function Profile() {
                 {webauthnFeedback.message}
               </Alert>
             )}
-
-            <Box sx={{ p: 1.5, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
-              <FormControlLabel
-                control={(
-                  <Switch
-                    checked={webauthn2faEnabled}
-                    onChange={(e) => handleToggleWebAuthn2fa(e.target.checked)}
-                    disabled={webauthnLoading || webauthnCredentials.length === 0}
-                  />
-                )}
-                label={t('profile.webauthnSecondFactorLabel')}
-              />
-              <Typography variant="body2" color="text.secondary">
-                {webauthnCredentials.length > 0
-                  ? t('profile.webauthnSecondFactorDescription')
-                  : t('profile.webauthnSecondFactorDisabledHint')}
-              </Typography>
-            </Box>
 
             <Stack spacing={1.5}>
               <Typography variant="subtitle2">
