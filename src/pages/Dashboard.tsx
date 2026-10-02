@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Drawer from '@mui/material/Drawer';
 import Toolbar from '@mui/material/Toolbar';
 import List from '@mui/material/List';
@@ -130,14 +130,15 @@ export default function PermanentDrawerLeft() {
     return onSDKLoaded(() => setSdkTick((t) => t + 1));
   }, []);
 
-  const baseItems: MenuItem[] = [
+  // 使用 useMemo 避免每次渲染都重新创建组件实例，配合 display: none 实现真正的“无刷新”切换
+  const baseItems: MenuItem[] = useMemo(() => [
     { id: 'Profile', label: t('dashboard.sidebar.profile'), content: '', jsxContent: <Profile />, icon: <PersonIcon /> },
     { id: 'MojangBind', label: t('dashboard.sidebar.mojangBind'), content: '', jsxContent: <MojangBindDashboard />, icon: <VpnKeyIcon /> },
     { id: 'Yggdrasil API', label: t('dashboard.sidebar.yggdrasil'), content: '', jsxContent: <YggdrasilDashboard />, icon: <ApiIcon /> },
-  ];
+  ], [t]);
 
   // 声明了 dashboard 的微服务：追加为左侧菜单项，内容区动态加载组件（回退 iframe）。
-  const serviceItems: MenuItem[] = getDiscoveredServicesByArea('webui-dash')
+  const serviceItems: MenuItem[] = useMemo(() => getDiscoveredServicesByArea('webui-dash')
     .map((svc) => ({ svc, sdk: getServiceSDK(svc.name) }))
     .filter(
       (item): item is { svc: ServiceSummary; sdk: ServiceSDK & { dashboard: ServiceSDKDashboard } } =>
@@ -156,9 +157,9 @@ export default function PermanentDrawerLeft() {
             } satisfies MenuItem,
           ]
         : [];
-    });
+    }), []);
 
-  const allItems: MenuItem[] = [...baseItems, ...serviceItems];
+  const allItems: MenuItem[] = useMemo(() => [...baseItems, ...serviceItems], [baseItems, serviceItems]);
   const selected = allItems.find((item) => item.id === selectedItem) ?? null;
 
   return (
@@ -239,20 +240,29 @@ export default function PermanentDrawerLeft() {
         <Typography variant="h5" sx={{ marginBottom: 2 }}>
           {selected?.label}
         </Typography>
-        {selected?.url ? (
-          <ServicePanel
-            name={selected.id}
-            area="webui-dash"
-            url={selected.url}
-            height="calc(100vh - 160px)"
-          />
-        ) : (
-          selected?.jsxContent ?? (
-            <Typography sx={{ whiteSpace: 'pre-line' }}>
-              {selected?.content}
-            </Typography>
-          )
-        )}
+        
+        {/* Render all tabs to avoid re-mounting flicker, using display: none for inactive ones */}
+        {allItems.map((item) => (
+          <Box 
+            key={item.id} 
+            sx={{ display: selectedItem === item.id ? 'block' : 'none' }}
+          >
+            {item.url ? (
+              <ServicePanel
+                name={item.id}
+                area="webui-dash"
+                url={item.url}
+                height="calc(100vh - 160px)"
+              />
+            ) : (
+              item.jsxContent ?? (
+                <Typography sx={{ whiteSpace: 'pre-line' }}>
+                  {item.content}
+                </Typography>
+              )
+            )}
+          </Box>
+        ))}
       </Box>
     </Box>
   );

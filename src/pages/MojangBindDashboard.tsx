@@ -8,6 +8,7 @@ import { mojangTextureUrl, fetchMojangProfile } from '../api/texture';
 import { getAuthToken, getMbeEnabled, setMbeEnabled } from '../utils/cookie';
 import { BackendUrl } from '../utils/config';
 import { request } from '../utils/api';
+import { dataCache } from '../utils/dataCache';
 
 const SkinViewer3D = lazy(() => import('../components/SkinViewer3D'));
 
@@ -35,6 +36,7 @@ export default function MojangBindDashboard() {
       if (profile) {
         setMojangProfile({ id: profile.id, name: profile.name });
         setHasCape(profile.has_cape);
+        dataCache.setMojangProfile(profile);
       } else {
         setMojangProfile(null);
       }
@@ -55,6 +57,26 @@ export default function MojangBindDashboard() {
         return;
       }
 
+      // 尝试使用缓存
+      const cachedUser = dataCache.getUser();
+      const cachedMojangProfile = dataCache.getMojangProfile();
+
+      if (cachedUser) {
+        const apiMbe = cachedUser.mbe;
+        setMbeEnabledState(apiMbe !== undefined ? Boolean(apiMbe) : (getMbeEnabled() ?? false));
+        const uuid = cachedUser.mojang_uuid;
+        if (uuid) {
+          setMojangUuid(uuid);
+          if (cachedMojangProfile) {
+            setMojangProfile({ id: cachedMojangProfile.id, name: cachedMojangProfile.name });
+            setHasCape(cachedMojangProfile.has_cape);
+          } else {
+            fetchMojangProfileLocal(uuid);
+          }
+        }
+        setLoading(false);
+      }
+
       try {
         const resp = await request(`${BackendUrl}/user`, {
           method: 'POST',
@@ -63,6 +85,7 @@ export default function MojangBindDashboard() {
         });
 
         if (resp.success && resp.data) {
+          dataCache.setUser(resp.data);
           const apiMbe = resp.data.mbe;
           setMbeEnabledState(apiMbe !== undefined ? Boolean(apiMbe) : (getMbeEnabled() ?? false));
           // 后端返回mojang_uuid时使用

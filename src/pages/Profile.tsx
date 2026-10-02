@@ -12,6 +12,7 @@ import Photo from '@mui/icons-material/Photo';
 import { QRCodeSVG } from 'qrcode.react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { dataCache } from '../utils/dataCache';
 const SkinViewer3D = lazy(() => import('../components/SkinViewer3D'));
 import { request } from '../utils/api';
 import {
@@ -487,12 +488,28 @@ export default function Profile() {
   const [deleteLoading, setDeleteLoading] = useState(false);
 
   const fetchTextures = async () => {
+    // 优先使用缓存
+    const cachedTextures = dataCache.getTextures();
+    if (cachedTextures) {
+      const skinTexture = cachedTextures.find(
+        (t: TextureInfo) => t.texture_type === 'skin'
+      );
+      const capeTexture = cachedTextures.find(
+        (t: TextureInfo) => t.texture_type === 'cape'
+      );
+      const cacheBust = Date.now();
+      setSkinUrl(skinTexture?.url ? `${normalizeTextureUrl(skinTexture.url)}?${cacheBust}` : null);
+      setCapeUrl(capeTexture?.url ? `${normalizeTextureUrl(capeTexture.url)}?${cacheBust}` : null);
+      return;
+    }
+
     try {
       const response = await request(`${BackendUrl}/texture/get`, {
         method: 'POST',
       });
 
       if (response.success && response.data && Array.isArray(response.data.textures)) {
+        dataCache.setTextures(response.data.textures);
         const skinTexture = response.data.textures.find(
           (t: TextureInfo) => t.texture_type === 'skin'
         );
@@ -678,6 +695,34 @@ export default function Profile() {
         return;
       }
 
+      // 尝试使用缓存
+      const cachedUser = dataCache.getUser();
+      const cachedTotp = dataCache.getTotpStatus();
+      const cachedCreds = dataCache.getWebauthnCredentials();
+
+      if (cachedUser) {
+        let totpEnabled = getTotpEnabled() ?? false;
+        const apiTotpEnabled = readTotpEnabledFromResponse(cachedTotp || {});
+        if (cachedTotp && apiTotpEnabled !== undefined) {
+          totpEnabled = apiTotpEnabled;
+        }
+
+        const webauthnEnabled = readWebAuthnEnabledFromValue(cachedCreds) ?? readWebAuthnEnabledFromValue(cachedUser) ?? false;
+        applyWebAuthnState(cachedCreds || [], webauthnEnabled);
+
+        setUserInfo({
+          email: cachedUser.email || email || '',
+          username: cachedUser.username || (email ? email.split('@')[0] : 'User'),
+          avatar: cachedUser.avatar,
+          verified: Boolean(cachedUser.verified),
+          totp_enabled: totpEnabled,
+          webauthn_2fa_enabled: webauthnEnabled,
+          uid: cachedUser.uid,
+        });
+        setLoading(false);
+        // 如果缓存存在，仍可以后台静默更新以保持最新
+      }
+
       try {
         const [resp, totpResp, webauthnResp] = await Promise.all([
           request(`${BackendUrl}/user`, {
@@ -690,6 +735,10 @@ export default function Profile() {
           getTotpStatus(),
           listWebAuthnCredentials(),
         ]);
+        
+        if (resp.success) dataCache.setUser(resp.data);
+        if (totpResp.success) dataCache.setTotpStatus(totpResp.data);
+        if (webauthnResp.success) dataCache.setWebauthnCredentials(webauthnResp.data);
 
         // #region debug-point E:initial-load-webauthn-response
         reportWebAuthnDebug('E', 'Profile.tsx:fetchData:webauthnResp', 'Initial WebAuthn-related responses loaded', {

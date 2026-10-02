@@ -1,11 +1,18 @@
+import { useEffect } from 'react';
 import { Box, Typography } from "@mui/material";
 import { Trans } from 'react-i18next';
 import { useTranslation } from 'react-i18next';
 import { useMeta } from '../hooks/useMeta';
+import { dataCache } from '../utils/dataCache';
 
 export default function Home() {
   useMeta('home');
   const { t } = useTranslation();
+
+  useEffect(() => {
+    // 门户页加载完成后，异步预加载控制面板所需数据
+    dataCache.prefetch();
+  }, []);
 
   return (
     <Box sx={{ px: { xs: 1, md: 2 }, pt: { xs: 4, md: 8 } }}>
