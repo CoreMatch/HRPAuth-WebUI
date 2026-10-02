@@ -3,6 +3,8 @@ import { request, type ApiResponse } from '../utils/api';
 
 export interface LoginTicketResponse {
   totp_required: boolean;
+  webauthn_required?: boolean;
+  second_factors?: Array<'totp' | 'webauthn'>;
   login_ticket?: string;
   expires_in?: number;
   access_token?: string;
@@ -22,6 +24,11 @@ export interface LoginResponse {
 
 export interface TotpStatusResponse {
   enabled?: boolean | number;
+}
+
+export interface WebAuthnBeginResponse {
+  flow_id?: string;
+  options?: Record<string, unknown>;
 }
 
 export async function getLoginTicket(email: string, password: string): Promise<ApiResponse<LoginTicketResponse>> {
@@ -86,5 +93,47 @@ export async function requestAccountDeletion(password: string): Promise<ApiRespo
     method: 'DELETE',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ password }),
+  });
+}
+
+export async function beginWebAuthnLogin(email?: string): Promise<ApiResponse<WebAuthnBeginResponse>> {
+  const url = `${BackendUrl}/webauthn/login/begin`;
+  return request<WebAuthnBeginResponse>(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(email ? { email } : {}),
+  });
+}
+
+export async function finishWebAuthnLogin(
+  flowId: string,
+  credential: Record<string, unknown>
+): Promise<ApiResponse<LoginResponse>> {
+  const url = `${BackendUrl}/webauthn/login/finish`;
+  return request<LoginResponse>(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ flow_id: flowId, credential }),
+  });
+}
+
+export async function beginWebAuthnSecondFactor(loginTicket: string): Promise<ApiResponse<WebAuthnBeginResponse>> {
+  const url = `${BackendUrl}/webauthn/2fa/begin`;
+  return request<WebAuthnBeginResponse>(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ login_ticket: loginTicket }),
+  });
+}
+
+export async function finishWebAuthnSecondFactor(
+  flowId: string,
+  credential: Record<string, unknown>
+): Promise<ApiResponse<LoginResponse>> {
+  const url = `${BackendUrl}/webauthn/2fa/finish`;
+  return request<LoginResponse>(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ flow_id: flowId, credential }),
   });
 }

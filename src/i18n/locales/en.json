@@ -35,6 +35,10 @@
     "remember": "Remember me",
     "submit": "Login",
     "submitTotp": "Verify & Login",
+    "usePasskey": "Sign in with Passkey",
+    "usePasskeySecondFactor": "Verify with Passkey",
+    "webauthnAlternative": "You can also use a passkey or security key for this verification step.",
+    "webauthnSecondFactorRequired": "This account requires a passkey or security key for the second verification step.",
     "successRedirecting": "Login successful, redirecting...",
     "errors": {
       "invalidEmail": "Please enter a valid email address.",
@@ -42,7 +46,10 @@
       "totpRequired": "Please enter the 6-digit TOTP code.",
       "loginFailed": "Login failed",
       "codeIncorrect": "Incorrect verification code",
-      "networkError": "Network error"
+      "networkError": "Network error",
+      "webauthnFailed": "WebAuthn verification failed",
+      "webauthnNotConfigured": "This account has not configured WebAuthn",
+      "webauthnInspectionFailed": "The server could not inspect WebAuthn credentials. Please confirm the backend WebAuthn migration has been applied."
     }
   },
   "register": {

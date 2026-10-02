@@ -35,6 +35,10 @@
     "remember": "记住登录",
     "submit": "登录",
     "submitTotp": "验证并登录",
+    "usePasskey": "使用 Passkey 登录",
+    "usePasskeySecondFactor": "使用 Passkey 完成验证",
+    "webauthnAlternative": "你也可以改用 Passkey 或安全密钥完成这一步验证。",
+    "webauthnSecondFactorRequired": "该账户需要使用 Passkey 或安全密钥完成第二步验证。",
     "successRedirecting": "登录成功，正在跳转…",
     "errors": {
       "invalidEmail": "请输入有效的邮箱地址。",
@@ -42,7 +46,10 @@
       "totpRequired": "请输入6位TOTP验证码。",
       "loginFailed": "登录失败",
       "codeIncorrect": "验证码错误",
-      "networkError": "网络错误"
+      "networkError": "网络错误",
+      "webauthnFailed": "WebAuthn 验证失败",
+      "webauthnNotConfigured": "该账户尚未配置 WebAuthn",
+      "webauthnInspectionFailed": "服务器暂时无法检查 WebAuthn 凭据，请确认后端已完成 WebAuthn 迁移"
     }
   },
   "register": {
