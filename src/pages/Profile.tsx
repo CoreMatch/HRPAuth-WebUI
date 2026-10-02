@@ -61,6 +61,32 @@ interface ActionFeedback {
   message: string;
 }
 
+interface PendingWebAuthnRegistration {
+  flowId: string;
+  options: Record<string, unknown>;
+}
+
+function reportWebAuthnDebug(
+  hypothesisId: string,
+  location: string,
+  msg: string,
+  data: Record<string, unknown> = {}
+) {
+  fetch('http://127.0.0.1:7777/event', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      sessionId: 'webauthn-bind-flow',
+      runId: 'pre-fix',
+      hypothesisId,
+      location,
+      msg: `[DEBUG] ${msg}`,
+      data,
+      ts: Date.now(),
+    }),
+  }).catch(() => {});
+}
+
 /**
  * 修正纹理 URL。
  * 后端返回的绝对 URL 可能指向内部域名或错误的协议（如生产环境下返回 http 而非 https），
@@ -446,6 +472,7 @@ export default function Profile() {
   const [webauthnDialogOpen, setWebauthnDialogOpen] = useState(false);
   const [webauthnName, setWebauthnName] = useState('');
   const [webauthnNameError, setWebauthnNameError] = useState<string | null>(null);
+  const [pendingWebAuthnRegistration, setPendingWebAuthnRegistration] = useState<PendingWebAuthnRegistration | null>(null);
   const [credentialToDelete, setCredentialToDelete] = useState<WebAuthnCredentialRecord | null>(null);
 
   const [textureDialogOpen, setTextureDialogOpen] = useState(false);
@@ -567,14 +594,31 @@ export default function Profile() {
   };
 
   const refreshWebAuthnStatus = async (fallbackEnabled?: boolean) => {
+    // #region debug-point D:refresh-webauthn-status-start
+    reportWebAuthnDebug('D', 'Profile.tsx:refreshWebAuthnStatus:start', 'Refreshing WebAuthn status', {
+      fallbackEnabled: fallbackEnabled ?? null,
+    });
+    // #endregion
     try {
       const resp = await listWebAuthnCredentials();
+      // #region debug-point D:refresh-webauthn-status-response
+      reportWebAuthnDebug('D', 'Profile.tsx:refreshWebAuthnStatus:response', 'Received WebAuthn credential list response', {
+        success: resp.success,
+        code: resp.code ?? null,
+        message: resp.message,
+        hasData: Boolean(resp.data),
+        dataType: Array.isArray(resp.data) ? 'array' : typeof resp.data,
+      });
+      // #endregion
       if (resp.success) {
         applyWebAuthnState(resp.data, fallbackEnabled);
       } else {
         applyWebAuthnState([], fallbackEnabled);
       }
     } catch {
+      // #region debug-point D:refresh-webauthn-status-error
+      reportWebAuthnDebug('D', 'Profile.tsx:refreshWebAuthnStatus:error', 'Refreshing WebAuthn status threw an exception');
+      // #endregion
       applyWebAuthnState([], fallbackEnabled);
     }
   };
@@ -620,6 +664,16 @@ export default function Profile() {
           getTotpStatus(),
           listWebAuthnCredentials(),
         ]);
+
+        // #region debug-point E:initial-load-webauthn-response
+        reportWebAuthnDebug('E', 'Profile.tsx:fetchData:webauthnResp', 'Initial WebAuthn-related responses loaded', {
+          userSuccess: resp.success,
+          credentialSuccess: webauthnResp.success,
+          credentialCode: webauthnResp.code ?? null,
+          credentialMessage: webauthnResp.message,
+          credentialDataType: Array.isArray(webauthnResp.data) ? 'array' : typeof webauthnResp.data,
+        });
+        // #endregion
 
         let totpEnabled = getTotpEnabled() ?? false;
         const apiTotpEnabled = readTotpEnabledFromResponse(totpResp as typeof totpResp & { enabled?: boolean | number });
@@ -905,7 +959,7 @@ export default function Profile() {
       return t('profile.webauthnCredentialDeleteFailed');
     }
     if (code === 'webauthn_not_configured') {
-      return t('profile.webauthnEmpty');
+      return t('profile.webauthnBackendNotConfigured');
     }
     return message || t('profile.webauthnOperationFailed');
   };
@@ -923,10 +977,29 @@ export default function Profile() {
     return date.toLocaleString();
   };
 
+  const getWebAuthnAvailabilityError = () => {
+    if (typeof window === 'undefined' || !window.isSecureContext) {
+      return t('profile.webauthnSecureContextRequired');
+    }
+
+    if (!isWebAuthnSupported()) {
+      return t('profile.webauthnUnsupported');
+    }
+
+    return null;
+  };
+
   const handleOpenWebAuthnDialog = () => {
+    // #region debug-point C:open-dialog
+    reportWebAuthnDebug('C', 'Profile.tsx:handleOpenWebAuthnDialog', 'Opened WebAuthn dialog', {
+      credentialCount: webauthnCredentials.length,
+      webauthn2faEnabled,
+    });
+    // #endregion
     setWebauthnDialogOpen(true);
     setWebauthnName('');
     setWebauthnNameError(null);
+    setPendingWebAuthnRegistration(null);
   };
 
   const handleCloseWebAuthnDialog = () => {
@@ -936,19 +1009,29 @@ export default function Profile() {
     setWebauthnDialogOpen(false);
     setWebauthnName('');
     setWebauthnNameError(null);
+    setPendingWebAuthnRegistration(null);
   };
 
   const handleRegisterWebAuthn = async () => {
     const trimmedName = webauthnName.trim();
+    // #region debug-point A:register-click
+    reportWebAuthnDebug('A', 'Profile.tsx:handleRegisterWebAuthn:click', 'Clicked WebAuthn registration action', {
+      hasPendingRegistration: Boolean(pendingWebAuthnRegistration),
+      nameLength: trimmedName.length,
+      isSecureContext: typeof window !== 'undefined' ? window.isSecureContext : false,
+      webauthnSupported: isWebAuthnSupported(),
+    });
+    // #endregion
     if (trimmedName.length > 64) {
       setWebauthnNameError(t('profile.webauthnNameTooLong'));
       return;
     }
 
-    if (!isWebAuthnSupported()) {
+    const availabilityError = getWebAuthnAvailabilityError();
+    if (availabilityError) {
       setWebauthnFeedback({
         severity: 'error',
-        message: t('profile.webauthnUnsupported'),
+        message: availabilityError,
       });
       return;
     }
@@ -958,20 +1041,61 @@ export default function Profile() {
     setWebauthnNameError(null);
 
     try {
-      const beginResp = await beginWebAuthnRegistration(trimmedName || undefined);
-      const flowId = beginResp.data?.flow_id;
-      const options = beginResp.data?.options;
+      if (!pendingWebAuthnRegistration) {
+        const beginResp = await beginWebAuthnRegistration(trimmedName || undefined);
+        const flowId = beginResp.data?.flow_id;
+        const options = beginResp.data?.options;
 
-      if (!beginResp.success || !flowId || !options) {
+        // #region debug-point A:register-begin-response
+        reportWebAuthnDebug('A', 'Profile.tsx:handleRegisterWebAuthn:beginResp', 'Received WebAuthn register begin response', {
+          success: beginResp.success,
+          code: beginResp.code ?? null,
+          message: beginResp.message,
+          hasData: Boolean(beginResp.data),
+          hasFlowId: Boolean(flowId),
+          hasOptions: Boolean(options),
+          dataKeys: beginResp.data ? Object.keys(beginResp.data) : [],
+        });
+        // #endregion
+
+        if (!beginResp.success || !flowId || !options) {
+          setWebauthnFeedback({
+            severity: 'error',
+            message: mapWebAuthnError(beginResp.message, beginResp.code),
+          });
+          return;
+        }
+
+        setPendingWebAuthnRegistration({ flowId, options });
+        // #region debug-point B:pending-registration-set
+        reportWebAuthnDebug('B', 'Profile.tsx:handleRegisterWebAuthn:setPending', 'Stored pending WebAuthn registration', {
+          flowIdLength: flowId.length,
+          optionKeys: Object.keys(options),
+        });
+        // #endregion
         setWebauthnFeedback({
-          severity: 'error',
-          message: mapWebAuthnError(beginResp.message, beginResp.code),
+          severity: 'success',
+          message: t('profile.webauthnReadyForPrompt'),
         });
         return;
       }
 
-      const credential = await registerWithWebAuthn(options);
-      const finishResp = await finishWebAuthnRegistration(flowId, credential);
+      // #region debug-point B:before-credentials-create
+      reportWebAuthnDebug('B', 'Profile.tsx:handleRegisterWebAuthn:beforeCreate', 'About to invoke navigator.credentials.create', {
+        flowIdLength: pendingWebAuthnRegistration.flowId.length,
+        optionKeys: Object.keys(pendingWebAuthnRegistration.options),
+      });
+      // #endregion
+      const credential = await registerWithWebAuthn(pendingWebAuthnRegistration.options);
+      const finishResp = await finishWebAuthnRegistration(pendingWebAuthnRegistration.flowId, credential);
+
+      // #region debug-point B:register-finish-response
+      reportWebAuthnDebug('B', 'Profile.tsx:handleRegisterWebAuthn:finishResp', 'Received WebAuthn register finish response', {
+        success: finishResp.success,
+        code: finishResp.code ?? null,
+        message: finishResp.message,
+      });
+      // #endregion
 
       if (!finishResp.success) {
         setWebauthnFeedback({
@@ -984,17 +1108,33 @@ export default function Profile() {
       await refreshWebAuthnStatus(webauthn2faEnabled);
       setWebauthnDialogOpen(false);
       setWebauthnName('');
+      setPendingWebAuthnRegistration(null);
       setWebauthnFeedback({
         severity: 'success',
         message: t('profile.webauthnRegisterSuccess'),
       });
     } catch (err) {
+      let message = t('profile.webauthnRegisterFailed');
+      if (err instanceof DOMException && err.name === 'SecurityError') {
+        message = t('profile.webauthnSecurityError');
+      } else if (err instanceof DOMException && err.name === 'NotAllowedError') {
+        message = t('profile.webauthnNotAllowedError');
+      } else if (err instanceof Error && err.message === 'WebAuthn is not supported in this browser') {
+        message = t('profile.webauthnUnsupported');
+      } else if (err instanceof Error) {
+        message = err.message;
+      }
+
       setWebauthnFeedback({
         severity: 'error',
-        message: err instanceof Error && err.message === 'WebAuthn is not supported in this browser'
-          ? t('profile.webauthnUnsupported')
-          : (err instanceof Error ? err.message : t('profile.webauthnRegisterFailed')),
+        message,
       });
+      // #region debug-point B:register-catch
+      reportWebAuthnDebug('B', 'Profile.tsx:handleRegisterWebAuthn:catch', 'WebAuthn registration action threw an exception', {
+        errorName: err instanceof Error ? err.name : null,
+        errorMessage: err instanceof Error ? err.message : String(err),
+      });
+      // #endregion
     } finally {
       setWebauthnLoading(false);
     }
@@ -1131,7 +1271,8 @@ export default function Profile() {
   }
 
   const userInitial = userInfo.username ? userInfo.username.charAt(0).toUpperCase() : 'U';
-  const webauthnSupported = isWebAuthnSupported();
+  const webauthnAvailabilityError = getWebAuthnAvailabilityError();
+  const webauthnSupported = !webauthnAvailabilityError;
 
   return (
     <Box>
@@ -1359,7 +1500,7 @@ export default function Profile() {
 
             {!webauthnSupported && (
               <Alert severity="info">
-                {t('profile.webauthnUnsupported')}
+                {webauthnAvailabilityError}
               </Alert>
             )}
 
@@ -1470,6 +1611,11 @@ export default function Profile() {
         <DialogTitle>{t('profile.webauthnRegisterDialogTitle')}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
+            {webauthnFeedback && (
+              <Alert severity={webauthnFeedback.severity}>
+                {webauthnFeedback.message}
+              </Alert>
+            )}
             <Typography variant="body2" color="text.secondary">
               {t('profile.webauthnRegisterHint')}
             </Typography>
@@ -1481,6 +1627,9 @@ export default function Profile() {
                 if (webauthnNameError) {
                   setWebauthnNameError(null);
                 }
+                if (pendingWebAuthnRegistration) {
+                  setPendingWebAuthnRegistration(null);
+                }
               }}
               placeholder={t('profile.webauthnNamePlaceholder')}
               error={!!webauthnNameError}
@@ -1488,6 +1637,11 @@ export default function Profile() {
               fullWidth
               disabled={webauthnLoading}
             />
+            {pendingWebAuthnRegistration && (
+              <Alert severity="info">
+                {t('profile.webauthnReadyForPromptHint')}
+              </Alert>
+            )}
           </Stack>
         </DialogContent>
         <DialogActions>
@@ -1495,7 +1649,9 @@ export default function Profile() {
             {t('common.cancel')}
           </Button>
           <Button variant="contained" onClick={handleRegisterWebAuthn} disabled={webauthnLoading}>
-            {webauthnLoading ? t('profile.totpLoading') : t('profile.webauthnRegister')}
+            {webauthnLoading
+              ? t('profile.totpLoading')
+              : (pendingWebAuthnRegistration ? t('profile.webauthnTriggerPrompt') : t('profile.webauthnPrepareRegister'))}
           </Button>
         </DialogActions>
       </Dialog>
