@@ -10,12 +10,12 @@ import CloudUpload from '@mui/icons-material/CloudUpload';
 import Delete from '@mui/icons-material/Delete';
 import Photo from '@mui/icons-material/Photo';
 import { QRCodeSVG } from 'qrcode.react';
-import { Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 const SkinViewer3D = lazy(() => import('../components/SkinViewer3D'));
 import { request } from '../utils/api';
-import { verifyTotp } from '../api/auth';
-import { getUserEmail, getAuthToken, getUid, getVerified, getTotpEnabled, setTotpEnabled } from '../utils/cookie';
+import { getTotpStatus, requestAccountDeletion, setupTotp, toggleTotp, verifyTotp } from '../api/auth';
+import { clearAuthCookies, getUserEmail, getAuthToken, getUid, getVerified, getTotpEnabled, setTotpEnabled } from '../utils/cookie';
 import { BackendUrl } from '../utils/config';
 
 interface UserInfo {
@@ -40,6 +40,11 @@ interface TextureInfo {
   texture_type: string;
   url: string;
   model?: string;
+}
+
+interface ActionFeedback {
+  severity: 'success' | 'error';
+  message: string;
 }
 
 /**
@@ -400,6 +405,7 @@ function TextureManageDialog({ open, onClose, token, onUpdated }: TextureManageD
 
 export default function Profile() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -417,10 +423,17 @@ export default function Profile() {
   const [passcodeError, setPasscodeError] = useState<string | null>(null);
   const [verifying, setVerifying] = useState(false);
   const [setupSuccess, setSetupSuccess] = useState(false);
+  const [disableTotpDialogOpen, setDisableTotpDialogOpen] = useState(false);
+  const [twoFactorFeedback, setTwoFactorFeedback] = useState<ActionFeedback | null>(null);
 
   const [textureDialogOpen, setTextureDialogOpen] = useState(false);
   const [skinUrl, setSkinUrl] = useState<string | null>(null);
   const [capeUrl, setCapeUrl] = useState<string | null>(null);
+
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deletePasswordError, setDeletePasswordError] = useState<string | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const fetchTextures = async () => {
     try {
@@ -452,6 +465,37 @@ export default function Profile() {
     fetchTextures();
   }, []);
 
+  const parseEnabledFlag = (value: unknown): boolean | undefined => {
+    if (typeof value === 'boolean') {
+      return value;
+    }
+    if (typeof value === 'number') {
+      return value !== 0;
+    }
+    return undefined;
+  };
+
+  const readTotpEnabledFromResponse = (resp: { data?: { enabled?: boolean | number }; enabled?: boolean | number }): boolean | undefined => {
+    return parseEnabledFlag(resp.data?.enabled ?? resp.enabled);
+  };
+
+  const refreshTotpStatus = async (fallback?: boolean): Promise<boolean> => {
+    const fallbackValue = fallback ?? getTotpEnabled() ?? false;
+
+    try {
+      const resp = await getTotpStatus();
+      const enabled = readTotpEnabledFromResponse(resp as typeof resp & { enabled?: boolean | number });
+      const finalValue = resp.success && enabled !== undefined ? enabled : fallbackValue;
+      setTotpEnabled(finalValue);
+      setUserInfo((prev) => (prev ? { ...prev, totp_enabled: finalValue } : prev));
+      return finalValue;
+    } catch {
+      setTotpEnabled(fallbackValue);
+      setUserInfo((prev) => (prev ? { ...prev, totp_enabled: fallbackValue } : prev));
+      return fallbackValue;
+    }
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       const email = getUserEmail();
@@ -465,18 +509,25 @@ export default function Profile() {
       }
 
       try {
-        const resp = await request(`${BackendUrl}/user`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ uid, email }),
-        });
+        const [resp, totpResp] = await Promise.all([
+          request(`${BackendUrl}/user`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ uid, email }),
+          }),
+          getTotpStatus(),
+        ]);
 
-        let totpEnabled: boolean;
+        let totpEnabled = getTotpEnabled() ?? false;
+        const apiTotpEnabled = readTotpEnabledFromResponse(totpResp as typeof totpResp & { enabled?: boolean | number });
+        if (totpResp.success && apiTotpEnabled !== undefined) {
+          totpEnabled = apiTotpEnabled;
+          setTotpEnabled(totpEnabled);
+        }
+
         if (resp.success && resp.data) {
-          const apiTotp = resp.data.totp_enabled;
-          totpEnabled = apiTotp !== undefined ? Boolean(apiTotp) : (getTotpEnabled() ?? false);
           setUserInfo({
             email: resp.data.email || email || '',
             username: resp.data.username || (email ? email.split('@')[0] : 'User'),
@@ -486,7 +537,6 @@ export default function Profile() {
             uid: resp.data.uid,
           });
         } else {
-          totpEnabled = getTotpEnabled() ?? false;
           setUserInfo({
             email: email || '',
             username: email ? email.split('@')[0] : 'User',
@@ -568,11 +618,15 @@ export default function Profile() {
     const token = getAuthToken();
 
     if (!email || !token) {
-      setTotpError(t('profile.notLoggedInError'));
+      setTwoFactorFeedback({
+        severity: 'error',
+        message: t('profile.notLoggedInError'),
+      });
       return;
     }
 
     setTotpLoading(true);
+    setTwoFactorFeedback(null);
     setTotpError(null);
     setTotpKey(null);
     setPasscode('');
@@ -580,22 +634,23 @@ export default function Profile() {
     setSetupSuccess(false);
 
     try {
-      const resp = await request(`${BackendUrl}/totp/setup`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email }),
-      });
+      const resp = await setupTotp(email);
+      const nextTotpKey = resp.data?.totpkey ?? (resp as typeof resp & { totpkey?: string }).totpkey;
 
-      if (resp.success && resp.data?.totpkey) {
-        setTotpKey(resp.data.totpkey);
+      if (resp.success && nextTotpKey) {
+        setTotpKey(nextTotpKey);
         setTotpDialogOpen(true);
       } else {
-        setTotpError(resp.message || t('profile.totpSetupFailed'));
+        setTwoFactorFeedback({
+          severity: 'error',
+          message: resp.message || t('profile.totpSetupFailed'),
+        });
       }
     } catch {
-      setTotpError(t('common.serverError'));
+      setTwoFactorFeedback({
+        severity: 'error',
+        message: t('common.serverError'),
+      });
     } finally {
       setTotpLoading(false);
     }
@@ -608,6 +663,80 @@ export default function Profile() {
     setPasscodeError(null);
     setTotpError(null);
     setSetupSuccess(false);
+  };
+
+  const handleEnableTotp = async () => {
+    const email = getUserEmail();
+    const token = getAuthToken();
+
+    if (!email || !token) {
+      setTwoFactorFeedback({
+        severity: 'error',
+        message: t('profile.notLoggedInError'),
+      });
+      return;
+    }
+
+    setTotpLoading(true);
+    setTwoFactorFeedback(null);
+
+    try {
+      const resp = await toggleTotp(true);
+      if (resp.success) {
+        await refreshTotpStatus(true);
+        setTwoFactorFeedback({
+          severity: 'success',
+          message: t('profile.totpEnabledSuccess'),
+        });
+        return;
+      }
+
+      if (resp.code === 'totp_not_configured') {
+        await handleOpenTotpDialog();
+        return;
+      }
+
+      setTwoFactorFeedback({
+        severity: 'error',
+        message: resp.message || t('profile.totpToggleFailed'),
+      });
+    } catch {
+      setTwoFactorFeedback({
+        severity: 'error',
+        message: t('common.serverError'),
+      });
+    } finally {
+      setTotpLoading(false);
+    }
+  };
+
+  const handleDisableTotp = async () => {
+    setTotpLoading(true);
+    setTwoFactorFeedback(null);
+
+    try {
+      const resp = await toggleTotp(false);
+      if (resp.success) {
+        await refreshTotpStatus(false);
+        setDisableTotpDialogOpen(false);
+        setTwoFactorFeedback({
+          severity: 'success',
+          message: t('profile.totpDisabledSuccess'),
+        });
+      } else {
+        setTwoFactorFeedback({
+          severity: 'error',
+          message: resp.message || t('profile.totpToggleFailed'),
+        });
+      }
+    } catch {
+      setTwoFactorFeedback({
+        severity: 'error',
+        message: t('common.serverError'),
+      });
+    } finally {
+      setTotpLoading(false);
+    }
   };
 
   const handleVerifyPasscode = async () => {
@@ -630,8 +759,11 @@ export default function Profile() {
 
       if (resp.success) {
         setSetupSuccess(true);
-        setUserInfo(prev => prev ? { ...prev, totp_enabled: true } : null);
-        setTotpEnabled(true);
+        await refreshTotpStatus(true);
+        setTwoFactorFeedback({
+          severity: 'success',
+          message: t('profile.totpEnabledSuccess'),
+        });
         setTimeout(() => {
           handleCloseTotpDialog();
         }, 1500);
@@ -650,6 +782,45 @@ export default function Profile() {
     const encodedIssuer = encodeURIComponent(issuer);
     const encodedAccount = encodeURIComponent(email);
     return `otpauth://totp/${encodedIssuer}:${encodedAccount}?secret=${secret}&issuer=${encodedIssuer}&algorithm=SHA1&digits=6&period=30`;
+  };
+
+  const handleOpenDeleteDialog = () => {
+    setDeleteDialogOpen(true);
+    setDeletePassword('');
+    setDeletePasswordError(null);
+  };
+
+  const handleCloseDeleteDialog = () => {
+    if (deleteLoading) {
+      return;
+    }
+    setDeleteDialogOpen(false);
+    setDeletePassword('');
+    setDeletePasswordError(null);
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!deletePassword) {
+      setDeletePasswordError(t('profile.deletePasswordRequired'));
+      return;
+    }
+
+    setDeleteLoading(true);
+    setDeletePasswordError(null);
+
+    try {
+      const resp = await requestAccountDeletion(deletePassword);
+      if (resp.success) {
+        clearAuthCookies();
+        navigate('/login', { replace: true });
+      } else {
+        setDeletePasswordError(resp.message || t('profile.deleteAccountFailed'));
+      }
+    } catch {
+      setDeletePasswordError(t('common.serverError'));
+    } finally {
+      setDeleteLoading(false);
+    }
   };
 
   if (loading) {
@@ -827,26 +998,82 @@ export default function Profile() {
 
       <Card sx={{ maxWidth: 500, mt: 2 }}>
         <CardContent>
-          <Stack direction="row" alignItems="center" justifyContent="space-between">
+          <Stack spacing={2}>
+            <Stack direction="row" alignItems="center" justifyContent="space-between">
+              <Box>
+                <Typography variant="h6" gutterBottom>
+                  {t('profile.totpTitle')}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {userInfo.totp_enabled
+                    ? t('profile.totpEnabled')
+                    : t('profile.totpDisabled')
+                  }
+                </Typography>
+              </Box>
+              {userInfo.totp_enabled ? (
+                <Stack direction="row" spacing={1}>
+                  <Button
+                    variant="outlined"
+                    startIcon={<Key />}
+                    onClick={handleOpenTotpDialog}
+                    disabled={totpLoading}
+                  >
+                    {totpLoading ? t('profile.totpLoading') : t('profile.totpReset')}
+                  </Button>
+                  <Button
+                    color="warning"
+                    variant="text"
+                    onClick={() => setDisableTotpDialogOpen(true)}
+                    disabled={totpLoading}
+                  >
+                    {t('profile.totpDisable')}
+                  </Button>
+                </Stack>
+              ) : (
+                <Button
+                  variant="contained"
+                  startIcon={<Key />}
+                  onClick={handleEnableTotp}
+                  disabled={totpLoading}
+                >
+                  {totpLoading ? t('profile.totpLoading') : t('profile.totpEnable')}
+                </Button>
+              )}
+            </Stack>
+            {twoFactorFeedback && (
+              <Alert severity={twoFactorFeedback.severity}>
+                {twoFactorFeedback.message}
+              </Alert>
+            )}
+          </Stack>
+        </CardContent>
+      </Card>
+
+      <Card sx={{ maxWidth: 500, mt: 2 }}>
+        <CardContent>
+          <Stack spacing={2}>
             <Box>
               <Typography variant="h6" gutterBottom>
-                {t('profile.totpTitle')}
+                {t('profile.deleteAccountTitle')}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                {userInfo.totp_enabled
-                  ? t('profile.totpEnabled')
-                  : t('profile.totpDisabled')
-                }
+                {t('profile.deleteAccountSubtitle')}
               </Typography>
             </Box>
-            <Button
-              variant={userInfo.totp_enabled ? 'outlined' : 'contained'}
-              startIcon={<Key />}
-              onClick={handleOpenTotpDialog}
-              disabled={totpLoading}
-            >
-              {totpLoading ? t('profile.totpLoading') : userInfo.totp_enabled ? t('profile.totpReset') : t('profile.totpEnable')}
-            </Button>
+            <Alert severity="warning">
+              {t('profile.deleteAccountWarning')}
+            </Alert>
+            <Box>
+              <Button
+                color="error"
+                variant="outlined"
+                startIcon={<Delete />}
+                onClick={handleOpenDeleteDialog}
+              >
+                {t('profile.deleteAccountAction')}
+              </Button>
+            </Box>
           </Stack>
         </CardContent>
       </Card>
@@ -923,6 +1150,65 @@ export default function Profile() {
               {verifying ? t('profile.verifying') : t('profile.verify')}
             </Button>
           )}
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={disableTotpDialogOpen}
+        onClose={() => setDisableTotpDialogOpen(false)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>{t('profile.disableTotpDialogTitle')}</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            {t('profile.disableTotpDialogDescription')}
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDisableTotpDialogOpen(false)} disabled={totpLoading}>
+            {t('profile.cancel')}
+          </Button>
+          <Button color="warning" variant="contained" onClick={handleDisableTotp} disabled={totpLoading}>
+            {totpLoading ? t('profile.totpLoading') : t('profile.totpDisable')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={deleteDialogOpen} onClose={handleCloseDeleteDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>{t('profile.deleteAccountDialogTitle')}</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <Alert severity="warning">
+              {t('profile.deleteAccountDialogWarning')}
+            </Alert>
+            <Typography variant="body2" color="text.secondary">
+              {t('profile.deleteAccountDialogDescription')}
+            </Typography>
+            <TextField
+              type="password"
+              label={t('profile.deletePasswordLabel')}
+              value={deletePassword}
+              onChange={(e) => setDeletePassword(e.target.value)}
+              fullWidth
+              autoComplete="current-password"
+              error={!!deletePasswordError}
+              helperText={deletePasswordError}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDeleteDialog} disabled={deleteLoading}>
+            {t('profile.cancel')}
+          </Button>
+          <Button
+            color="error"
+            variant="contained"
+            onClick={handleDeleteAccount}
+            disabled={deleteLoading}
+          >
+            {deleteLoading ? t('common.pleaseWait') : t('profile.deleteAccountConfirm')}
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>

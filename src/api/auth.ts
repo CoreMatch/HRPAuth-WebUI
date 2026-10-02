@@ -20,6 +20,10 @@ export interface LoginResponse {
   uid: string;
 }
 
+export interface TotpStatusResponse {
+  enabled?: boolean | number;
+}
+
 export async function getLoginTicket(email: string, password: string): Promise<ApiResponse<LoginTicketResponse>> {
   const url = `${BackendUrl}/oauth/login-ticket`;
   return request<LoginTicketResponse>(url, {
@@ -49,4 +53,38 @@ export async function verifyTotp(
 export async function logout(): Promise<ApiResponse> {
   const url = `${BackendUrl}/logout`;
   return request(url, { method: 'GET' });
+}
+
+export async function getTotpStatus(): Promise<ApiResponse<TotpStatusResponse>> {
+  const url = `${BackendUrl}/totp/hasbeenenabled`;
+  return request<TotpStatusResponse>(url, {
+    method: 'POST',
+  });
+}
+
+export async function setupTotp(email: string): Promise<ApiResponse<{ totpkey?: string }>> {
+  const url = `${BackendUrl}/totp/setup`;
+  return request<{ totpkey?: string }>(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+}
+
+export async function toggleTotp(enabled: boolean): Promise<ApiResponse<TotpStatusResponse>> {
+  const url = `${BackendUrl}/totp/toggle`;
+  return request<TotpStatusResponse>(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ enabled }),
+  });
+}
+
+export async function requestAccountDeletion(password: string): Promise<ApiResponse> {
+  const url = `${BackendUrl}/user`;
+  return request(url, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password }),
+  });
 }
