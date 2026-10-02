@@ -1,7 +1,11 @@
 import { useState, useEffect } from 'react';
-import { AppBar, Toolbar, Typography, Button, Avatar, Menu, MenuItem, IconButton } from "@mui/material";
+import { Avatar, Box, Button, IconButton, Menu, MenuItem, Stack, Typography } from "@mui/material";
+import { alpha } from '@mui/material/styles';
 import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from 'react-i18next';
+import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined';
+import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined';
+import CollectionsOutlinedIcon from '@mui/icons-material/CollectionsOutlined';
 import LanguageSwitcher from './LanguageSwitcher';
 import { request } from '../utils/api';
 import { getAuthToken, getUserEmail, clearAuthCookies } from '../utils/cookie';
@@ -59,86 +63,160 @@ export default function Navbar() {
   const userInitial = userEmail ? userEmail.charAt(0).toUpperCase() : 'U';
 
   return (
-    <AppBar position="static">
-      <Toolbar>
-        <Typography
-          variant="h6"
-          sx={{ flexGrow: 1 }}
+    <Box
+      component="header"
+      sx={{
+        position: 'sticky',
+        top: 0,
+        zIndex: 30,
+        px: { xs: 1.5, md: 2.5 },
+        pt: 2,
+        pb: 1.5,
+      }}
+    >
+      <Box
+        sx={{
+          maxWidth: 1280,
+          mx: 'auto',
+          px: { xs: 2, md: 2.5 },
+          py: 1.5,
+          borderRadius: 4,
+          border: `1px solid ${alpha('#d7e3ff', 0.12)}`,
+          backgroundColor: alpha('#0d1427', 0.72),
+          backdropFilter: 'blur(20px)',
+          boxShadow: `0 20px 48px ${alpha('#000814', 0.26)}`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 2,
+        }}
+      >
+        <Box
           component={Link}
           to="/"
-          style={{ textDecoration: "none", color: "inherit" }}
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1.5,
+            color: 'inherit',
+            minWidth: 0,
+          }}
         >
-          HRPAuth
-        </Typography>
+          <Box
+            sx={{
+              width: 42,
+              height: 42,
+              borderRadius: 2.5,
+              display: 'grid',
+              placeItems: 'center',
+              backgroundImage: 'linear-gradient(135deg, rgba(124, 140, 255, 0.9), rgba(69, 208, 255, 0.9))',
+              boxShadow: `0 14px 28px ${alpha('#7c8cff', 0.28)}`,
+            }}
+          >
+            <ShieldOutlinedIcon sx={{ color: '#f7fbff' }} />
+          </Box>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="h6" sx={{ lineHeight: 1.05, fontWeight: 800 }}>
+              HRPAuth
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: { xs: 'none', sm: 'block' } }}>
+              {t('navbar.tagline')}
+            </Typography>
+          </Box>
+        </Box>
 
-        <LanguageSwitcher />
+        <Stack direction="row" spacing={1} alignItems="center" sx={{ flexShrink: 0 }}>
+          <LanguageSwitcher />
 
-        {isLoggedIn ? (
-          <>
-            <IconButton
-              onClick={handleMenuOpen}
-              color="inherit"
-              sx={{ ml: 1 }}
-            >
-              <Avatar sx={{ width: 32, height: 32, bgcolor: 'secondary.main' }}>
-                {userInitial}
-              </Avatar>
-            </IconButton>
-            <Menu
-              anchorEl={anchorEl}
-              open={Boolean(anchorEl)}
-              onClose={handleMenuClose}
-              anchorOrigin={{
-                vertical: 'bottom',
-                horizontal: 'right',
-              }}
-              transformOrigin={{
-                vertical: 'top',
-                horizontal: 'right',
-              }}
-            >
-              <MenuItem component={Link} to="/dash" onClick={handleMenuClose}>
+          {isLoggedIn ? (
+            <>
+              <Button
+                variant="text"
+                color="inherit"
+                component={Link}
+                to="/dash"
+                startIcon={<DashboardOutlinedIcon />}
+                sx={{ display: { xs: 'none', md: 'inline-flex' } }}
+              >
                 {t('navbar.dashboard')}
-              </MenuItem>
-              <MenuItem component={Link} to="/dashdebug" onClick={handleMenuClose}>
-                {t('navbar.debug')}
-              </MenuItem>
-              <MenuItem component={Link} to="/skinlib" onClick={handleMenuClose}>
+              </Button>
+              <Button
+                variant="outlined"
+                component={Link}
+                to="/skinlib"
+                startIcon={<CollectionsOutlinedIcon />}
+                sx={{ display: { xs: 'none', md: 'inline-flex' } }}
+              >
                 {t('navbar.skinlib')}
-              </MenuItem>
-              {/* 微服务通过 SDK 声明的菜单项 */}
-              {getDiscoveredServicesByArea('webui-service')
-                .map((svc) => ({ svc, sdk: getServiceSDK(svc.name) }))
-                .filter(
-                  (item): item is { svc: ServiceSummary; sdk: ServiceSDK & { menu: ServiceSDKMenu } } =>
-                    item.sdk?.menu != null
-                )
-                .map(({ svc, sdk }) => (
-                  <MenuItem
-                    key={svc.name}
-                    component={Link}
-                    to={`/service/${encodeURIComponent(svc.name)}`}
-                    onClick={handleMenuClose}
-                  >
-                    {sdk.menu.label}
-                  </MenuItem>
-                ))}
-              <MenuItem onClick={handleLogout}>
-                {t('navbar.logout')}
-              </MenuItem>
-            </Menu>
-          </>
-        ) : (
-          <>
-            <Button color="inherit" component={Link} to="/login">
-              {t('navbar.login')}
-            </Button>
-            <Button color="inherit" component={Link} to="/register">
-              {t('navbar.register')}
-            </Button>
-          </>
-        )}
-      </Toolbar>
-    </AppBar>
+              </Button>
+              <IconButton onClick={handleMenuOpen} sx={{ ml: 0.5 }}>
+                <Avatar
+                  sx={{
+                    width: 36,
+                    height: 36,
+                    bgcolor: 'secondary.main',
+                    color: '#06111c',
+                    fontWeight: 800,
+                  }}
+                >
+                  {userInitial}
+                </Avatar>
+              </IconButton>
+              <Menu
+                anchorEl={anchorEl}
+                open={Boolean(anchorEl)}
+                onClose={handleMenuClose}
+                anchorOrigin={{
+                  vertical: 'bottom',
+                  horizontal: 'right',
+                }}
+                transformOrigin={{
+                  vertical: 'top',
+                  horizontal: 'right',
+                }}
+              >
+                <MenuItem component={Link} to="/dash" onClick={handleMenuClose}>
+                  {t('navbar.dashboard')}
+                </MenuItem>
+                <MenuItem component={Link} to="/dashdebug" onClick={handleMenuClose}>
+                  {t('navbar.debug')}
+                </MenuItem>
+                <MenuItem component={Link} to="/skinlib" onClick={handleMenuClose}>
+                  {t('navbar.skinlib')}
+                </MenuItem>
+                {getDiscoveredServicesByArea('webui-service')
+                  .map((svc) => ({ svc, sdk: getServiceSDK(svc.name) }))
+                  .filter(
+                    (item): item is { svc: ServiceSummary; sdk: ServiceSDK & { menu: ServiceSDKMenu } } =>
+                      item.sdk?.menu != null
+                  )
+                  .map(({ svc, sdk }) => (
+                    <MenuItem
+                      key={svc.name}
+                      component={Link}
+                      to={`/service/${encodeURIComponent(svc.name)}`}
+                      onClick={handleMenuClose}
+                    >
+                      {sdk.menu.label}
+                    </MenuItem>
+                  ))}
+                <MenuItem onClick={handleLogout}>
+                  {t('navbar.logout')}
+                </MenuItem>
+              </Menu>
+            </>
+          ) : (
+            <>
+              <Button variant="text" color="inherit" component={Link} to="/login">
+                {t('navbar.login')}
+              </Button>
+              <Button variant="contained" component={Link} to="/register">
+                {t('navbar.register')}
+              </Button>
+            </>
+          )}
+        </Stack>
+      </Box>
+    </Box>
   );
 }

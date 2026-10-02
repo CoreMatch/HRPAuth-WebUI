@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
+import { Box, CircularProgress, Typography } from '@mui/material';
 import Layout from './components/Layout';
 
 const Home = lazy(() => import('./pages/Home'));
@@ -13,15 +14,21 @@ const ServiceEmbed = lazy(() => import('./pages/ServiceEmbed'));
 
 function LoadingFallback() {
   return (
-    <div style={{
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      minHeight: '100vh',
-      fontFamily: 'system-ui, sans-serif'
-    }}>
-      Loading...
-    </div>
+    <Box
+      sx={{
+        minHeight: '100vh',
+        display: 'grid',
+        placeItems: 'center',
+        px: 3,
+      }}
+    >
+      <Box sx={{ textAlign: 'center' }}>
+        <CircularProgress color="secondary" size={36} />
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+          Loading...
+        </Typography>
+      </Box>
+    </Box>
   );
 }
 

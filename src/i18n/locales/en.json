@@ -20,11 +20,33 @@
     "logout": "Logout",
     "language": "Language",
     "languageZh": "简体中文",
-    "languageEn": "English"
+    "languageEn": "English",
+    "tagline": "Unified Identity Hub"
   },
   "home": {
-    "title": "Here's <1>HRPAuth</1>",
-    "description": "A Minecraft authentication service designed for <2>RevolutionMC</2>."
+    "badge": "Identity Hub",
+    "title": "Enter the <1>HRPAuth</1> Identity Network",
+    "description": "A unified authentication portal for <2>RevolutionMC</2>, bringing account access, security verification, player assets, and multi-service entry into one place.",
+    "primaryActionGuest": "Sign In",
+    "primaryActionAuth": "Open Dashboard",
+    "secondaryAction": "Browse SkinLib",
+    "pillSecurity": "Passkey / TOTP",
+    "pillServices": "Service Access",
+    "pillAssets": "Skins & Capes",
+    "featureSecurityTitle": "Security flows in one place",
+    "featureSecurityDescription": "Keep passwords, passkeys, security keys, and second-factor verification in a single sign-in experience.",
+    "featureServiceTitle": "A real multi-service entry point",
+    "featureServiceDescription": "Connect downstream services around identity so the console feels like a central hub instead of a loose collection of pages.",
+    "featureAssetTitle": "Player assets belong in the brand",
+    "featureAssetDescription": "Treat skins, capes, and player presentation as first-class UI elements instead of isolated utility screens.",
+    "panelTitle": "System Snapshot",
+    "panelStatus": "Identity Status",
+    "panelStatusValue": "Online and verification-ready",
+    "panelServices": "Integrated Services",
+    "panelServicesValue": "Yggdrasil / Service SDK",
+    "panelAssets": "Managed Assets",
+    "panelAssetsValue": "Skins, capes, credentials",
+    "panelFootnote": "Built to feel like a community identity gateway, not a default admin template."
   },
   "login": {
     "title": "Login",

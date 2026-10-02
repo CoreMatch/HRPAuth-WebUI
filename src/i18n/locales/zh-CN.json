@@ -20,11 +20,33 @@
     "logout": "退出登录",
     "language": "语言",
     "languageZh": "简体中文",
-    "languageEn": "English"
+    "languageEn": "English",
+    "tagline": "统一身份中枢"
   },
   "home": {
-    "title": "这里是 <1>HRPAuth</1>",
-    "description": "一个为 <2>RevolutionMC</2> 设计的 Minecraft 认证服务。"
+    "badge": "Identity Hub",
+    "title": "进入 <1>HRPAuth</1> 身份中枢",
+    "description": "为 <2>RevolutionMC</2> 打造的统一认证入口，将账号、安全验证、皮肤资产与多服务接入整合在同一个门户中。",
+    "primaryActionGuest": "开始登录",
+    "primaryActionAuth": "打开控制台",
+    "secondaryAction": "浏览材质库",
+    "pillSecurity": "Passkey / TOTP",
+    "pillServices": "服务接入",
+    "pillAssets": "皮肤与披风",
+    "featureSecurityTitle": "安全验证集中管理",
+    "featureSecurityDescription": "将密码、Passkey、安全密钥与两步验证放在同一条登录链路里，降低切换成本。",
+    "featureServiceTitle": "多服务统一入口",
+    "featureServiceDescription": "以身份为中心接入不同微服务，让控制台更像一个真正的服务中枢。",
+    "featureAssetTitle": "游戏资产自然融入",
+    "featureAssetDescription": "把皮肤、披风和角色展示作为品牌视觉的一部分，而不是孤立的功能页。",
+    "panelTitle": "系统快照",
+    "panelStatus": "身份状态",
+    "panelStatusValue": "在线并可验证",
+    "panelServices": "接入能力",
+    "panelServicesValue": "Yggdrasil / 微服务 SDK",
+    "panelAssets": "可管理资产",
+    "panelAssetsValue": "皮肤、披风、凭据",
+    "panelFootnote": "一个更像社区身份入口，而不是默认后台模板的认证中心。"
   },
   "login": {
     "title": "登录",
