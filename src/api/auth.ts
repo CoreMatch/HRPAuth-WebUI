@@ -26,9 +26,13 @@ export interface TotpStatusResponse {
   enabled?: boolean | number;
 }
 
+export interface WebAuthnPublicKeyOptions {
+  publicKey?: Record<string, unknown>;
+}
+
 export interface WebAuthnBeginResponse {
   flow_id?: string;
-  options?: Record<string, unknown>;
+  options?: WebAuthnPublicKeyOptions;
 }
 
 export interface WebAuthnCredentialRecord {

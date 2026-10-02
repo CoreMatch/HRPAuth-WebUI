@@ -1,3 +1,5 @@
+import type { WebAuthnPublicKeyOptions } from '../api/auth';
+
 function base64UrlToArrayBuffer(value: string): ArrayBuffer {
   const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
   const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
@@ -22,14 +24,24 @@ function arrayBufferToBase64Url(buffer: ArrayBuffer): string {
   return window.btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
 }
 
-function toRequestOptions(options: Record<string, unknown>): PublicKeyCredentialRequestOptions {
-  const challenge = options.challenge;
+function readPublicKeyOptions(options: WebAuthnPublicKeyOptions): Record<string, unknown> {
+  const publicKey = options.publicKey;
+  if (!publicKey || typeof publicKey !== 'object' || Array.isArray(publicKey)) {
+    throw new Error('Invalid WebAuthn options');
+  }
+
+  return publicKey as Record<string, unknown>;
+}
+
+function toRequestOptions(options: WebAuthnPublicKeyOptions): PublicKeyCredentialRequestOptions {
+  const publicKeyOptions = readPublicKeyOptions(options);
+  const challenge = publicKeyOptions.challenge;
   if (typeof challenge !== 'string') {
     throw new Error('Invalid WebAuthn challenge');
   }
 
-  const allowCredentials = Array.isArray(options.allowCredentials)
-    ? options.allowCredentials.map((credential) => {
+  const allowCredentials = Array.isArray(publicKeyOptions.allowCredentials)
+    ? publicKeyOptions.allowCredentials.map((credential) => {
       const record = credential as Record<string, unknown>;
       if (typeof record.id !== 'string') {
         throw new Error('Invalid WebAuthn credential descriptor');
@@ -46,15 +58,16 @@ function toRequestOptions(options: Record<string, unknown>): PublicKeyCredential
     : undefined;
 
   return {
-    ...options,
+    ...publicKeyOptions,
     challenge: base64UrlToArrayBuffer(challenge),
     allowCredentials,
   } as PublicKeyCredentialRequestOptions;
 }
 
-function toCreationOptions(options: Record<string, unknown>): PublicKeyCredentialCreationOptions {
-  const challenge = options.challenge;
-  const user = options.user as Record<string, unknown> | undefined;
+function toCreationOptions(options: WebAuthnPublicKeyOptions): PublicKeyCredentialCreationOptions {
+  const publicKeyOptions = readPublicKeyOptions(options);
+  const challenge = publicKeyOptions.challenge;
+  const user = publicKeyOptions.user as Record<string, unknown> | undefined;
 
   if (typeof challenge !== 'string') {
     throw new Error('Invalid WebAuthn challenge');
@@ -64,8 +77,8 @@ function toCreationOptions(options: Record<string, unknown>): PublicKeyCredentia
     throw new Error('Invalid WebAuthn user');
   }
 
-  const excludeCredentials = Array.isArray(options.excludeCredentials)
-    ? options.excludeCredentials.map((credential) => {
+  const excludeCredentials = Array.isArray(publicKeyOptions.excludeCredentials)
+    ? publicKeyOptions.excludeCredentials.map((credential) => {
       const record = credential as Record<string, unknown>;
       if (typeof record.id !== 'string') {
         throw new Error('Invalid WebAuthn credential descriptor');
@@ -82,7 +95,7 @@ function toCreationOptions(options: Record<string, unknown>): PublicKeyCredentia
     : undefined;
 
   return {
-    ...options,
+    ...publicKeyOptions,
     challenge: base64UrlToArrayBuffer(challenge),
     user: {
       ...user,
@@ -142,7 +155,7 @@ export function isWebAuthnSupported(): boolean {
     && 'PublicKeyCredential' in window;
 }
 
-export async function authenticateWithWebAuthn(options: Record<string, unknown>) {
+export async function authenticateWithWebAuthn(options: WebAuthnPublicKeyOptions) {
   if (!isWebAuthnSupported()) {
     throw new Error('WebAuthn is not supported in this browser');
   }
@@ -158,7 +171,7 @@ export async function authenticateWithWebAuthn(options: Record<string, unknown>)
   return serializeAuthenticationCredential(credential);
 }
 
-export async function registerWithWebAuthn(options: Record<string, unknown>) {
+export async function registerWithWebAuthn(options: WebAuthnPublicKeyOptions) {
   if (!isWebAuthnSupported()) {
     throw new Error('WebAuthn is not supported in this browser');
   }

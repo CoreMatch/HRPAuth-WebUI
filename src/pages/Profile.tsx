@@ -25,6 +25,7 @@ import {
   toggleTotp,
   toggleWebAuthnSecondFactor,
   type WebAuthnCredentialRecord,
+  type WebAuthnPublicKeyOptions,
   verifyTotp,
 } from '../api/auth';
 import { clearAuthCookies, getUserEmail, getAuthToken, getUid, getVerified, getTotpEnabled, setTotpEnabled } from '../utils/cookie';
@@ -63,7 +64,7 @@ interface ActionFeedback {
 
 interface PendingWebAuthnRegistration {
   flowId: string;
-  options: Record<string, unknown>;
+  options: WebAuthnPublicKeyOptions;
 }
 
 function reportWebAuthnDebug(
