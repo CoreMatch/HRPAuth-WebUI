@@ -238,3 +238,32 @@ export async function toggleWebAuthnSecondFactor(enabled: boolean): Promise<ApiR
     body: JSON.stringify({ enabled }),
   });
 }
+
+export interface Email2faStatusResponse {
+  enabled: boolean;
+}
+
+export async function getEmail2faStatus(uid: string): Promise<ApiResponse<Email2faStatusResponse>> {
+  const url = `${BackendUrl}/email-2fa/status?uid=${uid}`;
+  return request<Email2faStatusResponse>(url, {
+    method: 'GET',
+  });
+}
+
+export async function toggleEmail2fa(enabled: boolean): Promise<ApiResponse> {
+  const url = `${BackendUrl}/email-2fa/toggle`;
+  return request(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ enabled }),
+  });
+}
+
+export async function sendEmail2faCode(loginTicket: string): Promise<ApiResponse> {
+  const url = `${BackendUrl}/email-2fa/send`;
+  return request(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ login_ticket: loginTicket }),
+  });
+}

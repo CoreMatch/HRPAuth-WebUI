@@ -14,7 +14,7 @@ import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { dataCache } from '../utils/dataCache';
 const SkinViewer3D = lazy(() => import('../components/SkinViewer3D'));
-import { request } from '../utils/api';
+import { request, type ApiResponse } from '../utils/api';
 import {
   beginWebAuthnRegistration,
   deleteWebAuthnCredential,
@@ -28,7 +28,18 @@ import {
   type WebAuthnCredentialRecord,
   type WebAuthnPublicKeyOptions,
   verifyTotp,
+  getEmail2faStatus,
+  toggleEmail2fa,
+  sendEmail2faCode,
+  type Email2faStatusResponse,
 } from '../api/auth';
+import {
+  enableMojangBind,
+  disableMojangBind,
+  sendChangeEmailCode,
+  changeEmail,
+  beginWebAuthnSudo,
+} from '../api/user';
 import { clearAuthCookies, getUserEmail, getAuthToken, getUid, getVerified, getTotpEnabled, setTotpEnabled } from '../utils/cookie';
 import { BackendUrl } from '../utils/config';
 import { isWebAuthnSupported, registerWithWebAuthn } from '../utils/webauthn';
@@ -40,6 +51,7 @@ interface UserInfo {
   verified?: boolean;
   totp_enabled: boolean;
   webauthn_2fa_enabled?: boolean;
+  email_2fa_enabled?: boolean;
   uid?: number;
 }
 
@@ -457,6 +469,20 @@ export default function Profile() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
+  const [email2faEnabled, setEmail2faEnabled] = useState(false);
+  const [email2faLoading, setEmail2faLoading] = useState(false);
+
+  const [changeEmailDialogOpen, setChangeEmailDialogOpen] = useState(false);
+  const [newEmail, setNewEmail] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [emailCode, setEmailCode] = useState('');
+  const [changeEmailTotpCode, setChangeEmailTotpCode] = useState('');
+  const [changeEmailLoading, setChangeEmailLoading] = useState(false);
+  const [changeEmailError, setChangeEmailError] = useState<string | null>(null);
+  const [changeEmailSuccess, setChangeEmailSuccess] = useState(false);
+  const [sendingEmailCode, setSendingEmailCode] = useState(false);
+
   const [totpDialogOpen, setTotpDialogOpen] = useState(false);
   const [totpKey, setTotpKey] = useState<string | null>(null);
   const [totpLoading, setTotpLoading] = useState(false);
@@ -683,6 +709,18 @@ export default function Profile() {
     }
   };
 
+  const refreshEmail2faStatus = async (uid: string) => {
+    try {
+      const resp = await getEmail2faStatus(uid);
+      if (resp.success && resp.data) {
+        setEmail2faEnabled(resp.data.enabled);
+        setUserInfo(prev => prev ? { ...prev, email_2fa_enabled: resp.data.enabled } : prev);
+      }
+    } catch (e) {
+      console.error('Failed to fetch email 2FA status', e);
+    }
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       const email = getUserEmail();
@@ -724,7 +762,7 @@ export default function Profile() {
       }
 
       try {
-        const [resp, totpResp, webauthnResp] = await Promise.all([
+        const [resp, totpResp, webauthnResp, email2faResp] = await Promise.all([
           request(`${BackendUrl}/user`, {
             method: 'POST',
             headers: {
@@ -734,6 +772,7 @@ export default function Profile() {
           }),
           getTotpStatus(),
           listWebAuthnCredentials(),
+          uid ? getEmail2faStatus(uid) : Promise.resolve({ success: false, message: 'no uid', data: { enabled: false } } as ApiResponse<Email2faStatusResponse>),
         ]);
         
         if (resp.success) dataCache.setUser(resp.data);
@@ -756,6 +795,9 @@ export default function Profile() {
           totpEnabled = apiTotpEnabled;
           setTotpEnabled(totpEnabled);
         }
+
+        const email2faEnabled = (email2faResp.success && email2faResp.data) ? email2faResp.data.enabled : false;
+        setEmail2faEnabled(email2faEnabled);
 
         const webauthnEnabledFromApi = webauthnResp.success ? readWebAuthnEnabledFromValue(webauthnResp.data) : undefined;
         const webauthnEnabledFromUser = resp.success ? readWebAuthnEnabledFromValue(resp.data) : undefined;
@@ -850,6 +892,125 @@ export default function Profile() {
     setNewUsername('');
     setSaveError(null);
     setSaveSuccess(false);
+  };
+
+  const handleToggleEmail2fa = async (enabled: boolean) => {
+    setEmail2faLoading(true);
+    setTwoFactorFeedback(null);
+
+    try {
+      const resp = await toggleEmail2fa(enabled);
+      if (resp.success) {
+        const uid = getUid();
+        if (uid) await refreshEmail2faStatus(uid);
+        setTwoFactorFeedback({
+          severity: 'success',
+          message: enabled ? t('profile.email2faEnabledSuccess') : t('profile.email2faDisabledSuccess'),
+        });
+      } else {
+        setTwoFactorFeedback({
+          severity: 'error',
+          message: resp.message || t('profile.totpToggleFailed'),
+        });
+      }
+    } catch {
+      setTwoFactorFeedback({
+        severity: 'error',
+        message: t('common.serverError'),
+      });
+    } finally {
+      setEmail2faLoading(false);
+    }
+  };
+
+  const handleSendChangeEmailCode = async () => {
+    setSendingEmailCode(true);
+    setChangeEmailError(null);
+    try {
+      const resp = await sendChangeEmailCode();
+      if (resp.success) {
+        setChangeEmailError(null);
+        // 可以提示已发送
+      } else {
+        setChangeEmailError(resp.message || t('profile.saveFailed'));
+      }
+    } catch {
+      setChangeEmailError(t('common.serverError'));
+    } finally {
+      setSendingEmailCode(false);
+    }
+  };
+
+  const handleBeginWebAuthnSudo = async () => {
+    setChangeEmailLoading(true);
+    setChangeEmailError(null);
+    try {
+      const beginResp = await beginWebAuthnSudo();
+      if (beginResp.success && beginResp.data) {
+        const credential = await registerWithWebAuthn(beginResp.data.options);
+        const params = {
+          new_email: newEmail,
+          webauthn: {
+            flow_id: beginResp.data.flow_id,
+            credential,
+          },
+          ...(newPassword ? { new_password: newPassword } : {}),
+        };
+        const resp = await changeEmail(params);
+        if (resp.success) {
+          setChangeEmailSuccess(true);
+          setTimeout(() => {
+            setChangeEmailDialogOpen(false);
+            setChangeEmailSuccess(false);
+            clearAuthCookies();
+            navigate('/login');
+          }, 2000);
+        } else {
+          setChangeEmailError(resp.message || t('profile.saveFailed'));
+        }
+      }
+    } catch (err: any) {
+      setChangeEmailError(err.message || t('profile.webauthnOperationFailed'));
+    } finally {
+      setChangeEmailLoading(false);
+    }
+  };
+
+  const handleChangeEmail = async () => {
+    if (!newEmail) {
+      setChangeEmailError(t('register.errors.invalidEmail'));
+      return;
+    }
+
+    setChangeEmailLoading(true);
+    setChangeEmailError(null);
+
+    try {
+      const params = {
+        new_email: newEmail,
+        current_password: currentPassword || undefined,
+        email_code: emailCode || undefined,
+        totp_code: changeEmailTotpCode || undefined,
+        ...(newPassword ? { new_password: newPassword } : {}),
+      };
+
+      const resp = await changeEmail(params);
+      if (resp.success) {
+        setChangeEmailSuccess(true);
+        setTimeout(() => {
+          setChangeEmailDialogOpen(false);
+          setChangeEmailSuccess(false);
+          clearAuthCookies();
+          navigate('/login');
+        }, 2000);
+      } else {
+        setChangeEmailError(resp.message || t('profile.saveFailed'));
+      }
+    } catch {
+      setChangeEmailError(t('common.serverError'));
+    } finally {
+      setChangeEmailLoading(false);
+    }
   };
 
   const handleOpenTotpDialog = async () => {
@@ -1448,9 +1609,19 @@ export default function Profile() {
                 )}
               </>
             )}
-            <Typography variant="body1" color="text.secondary" gutterBottom>
-              {userInfo.email}
-            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Typography variant="body1" color="text.secondary">
+                {userInfo.email}
+              </Typography>
+              <Button
+                startIcon={<Edit />}
+                onClick={() => setChangeEmailDialogOpen(true)}
+                size="small"
+                color="primary"
+              >
+                {t('profile.edit')}
+              </Button>
+            </Box>
             <Stack direction="row" alignItems="center" spacing={1}>
               <Chip
                 icon={userInfo.verified ? <CheckCircle /> : <Warning />}
@@ -1578,6 +1749,41 @@ export default function Profile() {
                     {totpLoading ? t('profile.totpLoading') : t('profile.totpEnable')}
                   </Button>
                 )}
+              </Stack>
+            </Box>
+
+            <Divider />
+
+            <Box>
+              <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={2}>
+                <Box sx={{ flex: 1 }}>
+                  <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                      {t('profile.email2faTitle')}
+                    </Typography>
+                    <Chip
+                      label={email2faEnabled ? t('profile.statusEnabled') : t('profile.statusDisabled')}
+                      color={email2faEnabled ? 'success' : 'default'}
+                      size="small"
+                      variant="outlined"
+                    />
+                  </Stack>
+                  <Typography variant="body2" color="text.secondary">
+                    {t('profile.email2faSubtitle')}
+                  </Typography>
+                </Box>
+                <FormControlLabel
+                  control={(
+                    <Switch
+                      size="small"
+                      checked={email2faEnabled}
+                      onChange={(e) => handleToggleEmail2fa(e.target.checked)}
+                      disabled={email2faLoading}
+                    />
+                  )}
+                  label=""
+                  sx={{ mr: 0 }}
+                />
               </Stack>
             </Box>
 
@@ -1931,6 +2137,145 @@ export default function Profile() {
             disabled={deleteLoading}
           >
             {deleteLoading ? t('common.pleaseWait') : t('profile.deleteAccountConfirm')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={changeEmailDialogOpen} onClose={() => setChangeEmailDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>{t('profile.changeEmailTitle')}</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            {changeEmailSuccess ? (
+              <Alert severity="success">
+                {t('profile.changeEmailSuccess')}
+              </Alert>
+            ) : (
+              <>
+                {changeEmailError && (
+                  <Alert severity="error">
+                    {changeEmailError}
+                  </Alert>
+                )}
+                
+                <Box>
+                  <Typography variant="subtitle2" gutterBottom>
+                    {t('profile.securityPointsHint')}
+                  </Typography>
+                  <Stack direction="row" spacing={1} flexWrap="wrap" gap={1}>
+                    <Chip
+                      label={t('profile.pointPassword')}
+                      color={currentPassword ? 'success' : 'default'}
+                      size="small"
+                    />
+                    <Chip
+                      label={t('profile.pointEmailCode')}
+                      color={emailCode ? 'success' : 'default'}
+                      size="small"
+                    />
+                    <Chip
+                      label={t('profile.pointTotp')}
+                      color={changeEmailTotpCode ? 'success' : 'default'}
+                      size="small"
+                    />
+                    <Chip
+                      label={t('profile.pointWebAuthn')}
+                      color="default"
+                      size="small"
+                    />
+                  </Stack>
+                  <Typography variant="h6" sx={{ mt: 1, textAlign: 'right' }}>
+                    {t('profile.pointTotal', { 
+                      points: (currentPassword ? 1 : 0) + (emailCode ? 1 : 0) + (changeEmailTotpCode ? 1 : 0) 
+                    })}
+                  </Typography>
+                </Box>
+
+                <TextField
+                  label={t('profile.newEmailLabel')}
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  placeholder={t('profile.newEmailPlaceholder')}
+                  fullWidth
+                  disabled={changeEmailLoading}
+                />
+
+                <Divider />
+
+                <TextField
+                  type="password"
+                  label={t('profile.deletePasswordLabel')}
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  fullWidth
+                  disabled={changeEmailLoading}
+                  helperText={t('profile.pointPassword')}
+                />
+
+                <Stack direction="row" spacing={1}>
+                  <TextField
+                    label={t('profile.emailCodeLabel')}
+                    value={emailCode}
+                    onChange={(e) => setEmailCode(e.target.value)}
+                    placeholder={t('profile.emailCodePlaceholder')}
+                    fullWidth
+                    disabled={changeEmailLoading}
+                    helperText={t('profile.pointEmailCode')}
+                  />
+                  <Button
+                    variant="outlined"
+                    onClick={handleSendChangeEmailCode}
+                    disabled={sendingEmailCode || changeEmailLoading}
+                    sx={{ height: 56 }}
+                  >
+                    {sendingEmailCode ? t('common.loading') : t('profile.sendCodeToCurrentEmail')}
+                  </Button>
+                </Stack>
+
+                <TextField
+                  label={t('profile.totpTitle')}
+                  value={changeEmailTotpCode}
+                  onChange={(e) => setChangeEmailTotpCode(e.target.value)}
+                  placeholder={t('login.totpPlaceholder')}
+                  fullWidth
+                  disabled={changeEmailLoading}
+                  helperText={t('profile.pointTotp')}
+                />
+
+                <Divider />
+
+                <Typography variant="body2" color="text.secondary">
+                  {t('profile.setNewPasswordLabel')}
+                </Typography>
+                <TextField
+                  type="password"
+                  label={t('profile.setNewPasswordLabel')}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder={t('profile.setNewPasswordPlaceholder')}
+                  fullWidth
+                  disabled={changeEmailLoading}
+                />
+              </>
+            )}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setChangeEmailDialogOpen(false)} disabled={changeEmailLoading}>
+            {t('common.cancel')}
+          </Button>
+          <Button
+            variant="outlined"
+            onClick={handleBeginWebAuthnSudo}
+            disabled={changeEmailLoading || !webauthnClientSupported}
+          >
+            {t('profile.pointWebAuthn')}
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleChangeEmail}
+            disabled={changeEmailLoading || changeEmailSuccess}
+          >
+            {changeEmailLoading ? t('common.loading') : t('profile.changeEmailAction')}
           </Button>
         </DialogActions>
       </Dialog>
