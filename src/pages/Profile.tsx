@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import type { ChangeEvent } from 'react';
-import { Box, Typography, Card, CardContent, Avatar, CircularProgress, Alert, Chip, Stack, Link, TextField, Button, Dialog, DialogTitle, DialogContent, DialogActions, InputAdornment, FormControlLabel, Switch } from '@mui/material';
+import { Box, Typography, Card, CardContent, Avatar, CircularProgress, Alert, Chip, Stack, Link, TextField, Button, Dialog, DialogTitle, DialogContent, DialogActions, InputAdornment, FormControlLabel, Switch, Divider } from '@mui/material';
 import CheckCircle from '@mui/icons-material/CheckCircle';
 import Warning from '@mui/icons-material/Warning';
 import Edit from '@mui/icons-material/Edit';
@@ -1516,7 +1516,7 @@ export default function Profile() {
 
       <Card sx={{ maxWidth: 500, mt: 2 }}>
         <CardContent>
-          <Stack spacing={2}>
+          <Stack spacing={3}>
             <Box>
               <Typography variant="h6" gutterBottom>
                 {t('profile.twoFactorSectionTitle')}
@@ -1526,9 +1526,9 @@ export default function Profile() {
               </Typography>
             </Box>
 
-            <Box sx={{ p: 1.5, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+            <Box>
               <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={2}>
-                <Box>
+                <Box sx={{ flex: 1 }}>
                   <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
                     <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
                       {t('profile.totpTitle')}
@@ -1548,9 +1548,10 @@ export default function Profile() {
                   </Typography>
                 </Box>
                 {userInfo.totp_enabled ? (
-                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                  <Stack direction="column" spacing={1} alignItems="flex-end">
                     <Button
                       variant="outlined"
+                      size="small"
                       startIcon={<Key />}
                       onClick={handleOpenTotpDialog}
                       disabled={totpLoading}
@@ -1560,6 +1561,7 @@ export default function Profile() {
                     <Button
                       color="warning"
                       variant="text"
+                      size="small"
                       onClick={() => setDisableTotpDialogOpen(true)}
                       disabled={totpLoading}
                     >
@@ -1579,14 +1581,10 @@ export default function Profile() {
               </Stack>
             </Box>
 
-            {twoFactorFeedback && (
-              <Alert severity={twoFactorFeedback.severity}>
-                {twoFactorFeedback.message}
-              </Alert>
-            )}
+            <Divider />
 
-            <Box sx={{ p: 1.5, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
-              <Box>
+            <Box>
+              <Box sx={{ mb: 2 }}>
                 <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
                   <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
                     {t('profile.webauthnTitle')}
@@ -1606,65 +1604,74 @@ export default function Profile() {
               </Box>
 
               <Stack
-                direction={{ xs: 'column', sm: 'row' }}
-                alignItems={{ xs: 'stretch', sm: 'center' }}
-                justifyContent="space-between"
+                direction="column"
                 spacing={2}
-                sx={{ mt: 2 }}
               >
-                <Button
-                  variant="contained"
-                  startIcon={<Key />}
-                  onClick={handleOpenWebAuthnDialog}
-                  disabled={webauthnLoading || !webauthnRegistrationReady}
-                >
-                  {webauthnLoading ? t('profile.totpLoading') : webauthnPrimaryActionLabel}
-                </Button>
-                <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<Key />}
+                    onClick={handleOpenWebAuthnDialog}
+                    disabled={webauthnLoading || !webauthnRegistrationReady}
+                  >
+                    {webauthnLoading ? t('profile.totpLoading') : webauthnPrimaryActionLabel}
+                  </Button>
+                  
                   <FormControlLabel
                     control={(
                       <Switch
+                        size="small"
                         checked={webauthn2faEnabled}
                         onChange={(e) => handleToggleWebAuthn2fa(e.target.checked)}
                         disabled={webauthnLoading || webauthnCredentials.length === 0}
                       />
                     )}
-                    label={t('profile.webauthnSecondFactorLabel')}
+                    label={<Typography variant="body2">{t('profile.webauthnSecondFactorLabel')}</Typography>}
                   />
-                  <Typography variant="body2" color="text.secondary">
-                    {webauthnCredentials.length > 0
-                      ? t('profile.webauthnSecondFactorDescription')
-                      : t('profile.webauthnSecondFactorDisabledHint')}
-                  </Typography>
                 </Box>
+                
+                {webauthnCredentials.length === 0 && (
+                  <Typography variant="caption" color="text.secondary">
+                    {t('profile.webauthnSecondFactorDisabledHint')}
+                  </Typography>
+                )}
               </Stack>
             </Box>
 
-            {webauthnAvailabilityError && (
-              <Alert severity="info">
-                {webauthnAvailabilityError}
-              </Alert>
+            {(twoFactorFeedback || webauthnFeedback || webauthnAvailabilityError) && (
+              <Stack spacing={1}>
+                {twoFactorFeedback && (
+                  <Alert severity={twoFactorFeedback.severity}>
+                    {twoFactorFeedback.message}
+                  </Alert>
+                )}
+                {webauthnAvailabilityError && (
+                  <Alert severity="info">
+                    {webauthnAvailabilityError}
+                  </Alert>
+                )}
+                {webauthnFeedback && (
+                  <Alert severity={webauthnFeedback.severity}>
+                    {webauthnFeedback.message}
+                  </Alert>
+                )}
+              </Stack>
             )}
 
-            {webauthnFeedback && (
-              <Alert severity={webauthnFeedback.severity}>
-                {webauthnFeedback.message}
-              </Alert>
-            )}
-
-            <Stack spacing={1.5}>
-              <Typography variant="subtitle2">
-                {t('profile.webauthnCredentialsTitle')}
-              </Typography>
-              {webauthnCredentials.length > 0 ? (
-                webauthnCredentials.map((credential) => (
+            {webauthnCredentials.length > 0 && (
+              <Stack spacing={1.5}>
+                <Typography variant="subtitle2">
+                  {t('profile.webauthnCredentialsTitle')}
+                </Typography>
+                {webauthnCredentials.map((credential) => (
                   <Box
                     key={credential.id}
                     sx={{ p: 1.5, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}
                   >
                     <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={2}>
                       <Box>
-                        <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
                           {credential.name || t('profile.webauthnUnnamedCredential')}
                         </Typography>
                         <Typography variant="caption" color="text.secondary" display="block">
@@ -1677,6 +1684,7 @@ export default function Profile() {
                       <Button
                         color="error"
                         variant="text"
+                        size="small"
                         startIcon={<Delete />}
                         onClick={() => setCredentialToDelete(credential)}
                         disabled={webauthnLoading}
@@ -1685,13 +1693,9 @@ export default function Profile() {
                       </Button>
                     </Stack>
                   </Box>
-                ))
-              ) : (
-                <Typography variant="body2" color="text.secondary">
-                  {t('profile.webauthnEmpty')}
-                </Typography>
-              )}
-            </Stack>
+                ))}
+              </Stack>
+            )}
           </Stack>
         </CardContent>
       </Card>
