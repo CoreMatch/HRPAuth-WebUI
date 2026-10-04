@@ -30,12 +30,9 @@ import {
   verifyTotp,
   getEmail2faStatus,
   toggleEmail2fa,
-  sendEmail2faCode,
   type Email2faStatusResponse,
 } from '../api/auth';
 import {
-  enableMojangBind,
-  disableMojangBind,
   sendChangeEmailCode,
   changeEmail,
   beginWebAuthnSudo,
@@ -713,8 +710,9 @@ export default function Profile() {
     try {
       const resp = await getEmail2faStatus(uid);
       if (resp.success && resp.data) {
-        setEmail2faEnabled(resp.data.enabled);
-        setUserInfo(prev => prev ? { ...prev, email_2fa_enabled: resp.data.enabled } : prev);
+        const isEnabled = resp.data.enabled;
+        setEmail2faEnabled(isEnabled);
+        setUserInfo(prev => prev ? { ...prev, email_2fa_enabled: isEnabled } : prev);
       }
     } catch (e) {
       console.error('Failed to fetch email 2FA status', e);
