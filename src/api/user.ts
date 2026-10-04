@@ -22,8 +22,6 @@ export async function disableMojangBind(): Promise<ApiResponse<MojangBindRespons
 
 export interface ChangeEmailParams {
   new_email: string;
-  current_password?: string;
-  new_password?: string;
   totp_code?: string;
   email_code?: string;
   webauthn?: {

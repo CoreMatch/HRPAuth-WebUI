@@ -471,8 +471,6 @@ export default function Profile() {
 
   const [changeEmailDialogOpen, setChangeEmailDialogOpen] = useState(false);
   const [newEmail, setNewEmail] = useState('');
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
   const [emailCode, setEmailCode] = useState('');
   const [changeEmailTotpCode, setChangeEmailTotpCode] = useState('');
   const [changeEmailLoading, setChangeEmailLoading] = useState(false);
@@ -952,7 +950,6 @@ export default function Profile() {
             flow_id: beginResp.data.flow_id,
             credential,
           },
-          ...(newPassword ? { new_password: newPassword } : {}),
         };
         const resp = await changeEmail(params);
         if (resp.success) {
@@ -986,10 +983,8 @@ export default function Profile() {
     try {
       const params = {
         new_email: newEmail,
-        current_password: currentPassword || undefined,
         email_code: emailCode || undefined,
         totp_code: changeEmailTotpCode || undefined,
-        ...(newPassword ? { new_password: newPassword } : {}),
       };
 
       const resp = await changeEmail(params);
@@ -2161,11 +2156,6 @@ export default function Profile() {
                   </Typography>
                   <Stack direction="row" spacing={1} flexWrap="wrap" gap={1}>
                     <Chip
-                      label={t('profile.pointPassword')}
-                      color={currentPassword ? 'success' : 'default'}
-                      size="small"
-                    />
-                    <Chip
                       label={t('profile.pointEmailCode')}
                       color={emailCode ? 'success' : 'default'}
                       size="small"
@@ -2181,11 +2171,6 @@ export default function Profile() {
                       size="small"
                     />
                   </Stack>
-                  <Typography variant="h6" sx={{ mt: 1, textAlign: 'right' }}>
-                    {t('profile.pointTotal', { 
-                      points: (currentPassword ? 1 : 0) + (emailCode ? 1 : 0) + (changeEmailTotpCode ? 1 : 0) 
-                    })}
-                  </Typography>
                 </Box>
 
                 <TextField
@@ -2198,16 +2183,6 @@ export default function Profile() {
                 />
 
                 <Divider />
-
-                <TextField
-                  type="password"
-                  label={t('profile.deletePasswordLabel')}
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  fullWidth
-                  disabled={changeEmailLoading}
-                  helperText={t('profile.pointPassword')}
-                />
 
                 <Stack direction="row" spacing={1}>
                   <TextField
@@ -2237,21 +2212,6 @@ export default function Profile() {
                   fullWidth
                   disabled={changeEmailLoading}
                   helperText={t('profile.pointTotp')}
-                />
-
-                <Divider />
-
-                <Typography variant="body2" color="text.secondary">
-                  {t('profile.setNewPasswordLabel')}
-                </Typography>
-                <TextField
-                  type="password"
-                  label={t('profile.setNewPasswordLabel')}
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder={t('profile.setNewPasswordPlaceholder')}
-                  fullWidth
-                  disabled={changeEmailLoading}
                 />
               </>
             )}
