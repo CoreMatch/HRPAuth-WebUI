@@ -4,7 +4,8 @@ import { request, type ApiResponse } from '../utils/api';
 export interface LoginTicketResponse {
   totp_required: boolean;
   webauthn_required?: boolean;
-  second_factors?: Array<'totp' | 'webauthn'>;
+  email_required?: boolean;
+  second_factors?: Array<'totp' | 'webauthn' | 'email'>;
   login_ticket?: string;
   expires_in?: number;
   access_token?: string;
@@ -265,5 +266,14 @@ export async function sendEmail2faCode(loginTicket: string): Promise<ApiResponse
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ login_ticket: loginTicket }),
+  });
+}
+
+export async function verifyEmail2fa(loginTicket: string, code: string): Promise<ApiResponse<LoginResponse>> {
+  const url = `${BackendUrl}/email-2fa/verify`;
+  return request<LoginResponse>(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ login_ticket: loginTicket, code }),
   });
 }

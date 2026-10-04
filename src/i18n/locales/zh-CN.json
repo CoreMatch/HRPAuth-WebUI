@@ -61,6 +61,7 @@
     "secondFactorTitle": "第二步验证",
     "secondFactorSelectorHint": "该账户支持多种验证方式，请选择一种完成登录。",
     "useAuthenticatorSecondFactor": "使用验证器验证码",
+    "useEmailSecondFactor": "使用邮件验证码",
     "usePasskeySecondFactorOption": "使用 Passkey / 安全密钥",
     "usePasskey": "使用 Passkey 登录",
     "usePasskeySecondFactor": "使用 Passkey 完成验证",

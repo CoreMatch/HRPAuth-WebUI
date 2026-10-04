@@ -103,54 +103,76 @@ export async function request<T = any>(
   try {
     let response = await fetchWithAuth(url, options);
 
-    // Handle 401: attempt token refresh if "remember me" was checked
-    if (response.status === 401 && getRememberLogin()) {
-      if (isRefreshing) {
-        // Another refresh is in progress — wait for it
-        try {
-          const newToken = await new Promise<string>((resolve, reject) => {
-            pendingRequests.push({ resolve, reject });
-          });
-          // Retry with the new token
-          const retryHeaders = new Headers(options.headers);
-          retryHeaders.set('Authorization', `Bearer ${newToken}`);
-          response = await fetch(url, { ...options, headers: retryHeaders });
-        } catch {
-          return {
-            success: false,
-            message: '登录已过期，请重新登录',
-            code: 'oauth_login_required',
-          };
+    // If 401, we need to check if it's a token issue or just a wrong password/invalid credentials
+    if (response.status === 401) {
+      const clonedResponse = response.clone();
+      const body = await clonedResponse.json().catch(() => null);
+
+      // If it's a public auth endpoint, don't trigger "expired session" logic
+      const isAuthEndpoint = url.includes('/oauth/login-ticket') || 
+                             url.includes('/totp/verify') || 
+                             url.includes('/webauthn/login/finish') ||
+                             url.includes('/email-2fa/verify') ||
+                             url.includes('/register') ||
+                             url.includes('/forgot-password') ||
+                             url.includes('/reset-password');
+
+      if (isAuthEndpoint) {
+        // For auth endpoints, 401 usually means wrong credentials. 
+        // Just return the error body.
+        return body || {
+          success: false,
+          message: `身份验证失败 (${response.status})`,
+          code: 'unauthorized',
+        };
+      }
+
+      // If it's an authenticated endpoint and we have "remember me", try to refresh
+      if (getRememberLogin()) {
+        if (isRefreshing) {
+          try {
+            const newToken = await new Promise<string>((resolve, reject) => {
+              pendingRequests.push({ resolve, reject });
+            });
+            const retryHeaders = new Headers(options.headers);
+            retryHeaders.set('Authorization', `Bearer ${newToken}`);
+            response = await fetch(url, { ...options, headers: retryHeaders });
+          } catch {
+            return {
+              success: false,
+              message: '登录已过期，请重新登录',
+              code: 'oauth_login_required',
+            };
+          }
+        } else {
+          isRefreshing = true;
+          try {
+            const newToken = await tryRefreshToken();
+            notifyPendingWithToken(newToken);
+            const retryHeaders = new Headers(options.headers);
+            retryHeaders.set('Authorization', `Bearer ${newToken}`);
+            response = await fetch(url, { ...options, headers: retryHeaders });
+          } catch (err) {
+            notifyPending(err instanceof Error ? err : new Error('refresh_failed'));
+            redirectToLogin();
+            return {
+              success: false,
+              message: '登录已过期，请重新登录',
+              code: 'oauth_login_required',
+            };
+          } finally {
+            isRefreshing = false;
+          }
         }
       } else {
-        isRefreshing = true;
-        try {
-          const newToken = await tryRefreshToken();
-          notifyPendingWithToken(newToken);
-          // Retry with the new token
-          const retryHeaders = new Headers(options.headers);
-          retryHeaders.set('Authorization', `Bearer ${newToken}`);
-          response = await fetch(url, { ...options, headers: retryHeaders });
-        } catch (err) {
-          notifyPending(err instanceof Error ? err : new Error('refresh_failed'));
-          redirectToLogin();
-          return {
-            success: false,
-            message: '登录已过期，请重新登录',
-            code: 'oauth_login_required',
-          };
-        } finally {
-          isRefreshing = false;
-        }
+        // "Remember me" not checked — force re-login
+        redirectToLogin();
+        return {
+          success: false,
+          message: '登录已过期，请重新登录',
+          code: 'oauth_login_required',
+        };
       }
-    } else if (response.status === 401) {
-      // "Remember me" not checked — force re-login
-      redirectToLogin();
-      return {
-        success: false,
-        message: '登录已过期，请重新登录',
-        code: 'oauth_login_required',
-      };
     }
 
     const body = await response.json().catch(() => null);

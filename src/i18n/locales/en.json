@@ -61,6 +61,7 @@
     "secondFactorTitle": "Second-Factor Verification",
     "secondFactorSelectorHint": "This account supports multiple verification methods. Choose one to finish signing in.",
     "useAuthenticatorSecondFactor": "Use Authenticator Code",
+    "useEmailSecondFactor": "Use Email Code",
     "usePasskeySecondFactorOption": "Use Passkey / Security Key",
     "usePasskey": "Sign in with Passkey",
     "usePasskeySecondFactor": "Verify with Passkey",

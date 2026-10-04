@@ -4,7 +4,16 @@ import { TextField, Button, Typography, Box, Alert, Checkbox, FormControlLabel, 
 import { useNavigate, useLocation, Link as RouterLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { validateEmail } from '../utils/email';
-import { beginWebAuthnLogin, beginWebAuthnSecondFactor, finishWebAuthnLogin, finishWebAuthnSecondFactor, getLoginTicket, verifyTotp } from '../api/auth';
+import {
+  beginWebAuthnLogin,
+  beginWebAuthnSecondFactor,
+  finishWebAuthnLogin,
+  finishWebAuthnSecondFactor,
+  getLoginTicket,
+  verifyTotp,
+  sendEmail2faCode,
+  verifyEmail2fa,
+} from '../api/auth';
 import { completeLogin } from '../utils/auth';
 import { useMeta } from '../hooks/useMeta';
 import { authenticateWithWebAuthn, isWebAuthnSupported } from '../utils/webauthn';
@@ -16,14 +25,18 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [totpCode, setTotpCode] = useState('');
+  const [email2faCode, setEmail2faCode] = useState('');
   const [showTotp, setShowTotp] = useState(false);
+  const [showEmail2fa, setShowEmail2fa] = useState(false);
   const [totpAvailable, setTotpAvailable] = useState(false);
+  const [emailAvailable, setEmailAvailable] = useState(false);
   const [webauthnRequired, setWebauthnRequired] = useState(false);
   const [webauthnAvailable, setWebauthnAvailable] = useState(false);
   const [loginTicket, setLoginTicketVal] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [remember, setRemember] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState(false);
   const [webauthnLoading, setWebauthnLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const navigate = useNavigate();
@@ -163,6 +176,21 @@ export default function Login() {
     }
   }
 
+  async function handleSendEmail2faCode() {
+    if (!loginTicket) return;
+    setSendingEmail(true);
+    try {
+      const res = await sendEmail2faCode(loginTicket);
+      if (!res.success) {
+        setError(res.message || t('login.errors.loginFailed'));
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('login.errors.networkError'));
+    } finally {
+      setSendingEmail(false);
+    }
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!validate()) return;
@@ -171,7 +199,7 @@ export default function Login() {
     setError(null);
 
     try {
-      if (!showTotp) {
+      if (!showTotp && !showEmail2fa) {
         const res = await getLoginTicket(email, password);
         if (!res.success) {
           setError(mapLoginError(res.message, res.code));
@@ -180,31 +208,56 @@ export default function Login() {
         }
 
         const data = res.data;
-        if (data?.totp_required) {
+        if (data?.totp_required || data?.email_required || data?.webauthn_required) {
           const secondFactors = data.second_factors ?? [];
-          const nextTotpAvailable = secondFactors.length > 0 ? secondFactors.includes('totp') : true;
+          
+          const nextTotpAvailable = secondFactors.length > 0 
+            ? secondFactors.includes('totp') 
+            : Boolean(data.totp_required);
+          
+          const nextEmailAvailable = secondFactors.length > 0 
+            ? secondFactors.includes('email') 
+            : Boolean(data.email_required);
+            
           const nextWebauthnAvailable = secondFactors.length > 0
             ? secondFactors.includes('webauthn')
             : Boolean(data.webauthn_required);
 
           setTotpAvailable(nextTotpAvailable);
+          setEmailAvailable(nextEmailAvailable);
           setWebauthnAvailable(nextWebauthnAvailable);
-          setShowTotp(true);
-          setWebauthnRequired(nextWebauthnAvailable);
+          setWebauthnRequired(nextWebauthnAvailable && !nextTotpAvailable && !nextEmailAvailable);
+          
           setLoginTicketVal(data.login_ticket || '');
-          setLoading(false);
-        } else if (data?.webauthn_required) {
-          setTotpAvailable(false);
-          setWebauthnAvailable(true);
-          setShowTotp(false);
-          setWebauthnRequired(true);
-          setLoginTicketVal(data.login_ticket || '');
+
+          if (nextTotpAvailable) {
+            setShowTotp(true);
+          } else if (nextEmailAvailable) {
+            setShowEmail2fa(true);
+            // Automatically send code if email is the only factor
+            if (secondFactors.length === 1 || (!nextTotpAvailable && !nextWebauthnAvailable)) {
+              await sendEmail2faCode(data.login_ticket || '');
+            }
+          }
+          
           setLoading(false);
         } else if (data?.access_token) {
           await handleLoginSuccess(data.access_token, data.refresh_token || '', data.uid || '', remember);
         }
-      } else {
+      } else if (showTotp) {
         const res = await verifyTotp(loginTicket, totpCode);
+        if (!res.success) {
+          setError(res.message || t('login.errors.codeIncorrect'));
+          setLoading(false);
+          return;
+        }
+
+        const data = res.data;
+        if (data?.access_token) {
+          await handleLoginSuccess(data.access_token, data.refresh_token, data.uid, remember);
+        }
+      } else if (showEmail2fa) {
+        const res = await verifyEmail2fa(loginTicket, email2faCode);
         if (!res.success) {
           setError(res.message || t('login.errors.codeIncorrect'));
           setLoading(false);
@@ -228,8 +281,12 @@ export default function Login() {
     setTimeout(() => navigate('/dash'), 700);
   }
 
-  const awaitingSecondFactor = Boolean(loginTicket) && (totpAvailable || webauthnAvailable);
-  const showSecondFactorSelector = awaitingSecondFactor && totpAvailable && webauthnAvailable;
+  const awaitingSecondFactor = Boolean(loginTicket) && (totpAvailable || webauthnAvailable || emailAvailable);
+  const showSecondFactorSelector = awaitingSecondFactor && (
+    (totpAvailable && webauthnAvailable) || 
+    (totpAvailable && emailAvailable) || 
+    (webauthnAvailable && emailAvailable)
+  );
 
   return (
     <Box sx={{ maxWidth: 480 }}>
@@ -259,30 +316,52 @@ export default function Login() {
                   {t('login.secondFactorSelectorHint')}
                 </Typography>
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-                  <Button
-                    type="button"
-                    variant={showTotp ? 'contained' : 'outlined'}
-                    onClick={() => {
-                      setShowTotp(true);
-                      setError(null);
-                    }}
-                    disabled={loading || webauthnLoading}
-                    fullWidth
-                  >
-                    {t('login.useAuthenticatorSecondFactor')}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={!showTotp ? 'contained' : 'outlined'}
-                    onClick={() => {
-                      setShowTotp(false);
-                      setError(null);
-                    }}
-                    disabled={loading || webauthnLoading}
-                    fullWidth
-                  >
-                    {t('login.usePasskeySecondFactorOption')}
-                  </Button>
+                  {totpAvailable && (
+                    <Button
+                      type="button"
+                      variant={showTotp ? 'contained' : 'outlined'}
+                      onClick={() => {
+                        setShowTotp(true);
+                        setShowEmail2fa(false);
+                        setError(null);
+                      }}
+                      disabled={loading || webauthnLoading}
+                      fullWidth
+                    >
+                      {t('login.useAuthenticatorSecondFactor')}
+                    </Button>
+                  )}
+                  {emailAvailable && (
+                    <Button
+                      type="button"
+                      variant={showEmail2fa ? 'contained' : 'outlined'}
+                      onClick={() => {
+                        setShowTotp(false);
+                        setShowEmail2fa(true);
+                        setError(null);
+                        handleSendEmail2faCode();
+                      }}
+                      disabled={loading || webauthnLoading || sendingEmail}
+                      fullWidth
+                    >
+                      {t('login.useEmailSecondFactor')}
+                    </Button>
+                  )}
+                  {webauthnAvailable && (
+                    <Button
+                      type="button"
+                      variant={!showTotp && !showEmail2fa ? 'contained' : 'outlined'}
+                      onClick={() => {
+                        setShowTotp(false);
+                        setShowEmail2fa(false);
+                        setError(null);
+                      }}
+                      disabled={loading || webauthnLoading}
+                      fullWidth
+                    >
+                      {t('login.usePasskeySecondFactorOption')}
+                    </Button>
+                  )}
                 </Stack>
               </Stack>
             )}
@@ -329,7 +408,36 @@ export default function Login() {
                   disabled={loading || webauthnLoading}
                   slotProps={{ htmlInput: { maxLength: 6 } }}
                 />
-                {webauthnAvailable && (
+                {(webauthnAvailable || emailAvailable) && (
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    {t('login.webauthnAlternative')}
+                  </Typography>
+                )}
+              </>
+            ) : showEmail2fa ? (
+              <>
+                <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
+                  <TextField
+                    label={t('verifyEmail.codeLabel')}
+                    type="text"
+                    value={email2faCode}
+                    onChange={(e) => setEmail2faCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    placeholder="6-digit code"
+                    required
+                    fullWidth
+                    disabled={loading || webauthnLoading || sendingEmail}
+                    slotProps={{ htmlInput: { maxLength: 6 } }}
+                  />
+                  <Button
+                    variant="outlined"
+                    onClick={handleSendEmail2faCode}
+                    disabled={loading || webauthnLoading || sendingEmail}
+                    sx={{ height: 56, minWidth: 100 }}
+                  >
+                    {sendingEmail ? t('common.loading') : t('verifyEmail.sendCode')}
+                  </Button>
+                </Stack>
+                {(webauthnAvailable || totpAvailable) && (
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                     {t('login.webauthnAlternative')}
                   </Typography>
@@ -353,14 +461,14 @@ export default function Login() {
               sx={{ mb: 2 }}
             />
 
-            {(!awaitingSecondFactor || showTotp) && (
+            {(!awaitingSecondFactor || showTotp || showEmail2fa) && (
               <Button
                 variant="contained"
                 type="submit"
-                disabled={loading || webauthnLoading}
+                disabled={loading || webauthnLoading || sendingEmail}
                 fullWidth
               >
-                {loading ? t('common.pleaseWait') : (showTotp ? t('login.submitTotp') : t('login.submit'))}
+                {loading ? t('common.pleaseWait') : (showTotp || showEmail2fa ? t('login.submitTotp') : t('login.submit'))}
               </Button>
             )}
           </form>
