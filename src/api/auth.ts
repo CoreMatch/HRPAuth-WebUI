@@ -81,6 +81,36 @@ export async function logout(): Promise<ApiResponse> {
   return request(url, { method: 'GET' });
 }
 
+export async function forgotPassword(
+  email: string,
+  captchaToken: string,
+  captchaCode: string
+): Promise<ApiResponse> {
+  const url = `${BackendUrl}/forgot-password`;
+  return request(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      email,
+      captcha_token: captchaToken,
+      captcha_code: captchaCode,
+    }),
+  });
+}
+
+export async function resetPassword(
+  email: string,
+  code: string,
+  newPassword: string
+): Promise<ApiResponse> {
+  const url = `${BackendUrl}/reset-password`;
+  return request(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, code, new_password: newPassword }),
+  });
+}
+
 export async function getTotpStatus(): Promise<ApiResponse<TotpStatusResponse>> {
   const url = `${BackendUrl}/totp/hasbeenenabled`;
   return request<TotpStatusResponse>(url, {

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { FormEvent } from 'react';
-import { TextField, Button, Typography, Box, Alert, Checkbox, FormControlLabel, Stack } from '@mui/material';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { TextField, Button, Typography, Box, Alert, Checkbox, FormControlLabel, Stack, Link } from '@mui/material';
+import { useNavigate, useLocation, Link as RouterLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { validateEmail } from '../utils/email';
 import { beginWebAuthnLogin, beginWebAuthnSecondFactor, finishWebAuthnLogin, finishWebAuthnSecondFactor, getLoginTicket, verifyTotp } from '../api/auth';
@@ -309,6 +309,11 @@ export default function Login() {
                   sx={{ mb: 2 }}
                   disabled={loading || webauthnLoading}
                 />
+                <Box sx={{ textAlign: 'right', mb: 2, mt: -1 }}>
+                  <Link component={RouterLink} to="/forgot-password" variant="body2">
+                    {t('login.forgotPassword')}
+                  </Link>
+                </Box>
               </>
             ) : showTotp ? (
               <>

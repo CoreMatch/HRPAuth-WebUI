@@ -9,6 +9,7 @@ const Dashboard = lazy(() => import('./pages/Dashboard'));
 const DashboardDebug = lazy(() => import('./pages/DashboardDebug'));
 const Login = lazy(() => import('./pages/Login'));
 const Register = lazy(() => import('./pages/Register'));
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 const VerifyEmail = lazy(() => import('./pages/VerifyEmail'));
 const ServiceEmbed = lazy(() => import('./pages/ServiceEmbed'));
 
@@ -44,6 +45,7 @@ export default function App() {
             <Route path="dashdebug" element={<DashboardDebug />} />
             <Route path="login" element={<Login />} />
             <Route path="register" element={<Register />} />
+            <Route path="forgot-password" element={<ForgotPassword />} />
             <Route path="verifyemail" element={<VerifyEmail />} />
             <Route path="service/:name" element={<ServiceEmbed />} />
             <Route path="profile" element={<Navigate to="/dash" replace />} />

@@ -57,6 +57,7 @@
     "remember": "记住登录",
     "submit": "登录",
     "submitTotp": "验证并登录",
+    "forgotPassword": "忘记密码？",
     "secondFactorTitle": "第二步验证",
     "secondFactorSelectorHint": "该账户支持多种验证方式，请选择一种完成登录。",
     "useAuthenticatorSecondFactor": "使用验证器验证码",
@@ -401,5 +402,33 @@
   "servicePanel": {
     "unavailableInArea": "服务 {{name}} 未声明支持当前前端区域 {{area}}。",
     "noContent": "服务 {{name}} 未提供可嵌入内容（未声明 mount 或 iframeUrl）。"
+  },
+  "forgotPassword": {
+    "title": "找回密码",
+    "emailLabel": "注册邮箱",
+    "emailPlaceholder": "请输入注册邮箱",
+    "captchaLabel": "验证码",
+    "captchaPlaceholder": "请输入 4 位验证码",
+    "submitSend": "发送恢复码",
+    "sending": "发送中...",
+    "sentSuccess": "如果邮箱已注册，恢复码已发送。",
+    "codeLabel": "4 位恢复码",
+    "codePlaceholder": "请输入邮件中的 4 位数字",
+    "newPasswordLabel": "新密码",
+    "newPasswordPlaceholder": "请输入新密码（至少 6 位）",
+    "submitReset": "重置密码",
+    "resetting": "重置中...",
+    "resetSuccess": "密码重置成功，请重新登录。",
+    "backToLogin": "返回登录",
+    "errors": {
+      "emailRequired": "请输入注册邮箱",
+      "invalidEmail": "请输入有效的邮箱地址",
+      "captchaRequired": "请输入验证码",
+      "codeRequired": "请输入 4 位恢复码",
+      "codeInvalid": "恢复码必须是 4 位数字",
+      "passwordTooShort": "新密码至少需要 6 个字符",
+      "sendFailed": "发送失败",
+      "resetFailed": "重置失败"
+    }
   }
 }

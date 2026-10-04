@@ -57,6 +57,7 @@
     "remember": "Remember me",
     "submit": "Login",
     "submitTotp": "Verify & Login",
+    "forgotPassword": "Forgot password?",
     "secondFactorTitle": "Second-Factor Verification",
     "secondFactorSelectorHint": "This account supports multiple verification methods. Choose one to finish signing in.",
     "useAuthenticatorSecondFactor": "Use Authenticator Code",
@@ -401,5 +402,33 @@
   "servicePanel": {
     "unavailableInArea": "Service {{name}} does not declare support for frontend area {{area}}.",
     "noContent": "Service {{name}} has no embeddable content (no mount or iframeUrl declared)."
+  },
+  "forgotPassword": {
+    "title": "Forgot Password",
+    "emailLabel": "Registered Email",
+    "emailPlaceholder": "Enter your registered email",
+    "captchaLabel": "Captcha",
+    "captchaPlaceholder": "Enter 4-character captcha",
+    "submitSend": "Send Recovery Code",
+    "sending": "Sending...",
+    "sentSuccess": "If the email is registered, a verification code has been sent.",
+    "codeLabel": "4-digit Recovery Code",
+    "codePlaceholder": "Enter 4-digit code from email",
+    "newPasswordLabel": "New Password",
+    "newPasswordPlaceholder": "Enter new password (min 6 chars)",
+    "submitReset": "Reset Password",
+    "resetting": "Resetting...",
+    "resetSuccess": "Password reset successful, please login again.",
+    "backToLogin": "Back to Login",
+    "errors": {
+      "emailRequired": "Email is required",
+      "invalidEmail": "Please enter a valid email",
+      "captchaRequired": "Captcha is required",
+      "codeRequired": "Recovery code is required",
+      "codeInvalid": "Recovery code must be 4 digits",
+      "passwordTooShort": "New password must be at least 6 characters",
+      "sendFailed": "Failed to send code",
+      "resetFailed": "Failed to reset password"
+    }
   }
 }

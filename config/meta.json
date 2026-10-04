@@ -118,5 +118,20 @@
       "description": "Verify your email address for your HRPAuth account.",
       "card": "summary"
     }
+  },
+  "forgotpassword": {
+    "title": "Forgot Password - HRPAuth",
+    "description": "Recover your HRPAuth account password.",
+    "keywords": "Minecraft, forgot password, recover account, authentication",
+    "og": {
+      "title": "Forgot Password - HRPAuth",
+      "description": "Recover your HRPAuth account password.",
+      "type": "website"
+    },
+    "twitter": {
+      "title": "Forgot Password - HRPAuth",
+      "description": "Recover your HRPAuth account password.",
+      "card": "summary"
+    }
   }
 }
