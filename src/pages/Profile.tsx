@@ -14,13 +14,12 @@ import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { dataCache } from '../utils/dataCache';
 const SkinViewer3D = lazy(() => import('../components/SkinViewer3D'));
-import { request, type ApiResponse } from '../utils/api';
+import { request } from '../utils/api';
 import {
   beginWebAuthnRegistration,
   createRecoveryKey,
   deleteWebAuthnCredential,
   finishWebAuthnRegistration,
-  getTotpStatus,
   listWebAuthnCredentials,
   regenerateRecoveryKey,
   requestAccountDeletion,
@@ -32,9 +31,8 @@ import {
   type WebAuthnCredentialRecord,
   type WebAuthnPublicKeyOptions,
   verifyTotp,
-  getEmail2faStatus,
   toggleEmail2fa,
-  type Email2faStatusResponse,
+  getTwoFactorStatus,
 } from '../api/auth';
 import {
   sendChangeEmailCode,
@@ -633,10 +631,6 @@ export default function Profile() {
     return undefined;
   };
 
-  const readTotpEnabledFromResponse = (resp: { data?: { enabled?: boolean | number }; enabled?: boolean | number }): boolean | undefined => {
-    return parseEnabledFlag(resp.data?.enabled ?? resp.enabled);
-  };
-
   const readRecoveryKeyEnabledFromValue = (value: unknown): boolean | undefined => {
     if (!value || typeof value !== 'object') {
       return undefined;
@@ -741,6 +735,41 @@ export default function Profile() {
     return { credentials, enabled, available };
   };
 
+  const refreshTwoFactorStatus = async (uid?: string) => {
+    try {
+      const resp = await getTwoFactorStatus(uid);
+      if (resp.success && resp.data) {
+        const {
+          totp_enabled,
+          webauthn_2fa_enabled,
+          recovery_key_enabled,
+          email_2fa_enabled,
+        } = resp.data;
+
+        setTotpEnabled(totp_enabled);
+        setWebauthn2faEnabled(webauthn_2fa_enabled);
+        setRecoveryKeyEnabled(recovery_key_enabled);
+        setEmail2faEnabled(email_2fa_enabled);
+
+        setUserInfo((prev) =>
+          prev
+            ? {
+                ...prev,
+                totp_enabled,
+                webauthn_2fa_enabled,
+                recovery_key_enabled,
+                email_2fa_enabled,
+              }
+            : prev
+        );
+        return resp.data;
+      }
+    } catch (e) {
+      console.error('Failed to refresh 2FA status', e);
+    }
+    return null;
+  };
+
   const refreshWebAuthnStatus = async (fallbackEnabled?: boolean) => {
     // #region debug-point D:refresh-webauthn-status-start
     reportWebAuthnDebug('D', 'Profile.tsx:refreshWebAuthnStatus:start', 'Refreshing WebAuthn status', {
@@ -771,36 +800,6 @@ export default function Profile() {
     }
   };
 
-  const refreshTotpStatus = async (fallback?: boolean): Promise<boolean> => {
-    const fallbackValue = fallback ?? getTotpEnabled() ?? false;
-
-    try {
-      const resp = await getTotpStatus();
-      const enabled = readTotpEnabledFromResponse(resp as typeof resp & { enabled?: boolean | number });
-      const finalValue = resp.success && enabled !== undefined ? enabled : fallbackValue;
-      setTotpEnabled(finalValue);
-      setUserInfo((prev) => (prev ? { ...prev, totp_enabled: finalValue } : prev));
-      return finalValue;
-    } catch {
-      setTotpEnabled(fallbackValue);
-      setUserInfo((prev) => (prev ? { ...prev, totp_enabled: fallbackValue } : prev));
-      return fallbackValue;
-    }
-  };
-
-  const refreshEmail2faStatus = async (uid: string) => {
-    try {
-      const resp = await getEmail2faStatus(uid);
-      if (resp.success && resp.data) {
-        const isEnabled = resp.data.enabled;
-        setEmail2faEnabled(isEnabled);
-        setUserInfo(prev => prev ? { ...prev, email_2fa_enabled: isEnabled } : prev);
-      }
-    } catch (e) {
-      console.error('Failed to fetch email 2FA status', e);
-    }
-  };
-
   useEffect(() => {
     const fetchData = async () => {
       const email = getUserEmail();
@@ -815,20 +814,22 @@ export default function Profile() {
 
       // 尝试使用缓存
       const cachedUser = dataCache.getUser();
-      const cachedTotp = dataCache.getTotpStatus();
+      const cachedTwoFactor = dataCache.getTwoFactorStatus();
       const cachedCreds = dataCache.getWebauthnCredentials();
 
       if (cachedUser) {
         let totpEnabled = getTotpEnabled() ?? false;
-        const apiTotpEnabled = readTotpEnabledFromResponse(cachedTotp || {});
-        if (cachedTotp && apiTotpEnabled !== undefined) {
-          totpEnabled = apiTotpEnabled;
+        if (cachedTwoFactor) {
+          totpEnabled = cachedTwoFactor.totp_enabled;
         }
 
-        const webauthnEnabled = readWebAuthnEnabledFromValue(cachedCreds) ?? readWebAuthnEnabledFromValue(cachedUser) ?? false;
-        const cachedRecoveryKeyEnabled = readRecoveryKeyEnabledFromValue(cachedUser) ?? false;
+        const webauthnEnabled = cachedTwoFactor?.webauthn_2fa_enabled ?? readWebAuthnEnabledFromValue(cachedUser) ?? false;
+        const cachedRecoveryKeyEnabled = cachedTwoFactor?.recovery_key_enabled ?? readRecoveryKeyEnabledFromValue(cachedUser) ?? false;
+        const cachedEmail2faEnabled = cachedTwoFactor?.email_2fa_enabled ?? false;
+
         applyWebAuthnState(cachedCreds || [], webauthnEnabled);
         setRecoveryKeyEnabled(cachedRecoveryKeyEnabled);
+        setEmail2faEnabled(cachedEmail2faEnabled);
 
         setUserInfo({
           email: cachedUser.email || email || '',
@@ -838,14 +839,14 @@ export default function Profile() {
           totp_enabled: totpEnabled,
           webauthn_2fa_enabled: webauthnEnabled,
           recovery_key_enabled: cachedRecoveryKeyEnabled,
+          email_2fa_enabled: cachedEmail2faEnabled,
           uid: cachedUser.uid,
         });
         setLoading(false);
-        // 如果缓存存在，仍可以后台静默更新以保持最新
       }
 
       try {
-        const [resp, totpResp, webauthnResp, email2faResp] = await Promise.all([
+        const [resp, twoFactorResp, webauthnResp] = await Promise.all([
           request(`${BackendUrl}/user`, {
             method: 'POST',
             headers: {
@@ -853,39 +854,31 @@ export default function Profile() {
             },
             body: JSON.stringify({ uid, email }),
           }),
-          getTotpStatus(),
+          getTwoFactorStatus(uid || undefined),
           listWebAuthnCredentials(),
-          uid ? getEmail2faStatus(uid) : Promise.resolve({ success: false, message: 'no uid', data: { enabled: false } } as ApiResponse<Email2faStatusResponse>),
         ]);
         
         if (resp.success) dataCache.setUser(resp.data);
-        if (totpResp.success) dataCache.setTotpStatus(totpResp.data);
+        if (twoFactorResp.success && twoFactorResp.data) dataCache.setTwoFactorStatus(twoFactorResp.data);
         if (webauthnResp.success) dataCache.setWebauthnCredentials(webauthnResp.data);
 
-        // #region debug-point E:initial-load-webauthn-response
-        reportWebAuthnDebug('E', 'Profile.tsx:fetchData:webauthnResp', 'Initial WebAuthn-related responses loaded', {
-          userSuccess: resp.success,
-          credentialSuccess: webauthnResp.success,
-          credentialCode: webauthnResp.code ?? null,
-          credentialMessage: webauthnResp.message,
-          credentialDataType: Array.isArray(webauthnResp.data) ? 'array' : typeof webauthnResp.data,
-        });
-        // #endregion
-
         let totpEnabled = getTotpEnabled() ?? false;
-        const apiTotpEnabled = readTotpEnabledFromResponse(totpResp as typeof totpResp & { enabled?: boolean | number });
-        if (totpResp.success && apiTotpEnabled !== undefined) {
-          totpEnabled = apiTotpEnabled;
+        if (twoFactorResp.success && twoFactorResp.data) {
+          totpEnabled = twoFactorResp.data.totp_enabled;
           setTotpEnabled(totpEnabled);
         }
 
-        const email2faEnabled = (email2faResp.success && email2faResp.data) ? email2faResp.data.enabled : false;
+        const email2faEnabled = (twoFactorResp.success && twoFactorResp.data) ? twoFactorResp.data.email_2fa_enabled : false;
         setEmail2faEnabled(email2faEnabled);
 
-        const webauthnEnabledFromApi = webauthnResp.success ? readWebAuthnEnabledFromValue(webauthnResp.data) : undefined;
-        const webauthnEnabledFromUser = resp.success ? readWebAuthnEnabledFromValue(resp.data) : undefined;
-        const webauthnEnabled = webauthnEnabledFromApi ?? webauthnEnabledFromUser ?? false;
-        const recoveryKeyEnabled = resp.success ? (readRecoveryKeyEnabledFromValue(resp.data) ?? false) : false;
+        const webauthnEnabled = twoFactorResp.success && twoFactorResp.data 
+          ? twoFactorResp.data.webauthn_2fa_enabled 
+          : (resp.success ? (readWebAuthnEnabledFromValue(resp.data) ?? false) : false);
+
+        const recoveryKeyEnabled = twoFactorResp.success && twoFactorResp.data
+          ? twoFactorResp.data.recovery_key_enabled
+          : (resp.success ? (readRecoveryKeyEnabledFromValue(resp.data) ?? false) : false);
+
         setRecoveryKeyEnabled(recoveryKeyEnabled);
         applyWebAuthnState(webauthnResp.success ? webauthnResp.data : [], webauthnEnabled);
 
@@ -898,6 +891,7 @@ export default function Profile() {
             totp_enabled: totpEnabled,
             webauthn_2fa_enabled: webauthnEnabled,
             recovery_key_enabled: recoveryKeyEnabled,
+            email_2fa_enabled: email2faEnabled,
             uid: resp.data.uid,
           });
         } else {
@@ -908,6 +902,7 @@ export default function Profile() {
             totp_enabled: totpEnabled,
             webauthn_2fa_enabled: webauthnEnabled,
             recovery_key_enabled: recoveryKeyEnabled,
+            email_2fa_enabled: email2faEnabled,
           });
         }
       } catch {
@@ -991,7 +986,7 @@ export default function Profile() {
       const resp = await toggleEmail2fa(enabled);
       if (resp.success) {
         const uid = getUid();
-        if (uid) await refreshEmail2faStatus(uid);
+        await refreshTwoFactorStatus(uid || undefined);
         setTwoFactorFeedback({
           severity: 'success',
           message: enabled ? t('profile.email2faEnabledSuccess') : t('profile.email2faDisabledSuccess'),
@@ -1161,8 +1156,7 @@ export default function Profile() {
     if (recoveryKeyDialogMode === 'regenerate') {
       const resp = await regenerateRecoveryKey(payload);
       if (resp.success && resp.data?.recovery_key) {
-        setRecoveryKeyEnabled(true);
-        setUserInfo((prev) => (prev ? { ...prev, recovery_key_enabled: true } : prev));
+        await refreshTwoFactorStatus();
         setGeneratedRecoveryKey(resp.data.recovery_key);
         setRecoveryKeyDialogMode('display');
         setRecoveryKeyTotpCode('');
@@ -1174,8 +1168,7 @@ export default function Profile() {
         });
       } else {
         if (resp.code === 'recovery_key_not_configured') {
-          setRecoveryKeyEnabled(false);
-          setUserInfo((prev) => (prev ? { ...prev, recovery_key_enabled: false } : prev));
+          await refreshTwoFactorStatus();
         }
         setRecoveryKeyDialogError(resp.message || t('profile.recoveryKeyRegenerateFailed'));
       }
@@ -1184,8 +1177,7 @@ export default function Profile() {
 
     const resp = await revokeRecoveryKey(payload);
     if (resp.success) {
-      setRecoveryKeyEnabled(false);
-      setUserInfo((prev) => (prev ? { ...prev, recovery_key_enabled: false } : prev));
+      await refreshTwoFactorStatus();
       closeRecoveryKeyDialog();
       setTwoFactorFeedback({
         severity: 'success',
@@ -1193,8 +1185,7 @@ export default function Profile() {
       });
     } else {
       if (resp.code === 'recovery_key_not_configured') {
-        setRecoveryKeyEnabled(false);
-        setUserInfo((prev) => (prev ? { ...prev, recovery_key_enabled: false } : prev));
+        await refreshTwoFactorStatus();
       }
       setRecoveryKeyDialogError(resp.message || t('profile.recoveryKeyRevokeFailed'));
     }
@@ -1458,7 +1449,7 @@ export default function Profile() {
     try {
       const resp = await toggleTotp(true);
       if (resp.success) {
-        await refreshTotpStatus(true);
+        await refreshTwoFactorStatus();
         setTwoFactorFeedback({
           severity: 'success',
           message: t('profile.totpEnabledSuccess'),
@@ -1492,7 +1483,7 @@ export default function Profile() {
     try {
       const resp = await toggleTotp(false);
       if (resp.success) {
-        await refreshTotpStatus(false);
+        await refreshTwoFactorStatus();
         setDisableTotpDialogOpen(false);
         setTwoFactorFeedback({
           severity: 'success',
@@ -1534,7 +1525,7 @@ export default function Profile() {
 
       if (resp.success) {
         setSetupSuccess(true);
-        await refreshTotpStatus(true);
+        await refreshTwoFactorStatus();
         setTwoFactorFeedback({
           severity: 'success',
           message: t('profile.totpEnabledSuccess'),
@@ -1728,7 +1719,10 @@ export default function Profile() {
         return;
       }
 
-      await refreshWebAuthnStatus(webauthn2faEnabled);
+      await Promise.all([
+        refreshTwoFactorStatus(),
+        refreshWebAuthnStatus(),
+      ]);
       setWebauthnDialogOpen(false);
       setWebauthnName('');
       setPendingWebAuthnRegistration(null);
@@ -1777,8 +1771,7 @@ export default function Profile() {
         return;
       }
 
-      const nextEnabled = readWebAuthnEnabledFromValue(resp.data) ?? enabled;
-      await refreshWebAuthnStatus(nextEnabled);
+      await refreshTwoFactorStatus();
       setWebauthnFeedback({
         severity: 'success',
         message: enabled ? t('profile.webauthnSecondFactorEnabled') : t('profile.webauthnSecondFactorDisabled'),
@@ -1811,9 +1804,10 @@ export default function Profile() {
         return;
       }
 
-      const nextCredentialCount = Math.max(webauthnCredentials.length - 1, 0);
-      const nextEnabled = nextCredentialCount > 0 ? webauthn2faEnabled : false;
-      await refreshWebAuthnStatus(nextEnabled);
+      await Promise.all([
+        refreshTwoFactorStatus(),
+        refreshWebAuthnStatus(),
+      ]);
       setCredentialToDelete(null);
       setWebauthnFeedback({
         severity: 'success',

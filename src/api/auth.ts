@@ -123,13 +123,6 @@ export async function resetPassword(
   });
 }
 
-export async function getTotpStatus(): Promise<ApiResponse<TotpStatusResponse>> {
-  const url = `${BackendUrl}/totp/hasbeenenabled`;
-  return request<TotpStatusResponse>(url, {
-    method: 'POST',
-  });
-}
-
 export async function setupTotp(email: string): Promise<ApiResponse<{ totpkey?: string }>> {
   const url = `${BackendUrl}/totp/setup`;
   return request<{ totpkey?: string }>(url, {
@@ -296,10 +289,20 @@ export interface Email2faStatusResponse {
   enabled: boolean;
 }
 
-export async function getEmail2faStatus(uid: string): Promise<ApiResponse<Email2faStatusResponse>> {
-  const url = `${BackendUrl}/email-2fa/status?uid=${uid}`;
-  return request<Email2faStatusResponse>(url, {
-    method: 'GET',
+export interface TwoFactorStatusResponse {
+  totp_enabled: boolean;
+  webauthn_2fa_enabled: boolean;
+  webauthn_credentials: number;
+  recovery_key_enabled: boolean;
+  email_2fa_enabled: boolean;
+}
+
+export async function getTwoFactorStatus(uid?: string): Promise<ApiResponse<TwoFactorStatusResponse>> {
+  const url = `${BackendUrl}/user/security/2fa/status`;
+  return request<TwoFactorStatusResponse>(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(uid ? { uid } : {}),
   });
 }
 

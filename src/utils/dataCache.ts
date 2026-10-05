@@ -1,8 +1,8 @@
 import { request } from './api';
 import { BackendUrl } from './config';
-import { getTotpStatus, listWebAuthnCredentials } from '../api/auth';
+import { getTwoFactorStatus, listWebAuthnCredentials, type TwoFactorStatusResponse } from '../api/auth';
 import { fetchMojangProfile } from '../api/texture';
-import { getAuthToken } from './cookie';
+import { getAuthToken, getUid } from './cookie';
 
 export interface UserData {
   email: string;
@@ -12,6 +12,7 @@ export interface UserData {
   totp_enabled: boolean;
   webauthn_2fa_enabled?: boolean;
   recovery_key_enabled?: boolean;
+  email_2fa_enabled?: boolean;
   uid?: number;
   mbe?: boolean;
   mojang_uuid?: string;
@@ -32,7 +33,7 @@ export interface MojangProfile {
 interface Cache {
   user: UserData | null;
   textures: TextureInfo[] | null;
-  totpStatus: any | null;
+  twoFactorStatus: TwoFactorStatusResponse | null;
   webauthnCredentials: any | null;
   mojangProfile: MojangProfile | null;
   lastFetched: number;
@@ -41,7 +42,7 @@ interface Cache {
 const cache: Cache = {
   user: null,
   textures: null,
-  totpStatus: null,
+  twoFactorStatus: null,
   webauthnCredentials: null,
   mojangProfile: null,
   lastFetched: 0,
@@ -52,7 +53,7 @@ const CACHE_TTL = 1000 * 60 * 5; // 5 minutes
 export const dataCache = {
   getUser: () => cache.user,
   getTextures: () => cache.textures,
-  getTotpStatus: () => cache.totpStatus,
+  getTwoFactorStatus: () => cache.twoFactorStatus,
   getWebauthnCredentials: () => cache.webauthnCredentials,
   getMojangProfile: () => cache.mojangProfile,
 
@@ -64,8 +65,8 @@ export const dataCache = {
     cache.textures = textures;
     cache.lastFetched = Date.now();
   },
-  setTotpStatus: (status: any) => {
-    cache.totpStatus = status;
+  setTwoFactorStatus: (status: TwoFactorStatusResponse) => {
+    cache.twoFactorStatus = status;
     cache.lastFetched = Date.now();
   },
   setWebauthnCredentials: (creds: any) => {
@@ -83,12 +84,13 @@ export const dataCache = {
 
   prefetch: async () => {
     if (!getAuthToken()) return;
+    const uid = getUid();
     
     try {
-      const [userResp, texturesResp, totpResp, webauthnResp] = await Promise.all([
+      const [userResp, texturesResp, twoFactorResp, webauthnResp] = await Promise.all([
         request(`${BackendUrl}/user`, { method: 'POST' }),
         request(`${BackendUrl}/texture/get`, { method: 'POST' }),
-        getTotpStatus(),
+        getTwoFactorStatus(uid || undefined),
         listWebAuthnCredentials(),
       ]);
 
@@ -110,8 +112,8 @@ export const dataCache = {
         cache.textures = texturesResp.data.textures || [];
       }
       
-      if (totpResp.success) {
-        cache.totpStatus = totpResp.data;
+      if (twoFactorResp.success && twoFactorResp.data) {
+        cache.twoFactorStatus = twoFactorResp.data;
       }
       
       if (webauthnResp.success) {
@@ -128,7 +130,7 @@ export const dataCache = {
   clear: () => {
     cache.user = null;
     cache.textures = null;
-    cache.totpStatus = null;
+    cache.twoFactorStatus = null;
     cache.webauthnCredentials = null;
     cache.mojangProfile = null;
     cache.lastFetched = 0;
