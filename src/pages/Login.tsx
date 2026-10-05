@@ -13,6 +13,7 @@ import {
   verifyTotp,
   sendEmail2faCode,
   verifyEmail2fa,
+  verifyRecoveryKey,
 } from '../api/auth';
 import { completeLogin } from '../utils/auth';
 import { useMeta } from '../hooks/useMeta';
@@ -26,10 +27,13 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [totpCode, setTotpCode] = useState('');
   const [email2faCode, setEmail2faCode] = useState('');
+  const [recoveryKey, setRecoveryKey] = useState('');
   const [showTotp, setShowTotp] = useState(false);
   const [showEmail2fa, setShowEmail2fa] = useState(false);
+  const [showRecoveryKey, setShowRecoveryKey] = useState(false);
   const [totpAvailable, setTotpAvailable] = useState(false);
   const [emailAvailable, setEmailAvailable] = useState(false);
+  const [recoveryKeyAvailable, setRecoveryKeyAvailable] = useState(false);
   const [webauthnRequired, setWebauthnRequired] = useState(false);
   const [webauthnAvailable, setWebauthnAvailable] = useState(false);
   const [loginTicket, setLoginTicketVal] = useState('');
@@ -50,6 +54,8 @@ export default function Login() {
       setLoginTicketVal(state.login_ticket);
       setTotpAvailable(true);
       setShowTotp(true);
+      setShowEmail2fa(false);
+      setShowRecoveryKey(false);
       setWebauthnRequired(false);
       setWebauthnAvailable(false);
       // Clear state so a page refresh won't re-trigger this
@@ -65,16 +71,29 @@ export default function Login() {
       return false;
     }
 
-    if (!showTotp) {
+    if (!loginTicket) {
       if (!password) {
         setError(t('login.errors.passwordRequired'));
         return false;
       }
-    } else {
+    } else if (showTotp) {
       if (!totpCode || totpCode.length !== 6) {
         setError(t('login.errors.totpRequired'));
         return false;
       }
+    } else if (showEmail2fa) {
+      if (!email2faCode || email2faCode.length !== 6) {
+        setError(t('login.errors.emailCodeRequired'));
+        return false;
+      }
+    } else if (showRecoveryKey) {
+      if (!recoveryKey.trim()) {
+        setError(t('login.errors.recoveryKeyRequired'));
+        return false;
+      }
+    } else if (webauthnAvailable) {
+      setError(t('login.webauthnSecondFactorRequired'));
+      return false;
     }
 
     return true;
@@ -208,7 +227,7 @@ export default function Login() {
         }
 
         const data = res.data;
-        if (data?.totp_required || data?.email_required || data?.webauthn_required) {
+        if (data?.totp_required || data?.email_required || data?.webauthn_required || data?.recovery_key_required) {
           const secondFactors = data.second_factors ?? [];
           
           const nextTotpAvailable = secondFactors.length > 0 
@@ -223,21 +242,34 @@ export default function Login() {
             ? secondFactors.includes('webauthn')
             : Boolean(data.webauthn_required);
 
+          const nextRecoveryKeyAvailable = secondFactors.length > 0
+            ? secondFactors.includes('recovery_key')
+            : Boolean(data.recovery_key_required);
+
           setTotpAvailable(nextTotpAvailable);
           setEmailAvailable(nextEmailAvailable);
           setWebauthnAvailable(nextWebauthnAvailable);
-          setWebauthnRequired(nextWebauthnAvailable && !nextTotpAvailable && !nextEmailAvailable);
+          setRecoveryKeyAvailable(nextRecoveryKeyAvailable);
+          setWebauthnRequired(nextWebauthnAvailable && !nextTotpAvailable && !nextEmailAvailable && !nextRecoveryKeyAvailable);
           
           setLoginTicketVal(data.login_ticket || '');
 
           if (nextTotpAvailable) {
             setShowTotp(true);
+            setShowEmail2fa(false);
+            setShowRecoveryKey(false);
           } else if (nextEmailAvailable) {
+            setShowTotp(false);
             setShowEmail2fa(true);
+            setShowRecoveryKey(false);
             // Automatically send code if email is the only factor
-            if (secondFactors.length === 1 || (!nextTotpAvailable && !nextWebauthnAvailable)) {
+            if (secondFactors.length === 1 || (!nextTotpAvailable && !nextWebauthnAvailable && !nextRecoveryKeyAvailable)) {
               await sendEmail2faCode(data.login_ticket || '');
             }
+          } else if (nextRecoveryKeyAvailable) {
+            setShowTotp(false);
+            setShowEmail2fa(false);
+            setShowRecoveryKey(true);
           }
           
           setLoading(false);
@@ -268,6 +300,18 @@ export default function Login() {
         if (data?.access_token) {
           await handleLoginSuccess(data.access_token, data.refresh_token, data.uid, remember);
         }
+      } else if (showRecoveryKey) {
+        const res = await verifyRecoveryKey(loginTicket, recoveryKey.trim().toUpperCase());
+        if (!res.success) {
+          setError(res.message || t('login.errors.codeIncorrect'));
+          setLoading(false);
+          return;
+        }
+
+        const data = res.data;
+        if (data?.access_token) {
+          await handleLoginSuccess(data.access_token, data.refresh_token, data.uid, remember);
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : t('login.errors.networkError'));
@@ -281,12 +325,9 @@ export default function Login() {
     setTimeout(() => navigate('/dash'), 700);
   }
 
-  const awaitingSecondFactor = Boolean(loginTicket) && (totpAvailable || webauthnAvailable || emailAvailable);
-  const showSecondFactorSelector = awaitingSecondFactor && (
-    (totpAvailable && webauthnAvailable) || 
-    (totpAvailable && emailAvailable) || 
-    (webauthnAvailable && emailAvailable)
-  );
+  const awaitingSecondFactor = Boolean(loginTicket) && (totpAvailable || webauthnAvailable || emailAvailable || recoveryKeyAvailable);
+  const availableSecondFactorCount = [totpAvailable, webauthnAvailable, emailAvailable, recoveryKeyAvailable].filter(Boolean).length;
+  const showSecondFactorSelector = awaitingSecondFactor && availableSecondFactorCount > 1;
 
   return (
     <Box sx={{ maxWidth: 480 }}>
@@ -323,6 +364,7 @@ export default function Login() {
                       onClick={() => {
                         setShowTotp(true);
                         setShowEmail2fa(false);
+                        setShowRecoveryKey(false);
                         setError(null);
                       }}
                       disabled={loading || webauthnLoading}
@@ -338,6 +380,7 @@ export default function Login() {
                       onClick={() => {
                         setShowTotp(false);
                         setShowEmail2fa(true);
+                        setShowRecoveryKey(false);
                         setError(null);
                         handleSendEmail2faCode();
                       }}
@@ -347,13 +390,30 @@ export default function Login() {
                       {t('login.useEmailSecondFactor')}
                     </Button>
                   )}
-                  {webauthnAvailable && (
+                  {recoveryKeyAvailable && (
                     <Button
                       type="button"
-                      variant={!showTotp && !showEmail2fa ? 'contained' : 'outlined'}
+                      variant={showRecoveryKey ? 'contained' : 'outlined'}
                       onClick={() => {
                         setShowTotp(false);
                         setShowEmail2fa(false);
+                        setShowRecoveryKey(true);
+                        setError(null);
+                      }}
+                      disabled={loading || webauthnLoading}
+                      fullWidth
+                    >
+                      {t('login.useRecoveryKeySecondFactor')}
+                    </Button>
+                  )}
+                  {webauthnAvailable && (
+                    <Button
+                      type="button"
+                      variant={!showTotp && !showEmail2fa && !showRecoveryKey ? 'contained' : 'outlined'}
+                      onClick={() => {
+                        setShowTotp(false);
+                        setShowEmail2fa(false);
+                        setShowRecoveryKey(false);
                         setError(null);
                       }}
                       disabled={loading || webauthnLoading}
@@ -443,6 +503,26 @@ export default function Login() {
                   </Typography>
                 )}
               </>
+            ) : showRecoveryKey ? (
+              <>
+                <TextField
+                  label={t('login.recoveryKeyLabel')}
+                  type="text"
+                  value={recoveryKey}
+                  onChange={(e) => setRecoveryKey(e.target.value.toUpperCase().slice(0, 19))}
+                  placeholder={t('login.recoveryKeyPlaceholder')}
+                  required
+                  fullWidth
+                  sx={{ mb: 2 }}
+                  disabled={loading || webauthnLoading}
+                  slotProps={{ htmlInput: { maxLength: 19 } }}
+                />
+                {(webauthnAvailable || totpAvailable || emailAvailable) && (
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    {t('login.secondFactorSelectorHint')}
+                  </Typography>
+                )}
+              </>
             ) : (
               <Alert severity="info" sx={{ mb: 2 }}>
                 {t('login.webauthnSecondFactorRequired')}
@@ -461,14 +541,14 @@ export default function Login() {
               sx={{ mb: 2 }}
             />
 
-            {(!awaitingSecondFactor || showTotp || showEmail2fa) && (
+            {(!awaitingSecondFactor || showTotp || showEmail2fa || showRecoveryKey) && (
               <Button
                 variant="contained"
                 type="submit"
                 disabled={loading || webauthnLoading || sendingEmail}
                 fullWidth
               >
-                {loading ? t('common.pleaseWait') : (showTotp || showEmail2fa ? t('login.submitTotp') : t('login.submit'))}
+                {loading ? t('common.pleaseWait') : (showTotp || showEmail2fa || showRecoveryKey ? t('login.submitTotp') : t('login.submit'))}
               </Button>
             )}
           </form>
@@ -484,7 +564,7 @@ export default function Login() {
             </Button>
           )}
 
-          {isWebAuthnSupported() && webauthnAvailable && loginTicket && !showTotp && (
+          {isWebAuthnSupported() && webauthnAvailable && loginTicket && !showTotp && !showRecoveryKey && !showEmail2fa && (
             <Button
               variant="outlined"
               onClick={handleWebAuthnSecondFactorLogin}

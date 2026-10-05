@@ -17,11 +17,14 @@ const SkinViewer3D = lazy(() => import('../components/SkinViewer3D'));
 import { request, type ApiResponse } from '../utils/api';
 import {
   beginWebAuthnRegistration,
+  createRecoveryKey,
   deleteWebAuthnCredential,
   finishWebAuthnRegistration,
   getTotpStatus,
   listWebAuthnCredentials,
+  regenerateRecoveryKey,
   requestAccountDeletion,
+  revokeRecoveryKey,
   setupTotp,
   toggleTotp,
   toggleWebAuthnSecondFactor,
@@ -49,6 +52,7 @@ interface UserInfo {
   totp_enabled: boolean;
   webauthn_2fa_enabled?: boolean;
   email_2fa_enabled?: boolean;
+  recovery_key_enabled?: boolean;
   uid?: number;
 }
 
@@ -473,6 +477,7 @@ export default function Profile() {
   const [newEmail, setNewEmail] = useState('');
   const [emailCode, setEmailCode] = useState('');
   const [changeEmailTotpCode, setChangeEmailTotpCode] = useState('');
+  const [changeEmailRecoveryKey, setChangeEmailRecoveryKey] = useState('');
   const [changeEmailLoading, setChangeEmailLoading] = useState(false);
   const [changeEmailError, setChangeEmailError] = useState<string | null>(null);
   const [changeEmailSuccess, setChangeEmailSuccess] = useState(false);
@@ -488,6 +493,14 @@ export default function Profile() {
   const [setupSuccess, setSetupSuccess] = useState(false);
   const [disableTotpDialogOpen, setDisableTotpDialogOpen] = useState(false);
   const [twoFactorFeedback, setTwoFactorFeedback] = useState<ActionFeedback | null>(null);
+  const [recoveryKeyEnabled, setRecoveryKeyEnabled] = useState(false);
+  const [recoveryKeyLoading, setRecoveryKeyLoading] = useState(false);
+  const [recoveryKeyDialogOpen, setRecoveryKeyDialogOpen] = useState(false);
+  const [recoveryKeyDialogMode, setRecoveryKeyDialogMode] = useState<'display' | 'regenerate' | 'revoke'>('display');
+  const [generatedRecoveryKey, setGeneratedRecoveryKey] = useState('');
+  const [recoveryKeyTotpCode, setRecoveryKeyTotpCode] = useState('');
+  const [recoveryKeyVerificationValue, setRecoveryKeyVerificationValue] = useState('');
+  const [recoveryKeyDialogError, setRecoveryKeyDialogError] = useState<string | null>(null);
   const [webauthnCredentials, setWebauthnCredentials] = useState<WebAuthnCredentialRecord[]>([]);
   const [webauthn2faEnabled, setWebauthn2faEnabled] = useState(false);
   const [webauthnBackendAvailable, setWebauthnBackendAvailable] = useState(true);
@@ -566,6 +579,21 @@ export default function Profile() {
 
   const readTotpEnabledFromResponse = (resp: { data?: { enabled?: boolean | number }; enabled?: boolean | number }): boolean | undefined => {
     return parseEnabledFlag(resp.data?.enabled ?? resp.enabled);
+  };
+
+  const readRecoveryKeyEnabledFromValue = (value: unknown): boolean | undefined => {
+    if (!value || typeof value !== 'object') {
+      return undefined;
+    }
+
+    const record = value as {
+      recovery_key_enabled?: boolean | number;
+      data?: {
+        recovery_key_enabled?: boolean | number;
+      };
+    };
+
+    return parseEnabledFlag(record.data?.recovery_key_enabled ?? record.recovery_key_enabled);
   };
 
   const readWebAuthnEnabledFromValue = (value: unknown): boolean | undefined => {
@@ -742,7 +770,9 @@ export default function Profile() {
         }
 
         const webauthnEnabled = readWebAuthnEnabledFromValue(cachedCreds) ?? readWebAuthnEnabledFromValue(cachedUser) ?? false;
+        const cachedRecoveryKeyEnabled = readRecoveryKeyEnabledFromValue(cachedUser) ?? false;
         applyWebAuthnState(cachedCreds || [], webauthnEnabled);
+        setRecoveryKeyEnabled(cachedRecoveryKeyEnabled);
 
         setUserInfo({
           email: cachedUser.email || email || '',
@@ -751,6 +781,7 @@ export default function Profile() {
           verified: Boolean(cachedUser.verified),
           totp_enabled: totpEnabled,
           webauthn_2fa_enabled: webauthnEnabled,
+          recovery_key_enabled: cachedRecoveryKeyEnabled,
           uid: cachedUser.uid,
         });
         setLoading(false);
@@ -798,6 +829,8 @@ export default function Profile() {
         const webauthnEnabledFromApi = webauthnResp.success ? readWebAuthnEnabledFromValue(webauthnResp.data) : undefined;
         const webauthnEnabledFromUser = resp.success ? readWebAuthnEnabledFromValue(resp.data) : undefined;
         const webauthnEnabled = webauthnEnabledFromApi ?? webauthnEnabledFromUser ?? false;
+        const recoveryKeyEnabled = resp.success ? (readRecoveryKeyEnabledFromValue(resp.data) ?? false) : false;
+        setRecoveryKeyEnabled(recoveryKeyEnabled);
         applyWebAuthnState(webauthnResp.success ? webauthnResp.data : [], webauthnEnabled);
 
         if (resp.success && resp.data) {
@@ -808,6 +841,7 @@ export default function Profile() {
             verified: Boolean(resp.data.verified),
             totp_enabled: totpEnabled,
             webauthn_2fa_enabled: webauthnEnabled,
+            recovery_key_enabled: recoveryKeyEnabled,
             uid: resp.data.uid,
           });
         } else {
@@ -817,17 +851,20 @@ export default function Profile() {
             verified: Boolean(getVerified()),
             totp_enabled: totpEnabled,
             webauthn_2fa_enabled: webauthnEnabled,
+            recovery_key_enabled: recoveryKeyEnabled,
           });
         }
       } catch {
         const cookieTotp = getTotpEnabled();
         applyWebAuthnState([], false);
+        setRecoveryKeyEnabled(false);
         setUserInfo({
           email: email || '',
           username: email ? email.split('@')[0] : 'User',
           verified: Boolean(getVerified()),
           totp_enabled: cookieTotp !== undefined ? cookieTotp : false,
           webauthn_2fa_enabled: false,
+          recovery_key_enabled: false,
         });
       } finally {
         setLoading(false);
@@ -919,6 +956,122 @@ export default function Profile() {
     }
   };
 
+  const closeRecoveryKeyDialog = () => {
+    if (recoveryKeyLoading) {
+      return;
+    }
+
+    setRecoveryKeyDialogOpen(false);
+    setRecoveryKeyDialogError(null);
+    setRecoveryKeyTotpCode('');
+    setRecoveryKeyVerificationValue('');
+    setGeneratedRecoveryKey('');
+  };
+
+  const handleCreateRecoveryKey = async () => {
+    setRecoveryKeyLoading(true);
+    setTwoFactorFeedback(null);
+
+    try {
+      const resp = await createRecoveryKey();
+      if (resp.success && resp.data?.recovery_key) {
+        setRecoveryKeyEnabled(true);
+        setUserInfo((prev) => (prev ? { ...prev, recovery_key_enabled: true } : prev));
+        setGeneratedRecoveryKey(resp.data.recovery_key);
+        setRecoveryKeyDialogMode('display');
+        setRecoveryKeyDialogError(null);
+        setRecoveryKeyDialogOpen(true);
+      } else {
+        if (resp.code === 'recovery_key_already_configured') {
+          setRecoveryKeyEnabled(true);
+          setUserInfo((prev) => (prev ? { ...prev, recovery_key_enabled: true } : prev));
+        }
+        setTwoFactorFeedback({
+          severity: 'error',
+          message: resp.message || t('profile.recoveryKeyCreateFailed'),
+        });
+      }
+    } catch {
+      setTwoFactorFeedback({
+        severity: 'error',
+        message: t('common.serverError'),
+      });
+    } finally {
+      setRecoveryKeyLoading(false);
+    }
+  };
+
+  const openRecoveryKeyVerificationDialog = (mode: 'regenerate' | 'revoke') => {
+    setRecoveryKeyDialogMode(mode);
+    setGeneratedRecoveryKey('');
+    setRecoveryKeyTotpCode('');
+    setRecoveryKeyVerificationValue('');
+    setRecoveryKeyDialogError(null);
+    setRecoveryKeyDialogOpen(true);
+  };
+
+  const handleSubmitRecoveryKeyAction = async () => {
+    if (!recoveryKeyTotpCode && !recoveryKeyVerificationValue.trim()) {
+      setRecoveryKeyDialogError(t('profile.recoveryKeyFactorRequired'));
+      return;
+    }
+
+    setRecoveryKeyLoading(true);
+    setRecoveryKeyDialogError(null);
+    setTwoFactorFeedback(null);
+
+    try {
+      const payload = {
+        totp_code: recoveryKeyTotpCode || undefined,
+        recovery_key: recoveryKeyVerificationValue.trim().toUpperCase() || undefined,
+      };
+
+      if (recoveryKeyDialogMode === 'regenerate') {
+        const resp = await regenerateRecoveryKey(payload);
+        if (resp.success && resp.data?.recovery_key) {
+          setRecoveryKeyEnabled(true);
+          setUserInfo((prev) => (prev ? { ...prev, recovery_key_enabled: true } : prev));
+          setGeneratedRecoveryKey(resp.data.recovery_key);
+          setRecoveryKeyDialogMode('display');
+          setRecoveryKeyTotpCode('');
+          setRecoveryKeyVerificationValue('');
+          setTwoFactorFeedback({
+            severity: 'success',
+            message: t('profile.recoveryKeyRegenerated'),
+          });
+        } else {
+          if (resp.code === 'recovery_key_not_configured') {
+            setRecoveryKeyEnabled(false);
+            setUserInfo((prev) => (prev ? { ...prev, recovery_key_enabled: false } : prev));
+          }
+          setRecoveryKeyDialogError(resp.message || t('profile.recoveryKeyRegenerateFailed'));
+        }
+        return;
+      }
+
+      const resp = await revokeRecoveryKey(payload);
+      if (resp.success) {
+        setRecoveryKeyEnabled(false);
+        setUserInfo((prev) => (prev ? { ...prev, recovery_key_enabled: false } : prev));
+        closeRecoveryKeyDialog();
+        setTwoFactorFeedback({
+          severity: 'success',
+          message: t('profile.recoveryKeyRevoked'),
+        });
+      } else {
+        if (resp.code === 'recovery_key_not_configured') {
+          setRecoveryKeyEnabled(false);
+          setUserInfo((prev) => (prev ? { ...prev, recovery_key_enabled: false } : prev));
+        }
+        setRecoveryKeyDialogError(resp.message || t('profile.recoveryKeyRevokeFailed'));
+      }
+    } catch {
+      setRecoveryKeyDialogError(t('common.serverError'));
+    } finally {
+      setRecoveryKeyLoading(false);
+    }
+  };
+
   const handleSendChangeEmailCode = async () => {
     setSendingEmailCode(true);
     setChangeEmailError(null);
@@ -977,6 +1130,11 @@ export default function Profile() {
       return;
     }
 
+    if (!emailCode && !changeEmailTotpCode && !changeEmailRecoveryKey.trim()) {
+      setChangeEmailError(t('profile.changeEmailInsufficientAuth'));
+      return;
+    }
+
     setChangeEmailLoading(true);
     setChangeEmailError(null);
 
@@ -985,6 +1143,7 @@ export default function Profile() {
         new_email: newEmail,
         email_code: emailCode || undefined,
         totp_code: changeEmailTotpCode || undefined,
+        recovery_key: changeEmailRecoveryKey.trim().toUpperCase() || undefined,
       };
 
       const resp = await changeEmail(params);
@@ -1783,6 +1942,66 @@ export default function Profile() {
             <Divider />
 
             <Box>
+              <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={2}>
+                <Box sx={{ flex: 1 }}>
+                  <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                      {t('profile.recoveryKeyTitle')}
+                    </Typography>
+                    <Chip
+                      label={recoveryKeyEnabled ? t('profile.statusEnabled') : t('profile.statusDisabled')}
+                      color={recoveryKeyEnabled ? 'success' : 'default'}
+                      size="small"
+                      variant="outlined"
+                    />
+                  </Stack>
+                  <Typography variant="body2" color="text.secondary">
+                    {recoveryKeyEnabled
+                      ? t('profile.recoveryKeyEnabled')
+                      : t('profile.recoveryKeyDisabled')
+                    }
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
+                    {t('profile.recoveryKeyHint')}
+                  </Typography>
+                </Box>
+                {recoveryKeyEnabled ? (
+                  <Stack direction="column" spacing={1} alignItems="flex-end">
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      startIcon={<Key />}
+                      onClick={() => openRecoveryKeyVerificationDialog('regenerate')}
+                      disabled={recoveryKeyLoading}
+                    >
+                      {recoveryKeyLoading ? t('profile.totpLoading') : t('profile.recoveryKeyRegenerate')}
+                    </Button>
+                    <Button
+                      color="warning"
+                      variant="text"
+                      size="small"
+                      onClick={() => openRecoveryKeyVerificationDialog('revoke')}
+                      disabled={recoveryKeyLoading}
+                    >
+                      {t('profile.recoveryKeyRevoke')}
+                    </Button>
+                  </Stack>
+                ) : (
+                  <Button
+                    variant="contained"
+                    startIcon={<Key />}
+                    onClick={handleCreateRecoveryKey}
+                    disabled={recoveryKeyLoading}
+                  >
+                    {recoveryKeyLoading ? t('profile.totpLoading') : t('profile.recoveryKeyCreate')}
+                  </Button>
+                )}
+              </Stack>
+            </Box>
+
+            <Divider />
+
+            <Box>
               <Box sx={{ mb: 2 }}>
                 <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
                   <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
@@ -2097,6 +2316,85 @@ export default function Profile() {
         </DialogActions>
       </Dialog>
 
+      <Dialog open={recoveryKeyDialogOpen} onClose={closeRecoveryKeyDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          {recoveryKeyDialogMode === 'display'
+            ? t('profile.recoveryKeyDialogTitle')
+            : (recoveryKeyDialogMode === 'regenerate'
+              ? t('profile.recoveryKeyRegenerateDialogTitle')
+              : t('profile.recoveryKeyRevokeDialogTitle'))}
+        </DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            {recoveryKeyDialogMode === 'display' ? (
+              <>
+                <Alert severity="success">
+                  {t('profile.recoveryKeyDisplaySuccess')}
+                </Alert>
+                <Typography variant="body2" color="text.secondary">
+                  {t('profile.recoveryKeyDisplayHint')}
+                </Typography>
+                <TextField
+                  label={t('profile.recoveryKeyLabel')}
+                  value={generatedRecoveryKey}
+                  fullWidth
+                  slotProps={{ input: { readOnly: true } }}
+                />
+              </>
+            ) : (
+              <>
+                {recoveryKeyDialogError && (
+                  <Alert severity="error">
+                    {recoveryKeyDialogError}
+                  </Alert>
+                )}
+                <Typography variant="body2" color="text.secondary">
+                  {recoveryKeyDialogMode === 'regenerate'
+                    ? t('profile.recoveryKeyRegenerateHint')
+                    : t('profile.recoveryKeyRevokeHint')}
+                </Typography>
+                <TextField
+                  label={t('profile.totpTitle')}
+                  value={recoveryKeyTotpCode}
+                  onChange={(e) => setRecoveryKeyTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder={t('login.totpPlaceholder')}
+                  fullWidth
+                  disabled={recoveryKeyLoading}
+                />
+                <TextField
+                  label={t('profile.recoveryKeyCurrentLabel')}
+                  value={recoveryKeyVerificationValue}
+                  onChange={(e) => setRecoveryKeyVerificationValue(e.target.value.toUpperCase().slice(0, 19))}
+                  placeholder={t('profile.recoveryKeyPlaceholder')}
+                  fullWidth
+                  disabled={recoveryKeyLoading}
+                  helperText={t('profile.recoveryKeyFactorHint')}
+                />
+              </>
+            )}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={closeRecoveryKeyDialog} disabled={recoveryKeyLoading}>
+            {t('common.cancel')}
+          </Button>
+          {recoveryKeyDialogMode !== 'display' && (
+            <Button
+              variant="contained"
+              color={recoveryKeyDialogMode === 'revoke' ? 'warning' : 'primary'}
+              onClick={handleSubmitRecoveryKeyAction}
+              disabled={recoveryKeyLoading}
+            >
+              {recoveryKeyLoading
+                ? t('common.pleaseWait')
+                : (recoveryKeyDialogMode === 'regenerate'
+                  ? t('profile.recoveryKeyRegenerate')
+                  : t('profile.recoveryKeyRevoke'))}
+            </Button>
+          )}
+        </DialogActions>
+      </Dialog>
+
       <Dialog open={deleteDialogOpen} onClose={handleCloseDeleteDialog} maxWidth="sm" fullWidth>
         <DialogTitle>{t('profile.deleteAccountDialogTitle')}</DialogTitle>
         <DialogContent>
@@ -2166,6 +2464,11 @@ export default function Profile() {
                       size="small"
                     />
                     <Chip
+                      label={t('profile.pointRecoveryKey')}
+                      color={changeEmailRecoveryKey ? 'success' : 'default'}
+                      size="small"
+                    />
+                    <Chip
                       label={t('profile.pointWebAuthn')}
                       color="default"
                       size="small"
@@ -2207,11 +2510,21 @@ export default function Profile() {
                 <TextField
                   label={t('profile.totpTitle')}
                   value={changeEmailTotpCode}
-                  onChange={(e) => setChangeEmailTotpCode(e.target.value)}
+                  onChange={(e) => setChangeEmailTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                   placeholder={t('login.totpPlaceholder')}
                   fullWidth
                   disabled={changeEmailLoading}
                   helperText={t('profile.pointTotp')}
+                />
+
+                <TextField
+                  label={t('profile.recoveryKeyLabel')}
+                  value={changeEmailRecoveryKey}
+                  onChange={(e) => setChangeEmailRecoveryKey(e.target.value.toUpperCase().slice(0, 19))}
+                  placeholder={t('profile.recoveryKeyPlaceholder')}
+                  fullWidth
+                  disabled={changeEmailLoading}
+                  helperText={t('profile.pointRecoveryKey')}
                 />
               </>
             )}

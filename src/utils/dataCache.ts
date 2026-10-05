@@ -11,6 +11,7 @@ export interface UserData {
   verified?: boolean;
   totp_enabled: boolean;
   webauthn_2fa_enabled?: boolean;
+  recovery_key_enabled?: boolean;
   uid?: number;
   mbe?: boolean;
   mojang_uuid?: string;

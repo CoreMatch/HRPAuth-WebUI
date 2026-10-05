@@ -24,6 +24,7 @@ export interface ChangeEmailParams {
   new_email: string;
   totp_code?: string;
   email_code?: string;
+  recovery_key?: string;
   webauthn?: {
     flow_id: string;
     credential: Record<string, unknown>;

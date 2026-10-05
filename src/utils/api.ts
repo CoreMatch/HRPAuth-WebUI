@@ -113,6 +113,7 @@ export async function request<T = any>(
                              url.includes('/totp/verify') || 
                              url.includes('/webauthn/login/finish') ||
                              url.includes('/email-2fa/verify') ||
+                             url.includes('/user/security/recovery-key/verify') ||
                              url.includes('/register') ||
                              url.includes('/forgot-password') ||
                              url.includes('/reset-password');

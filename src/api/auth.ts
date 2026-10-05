@@ -5,7 +5,8 @@ export interface LoginTicketResponse {
   totp_required: boolean;
   webauthn_required?: boolean;
   email_required?: boolean;
-  second_factors?: Array<'totp' | 'webauthn' | 'email'>;
+  recovery_key_required?: boolean;
+  second_factors?: Array<'totp' | 'webauthn' | 'email' | 'recovery_key'>;
   login_ticket?: string;
   expires_in?: number;
   access_token?: string;
@@ -49,6 +50,16 @@ export interface WebAuthnCredentialListResponse {
   enabled?: boolean | number;
   available?: boolean;
   availability_error?: string;
+}
+
+export interface RecoveryKeyVerificationRequest {
+  totp_code?: string;
+  email_code?: string;
+  recovery_key?: string;
+  webauthn?: {
+    flow_id: string;
+    credential: Record<string, unknown>;
+  };
 }
 
 export async function getLoginTicket(email: string, password: string): Promise<ApiResponse<LoginTicketResponse>> {
@@ -143,6 +154,47 @@ export async function requestAccountDeletion(password: string): Promise<ApiRespo
     method: 'DELETE',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ password }),
+  });
+}
+
+export async function createRecoveryKey(): Promise<ApiResponse<{ recovery_key?: string }>> {
+  const url = `${BackendUrl}/user/security/recovery-key/create`;
+  return request<{ recovery_key?: string }>(url, {
+    method: 'POST',
+  });
+}
+
+export async function regenerateRecoveryKey(
+  payload: RecoveryKeyVerificationRequest
+): Promise<ApiResponse<{ recovery_key?: string }>> {
+  const url = `${BackendUrl}/user/security/recovery-key/regenerate`;
+  return request<{ recovery_key?: string }>(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function revokeRecoveryKey(
+  payload: RecoveryKeyVerificationRequest
+): Promise<ApiResponse> {
+  const url = `${BackendUrl}/user/security/recovery-key/revoke`;
+  return request(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function verifyRecoveryKey(
+  loginTicket: string,
+  recoveryKey: string
+): Promise<ApiResponse<LoginResponse>> {
+  const url = `${BackendUrl}/user/security/recovery-key/verify`;
+  return request<LoginResponse>(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ login_ticket: loginTicket, recovery_key: recoveryKey }),
   });
 }
 
