@@ -44,6 +44,11 @@ import {
 import { clearAuthCookies, getUserEmail, getAuthToken, getUid, getVerified, getTotpEnabled, setTotpEnabled } from '../utils/cookie';
 import { BackendUrl } from '../utils/config';
 import { authenticateWithWebAuthn, isWebAuthnSupported, registerWithWebAuthn } from '../utils/webauthn';
+import VerificationMethodPickerDialog, {
+  getPreferredVerificationMethod,
+  type VerificationMethodKey,
+  type VerificationMethodOption,
+} from '../components/VerificationMethodPickerDialog';
 
 interface UserInfo {
   email: string;
@@ -479,10 +484,13 @@ export default function Profile() {
   const [emailCode, setEmailCode] = useState('');
   const [changeEmailTotpCode, setChangeEmailTotpCode] = useState('');
   const [changeEmailRecoveryKey, setChangeEmailRecoveryKey] = useState('');
+  const [selectedChangeEmailMethod, setSelectedChangeEmailMethod] = useState<VerificationMethodKey | null>(null);
+  const [changeEmailMethodDialogOpen, setChangeEmailMethodDialogOpen] = useState(false);
   const [changeEmailLoading, setChangeEmailLoading] = useState(false);
   const [changeEmailError, setChangeEmailError] = useState<string | null>(null);
   const [changeEmailSuccess, setChangeEmailSuccess] = useState(false);
   const [sendingEmailCode, setSendingEmailCode] = useState(false);
+  const [changeEmailCodeSent, setChangeEmailCodeSent] = useState(false);
 
   const [totpDialogOpen, setTotpDialogOpen] = useState(false);
   const [totpKey, setTotpKey] = useState<string | null>(null);
@@ -502,8 +510,11 @@ export default function Profile() {
   const [recoveryKeyTotpCode, setRecoveryKeyTotpCode] = useState('');
   const [recoveryKeyEmailCode, setRecoveryKeyEmailCode] = useState('');
   const [recoveryKeyVerificationValue, setRecoveryKeyVerificationValue] = useState('');
+  const [selectedRecoveryKeyMethod, setSelectedRecoveryKeyMethod] = useState<VerificationMethodKey | null>(null);
+  const [recoveryKeyMethodDialogOpen, setRecoveryKeyMethodDialogOpen] = useState(false);
   const [recoveryKeyDialogError, setRecoveryKeyDialogError] = useState<string | null>(null);
   const [recoveryKeySendingEmailCode, setRecoveryKeySendingEmailCode] = useState(false);
+  const [recoveryKeyEmailCodeSent, setRecoveryKeyEmailCodeSent] = useState(false);
   const [webauthnCredentials, setWebauthnCredentials] = useState<WebAuthnCredentialRecord[]>([]);
   const [webauthn2faEnabled, setWebauthn2faEnabled] = useState(false);
   const [webauthnBackendAvailable, setWebauthnBackendAvailable] = useState(true);
@@ -523,6 +534,56 @@ export default function Profile() {
   const [deletePassword, setDeletePassword] = useState('');
   const [deletePasswordError, setDeletePasswordError] = useState<string | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const webauthnClientSupported = typeof window !== 'undefined' && window.isSecureContext && isWebAuthnSupported();
+  const webauthnSudoAvailable = webauthnClientSupported && webauthnCredentials.length > 0;
+
+  const changeEmailMethodOptions: VerificationMethodOption[] = [
+    ...(webauthnSudoAvailable ? [{
+      key: 'webauthn' as const,
+      title: t('profile.pointWebAuthn'),
+      description: t('profile.changeEmailMethodPasskeyDescription'),
+    }] : []),
+    ...(userInfo?.totp_enabled ? [{
+      key: 'totp' as const,
+      title: t('profile.pointTotp'),
+      description: t('profile.changeEmailMethodTotpDescription'),
+    }] : []),
+    {
+      key: 'email' as const,
+      title: t('profile.pointEmailCode'),
+      description: t('profile.changeEmailMethodEmailDescription'),
+    },
+    ...(recoveryKeyEnabled ? [{
+      key: 'recovery_key' as const,
+      title: t('profile.pointRecoveryKey'),
+      description: t('profile.changeEmailMethodRecoveryDescription'),
+      emergency: true,
+    }] : []),
+  ];
+
+  const recoveryKeyMethodOptions: VerificationMethodOption[] = [
+    ...(webauthnSudoAvailable ? [{
+      key: 'webauthn' as const,
+      title: t('profile.pointWebAuthn'),
+      description: t('profile.recoveryKeyMethodPasskeyDescription'),
+    }] : []),
+    ...(userInfo?.totp_enabled ? [{
+      key: 'totp' as const,
+      title: t('profile.pointTotp'),
+      description: t('profile.recoveryKeyMethodTotpDescription'),
+    }] : []),
+    {
+      key: 'email' as const,
+      title: t('profile.pointEmailCode'),
+      description: t('profile.recoveryKeyMethodEmailDescription'),
+    },
+    ...(recoveryKeyEnabled ? [{
+      key: 'recovery_key' as const,
+      title: t('profile.pointRecoveryKey'),
+      description: t('profile.recoveryKeyMethodRecoveryDescription'),
+      emergency: true,
+    }] : []),
+  ];
 
   const fetchTextures = async () => {
     // 优先使用缓存
@@ -965,11 +1026,14 @@ export default function Profile() {
     }
 
     setRecoveryKeyDialogOpen(false);
+    setRecoveryKeyMethodDialogOpen(false);
     setRecoveryKeyDialogError(null);
     setRecoveryKeyTotpCode('');
     setRecoveryKeyEmailCode('');
     setRecoveryKeyVerificationValue('');
     setGeneratedRecoveryKey('');
+    setSelectedRecoveryKeyMethod(null);
+    setRecoveryKeyEmailCodeSent(false);
   };
 
   const handleCreateRecoveryKey = async () => {
@@ -1012,17 +1076,94 @@ export default function Profile() {
     setRecoveryKeyEmailCode('');
     setRecoveryKeyVerificationValue('');
     setRecoveryKeyDialogError(null);
+    setSelectedRecoveryKeyMethod(getPreferredVerificationMethod(recoveryKeyMethodOptions.map((option) => option.key)));
+    setRecoveryKeyMethodDialogOpen(false);
+    setRecoveryKeyEmailCodeSent(false);
     setRecoveryKeyDialogOpen(true);
   };
 
   const buildRecoveryKeyPayload = (
+    method: VerificationMethodKey,
     webauthn?: RecoveryKeyVerificationRequest['webauthn']
   ): RecoveryKeyVerificationRequest => ({
-    totp_code: recoveryKeyTotpCode || undefined,
-    email_code: recoveryKeyEmailCode || undefined,
-    recovery_key: recoveryKeyVerificationValue.trim().toUpperCase() || undefined,
-    webauthn,
+    totp_code: method === 'totp' ? (recoveryKeyTotpCode || undefined) : undefined,
+    email_code: method === 'email' ? (recoveryKeyEmailCode || undefined) : undefined,
+    recovery_key: method === 'recovery_key' ? (recoveryKeyVerificationValue.trim().toUpperCase() || undefined) : undefined,
+    webauthn: method === 'webauthn' ? webauthn : undefined,
   });
+
+  const openChangeEmailDialog = () => {
+    setNewEmail('');
+    setEmailCode('');
+    setChangeEmailTotpCode('');
+    setChangeEmailRecoveryKey('');
+    setChangeEmailError(null);
+    setChangeEmailSuccess(false);
+    setChangeEmailCodeSent(false);
+    setSelectedChangeEmailMethod(getPreferredVerificationMethod(changeEmailMethodOptions.map((option) => option.key)));
+    setChangeEmailMethodDialogOpen(false);
+    setChangeEmailDialogOpen(true);
+  };
+
+  const closeChangeEmailDialog = () => {
+    if (changeEmailLoading) {
+      return;
+    }
+
+    setChangeEmailMethodDialogOpen(false);
+    setChangeEmailDialogOpen(false);
+  };
+
+  const getSelectedRecoveryKeyPayload = () => {
+    if (selectedRecoveryKeyMethod === 'totp') {
+      if (!recoveryKeyTotpCode || recoveryKeyTotpCode.length !== 6) {
+        setRecoveryKeyDialogError(t('login.errors.totpRequired'));
+        return null;
+      }
+      return buildRecoveryKeyPayload('totp');
+    }
+
+    if (selectedRecoveryKeyMethod === 'email') {
+      if (!recoveryKeyEmailCode || recoveryKeyEmailCode.length !== 6) {
+        setRecoveryKeyDialogError(t('login.errors.emailCodeRequired'));
+        return null;
+      }
+      return buildRecoveryKeyPayload('email');
+    }
+
+    if (selectedRecoveryKeyMethod === 'recovery_key') {
+      if (!recoveryKeyVerificationValue.trim()) {
+        setRecoveryKeyDialogError(t('login.errors.recoveryKeyRequired'));
+        return null;
+      }
+      return buildRecoveryKeyPayload('recovery_key');
+    }
+
+    if (selectedRecoveryKeyMethod === 'webauthn') {
+      return buildRecoveryKeyPayload('webauthn');
+    }
+
+    setRecoveryKeyDialogError(t('profile.recoveryKeyFactorRequired'));
+    return null;
+  };
+
+  const selectRecoveryKeyMethod = async (method: VerificationMethodKey) => {
+    setSelectedRecoveryKeyMethod(method);
+    setRecoveryKeyDialogError(null);
+
+    if (method === 'email' && !recoveryKeyEmailCodeSent) {
+      await handleSendRecoveryKeyEmailCode();
+    }
+  };
+
+  const selectChangeEmailMethod = async (method: VerificationMethodKey) => {
+    setSelectedChangeEmailMethod(method);
+    setChangeEmailError(null);
+
+    if (method === 'email' && !changeEmailCodeSent) {
+      await handleSendChangeEmailCode();
+    }
+  };
 
   const performRecoveryKeyAction = async (payload: RecoveryKeyVerificationRequest) => {
     if (recoveryKeyDialogMode === 'regenerate') {
@@ -1068,11 +1209,13 @@ export default function Profile() {
   };
 
   const handleSubmitRecoveryKeyAction = async () => {
-    const payload = buildRecoveryKeyPayload();
-    if (!payload.totp_code && !payload.email_code && !payload.recovery_key) {
-      setRecoveryKeyDialogError(t('profile.recoveryKeyFactorRequired'));
+    if (selectedRecoveryKeyMethod === 'webauthn') {
+      await handleRecoveryKeyWebAuthnAction();
       return;
     }
+
+    const payload = getSelectedRecoveryKeyPayload();
+    if (!payload) return;
 
     setRecoveryKeyLoading(true);
     setRecoveryKeyDialogError(null);
@@ -1098,6 +1241,7 @@ export default function Profile() {
         return;
       }
 
+      setRecoveryKeyEmailCodeSent(true);
       setTwoFactorFeedback({
         severity: 'success',
         message: t('profile.recoveryKeyEmailCodeSent'),
@@ -1122,7 +1266,7 @@ export default function Profile() {
       }
 
       const credential = await authenticateWithWebAuthn(beginResp.data.options);
-      await performRecoveryKeyAction(buildRecoveryKeyPayload({
+      await performRecoveryKeyAction(buildRecoveryKeyPayload('webauthn', {
         flow_id: beginResp.data.flow_id,
         credential,
       }));
@@ -1139,8 +1283,8 @@ export default function Profile() {
     try {
       const resp = await sendChangeEmailCode();
       if (resp.success) {
+        setChangeEmailCodeSent(true);
         setChangeEmailError(null);
-        // 可以提示已发送
       } else {
         setChangeEmailError(resp.message || t('profile.saveFailed'));
       }
@@ -1191,7 +1335,40 @@ export default function Profile() {
       return;
     }
 
-    if (!emailCode && !changeEmailTotpCode && !changeEmailRecoveryKey.trim()) {
+    if (selectedChangeEmailMethod === 'webauthn') {
+      await handleBeginWebAuthnSudo();
+      return;
+    }
+
+    let params: {
+      new_email: string;
+      email_code?: string;
+      totp_code?: string;
+      recovery_key?: string;
+    } | null = null;
+
+    if (selectedChangeEmailMethod === 'email') {
+      if (!emailCode || emailCode.length !== 6) {
+        setChangeEmailError(t('login.errors.emailCodeRequired'));
+        return;
+      }
+      params = { new_email: newEmail, email_code: emailCode };
+    } else if (selectedChangeEmailMethod === 'totp') {
+      if (!changeEmailTotpCode || changeEmailTotpCode.length !== 6) {
+        setChangeEmailError(t('login.errors.totpRequired'));
+        return;
+      }
+      params = { new_email: newEmail, totp_code: changeEmailTotpCode };
+    } else if (selectedChangeEmailMethod === 'recovery_key') {
+      if (!changeEmailRecoveryKey.trim()) {
+        setChangeEmailError(t('login.errors.recoveryKeyRequired'));
+        return;
+      }
+      params = {
+        new_email: newEmail,
+        recovery_key: changeEmailRecoveryKey.trim().toUpperCase(),
+      };
+    } else {
       setChangeEmailError(t('profile.changeEmailInsufficientAuth'));
       return;
     }
@@ -1200,13 +1377,6 @@ export default function Profile() {
     setChangeEmailError(null);
 
     try {
-      const params = {
-        new_email: newEmail,
-        email_code: emailCode || undefined,
-        totp_code: changeEmailTotpCode || undefined,
-        recovery_key: changeEmailRecoveryKey.trim().toUpperCase() || undefined,
-      };
-
       const resp = await changeEmail(params);
       if (resp.success) {
         setChangeEmailSuccess(true);
@@ -1734,7 +1904,6 @@ export default function Profile() {
   const userInitial = userInfo.username ? userInfo.username.charAt(0).toUpperCase() : 'U';
   const webauthnAvailabilityError = getWebAuthnAvailabilityError();
   const webauthnRegistrationReady = !webauthnAvailabilityError;
-  const webauthnClientSupported = typeof window !== 'undefined' && window.isSecureContext && isWebAuthnSupported();
   const webauthnCredentialSummary = webauthnCredentials.length > 0
     ? t('profile.webauthnCredentialCount', { count: webauthnCredentials.length })
     : t('profile.webauthnNotRegistered');
@@ -1828,7 +1997,7 @@ export default function Profile() {
               </Typography>
               <Button
                 startIcon={<Edit />}
-                onClick={() => setChangeEmailDialogOpen(true)}
+                onClick={openChangeEmailDialog}
                 size="small"
                 color="primary"
               >
@@ -2414,48 +2583,97 @@ export default function Profile() {
                     ? t('profile.recoveryKeyRegenerateHint')
                     : t('profile.recoveryKeyRevokeHint')}
                 </Typography>
-                <TextField
-                  label={t('profile.totpTitle')}
-                  value={recoveryKeyTotpCode}
-                  onChange={(e) => setRecoveryKeyTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  placeholder={t('login.totpPlaceholder')}
-                  fullWidth
-                  disabled={recoveryKeyLoading}
-                />
-                <Stack direction="row" spacing={1}>
-                  <TextField
-                    label={t('profile.emailCodeLabel')}
-                    value={recoveryKeyEmailCode}
-                    onChange={(e) => setRecoveryKeyEmailCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    placeholder={t('profile.emailCodePlaceholder')}
-                    fullWidth
-                    disabled={recoveryKeyLoading || recoveryKeySendingEmailCode}
-                  />
-                  <Button
-                    variant="outlined"
-                    onClick={handleSendRecoveryKeyEmailCode}
-                    disabled={recoveryKeyLoading || recoveryKeySendingEmailCode}
-                    sx={{ height: 56 }}
-                  >
-                    {recoveryKeySendingEmailCode ? t('common.loading') : t('profile.sendCodeToCurrentEmail')}
-                  </Button>
-                </Stack>
-                <TextField
-                  label={t('profile.recoveryKeyCurrentLabel')}
-                  value={recoveryKeyVerificationValue}
-                  onChange={(e) => setRecoveryKeyVerificationValue(e.target.value.toUpperCase().slice(0, 19))}
-                  placeholder={t('profile.recoveryKeyPlaceholder')}
-                  fullWidth
-                  disabled={recoveryKeyLoading}
-                  helperText={t('profile.recoveryKeyFactorHint')}
-                />
-                <Button
-                  variant="outlined"
-                  onClick={handleRecoveryKeyWebAuthnAction}
-                  disabled={recoveryKeyLoading || recoveryKeySendingEmailCode || !isWebAuthnSupported()}
+                <Box
+                  sx={{
+                    px: 2,
+                    py: 1.5,
+                    borderRadius: 2,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                  }}
                 >
-                  {t('profile.pointWebAuthn')}
-                </Button>
+                  <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
+                    <Box>
+                      <Typography variant="subtitle2">
+                        {t('profile.currentVerificationMethod')}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {selectedRecoveryKeyMethod === 'webauthn'
+                          ? t('profile.pointWebAuthn')
+                          : selectedRecoveryKeyMethod === 'totp'
+                            ? t('profile.pointTotp')
+                            : selectedRecoveryKeyMethod === 'email'
+                              ? t('profile.pointEmailCode')
+                              : t('profile.pointRecoveryKey')}
+                      </Typography>
+                    </Box>
+                    {recoveryKeyMethodOptions.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="text"
+                        size="small"
+                        onClick={() => setRecoveryKeyMethodDialogOpen(true)}
+                        disabled={recoveryKeyLoading || recoveryKeySendingEmailCode}
+                        sx={{ textTransform: 'none', whiteSpace: 'nowrap' }}
+                      >
+                        {t('profile.switchVerificationMethod')}
+                      </Button>
+                    )}
+                  </Stack>
+                </Box>
+
+                {selectedRecoveryKeyMethod === 'totp' && (
+                  <TextField
+                    label={t('profile.totpTitle')}
+                    value={recoveryKeyTotpCode}
+                    onChange={(e) => setRecoveryKeyTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    placeholder={t('login.totpPlaceholder')}
+                    fullWidth
+                    disabled={recoveryKeyLoading}
+                    helperText={t('profile.recoveryKeyMethodTotpDescription')}
+                  />
+                )}
+
+                {selectedRecoveryKeyMethod === 'email' && (
+                  <Stack direction="row" spacing={1}>
+                    <TextField
+                      label={t('profile.emailCodeLabel')}
+                      value={recoveryKeyEmailCode}
+                      onChange={(e) => setRecoveryKeyEmailCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      placeholder={t('profile.emailCodePlaceholder')}
+                      fullWidth
+                      disabled={recoveryKeyLoading || recoveryKeySendingEmailCode}
+                      helperText={t('profile.recoveryKeyMethodEmailDescription')}
+                    />
+                    <Button
+                      type="button"
+                      variant="outlined"
+                      onClick={handleSendRecoveryKeyEmailCode}
+                      disabled={recoveryKeyLoading || recoveryKeySendingEmailCode}
+                      sx={{ height: 56 }}
+                    >
+                      {recoveryKeySendingEmailCode ? t('common.loading') : t('profile.sendCodeToCurrentEmail')}
+                    </Button>
+                  </Stack>
+                )}
+
+                {selectedRecoveryKeyMethod === 'recovery_key' && (
+                  <TextField
+                    label={t('profile.recoveryKeyCurrentLabel')}
+                    value={recoveryKeyVerificationValue}
+                    onChange={(e) => setRecoveryKeyVerificationValue(e.target.value.toUpperCase().slice(0, 19))}
+                    placeholder={t('profile.recoveryKeyPlaceholder')}
+                    fullWidth
+                    disabled={recoveryKeyLoading}
+                    helperText={t('profile.recoveryKeyMethodRecoveryDescription')}
+                  />
+                )}
+
+                {selectedRecoveryKeyMethod === 'webauthn' && (
+                  <Alert severity="info">
+                    {t('profile.recoveryKeyMethodPasskeyDescription')}
+                  </Alert>
+                )}
               </>
             )}
           </Stack>
@@ -2518,7 +2736,7 @@ export default function Profile() {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={changeEmailDialogOpen} onClose={() => setChangeEmailDialogOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog open={changeEmailDialogOpen} onClose={closeChangeEmailDialog} maxWidth="sm" fullWidth>
         <DialogTitle>{t('profile.changeEmailTitle')}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
@@ -2533,34 +2751,6 @@ export default function Profile() {
                     {changeEmailError}
                   </Alert>
                 )}
-                
-                <Box>
-                  <Typography variant="subtitle2" gutterBottom>
-                    {t('profile.securityPointsHint')}
-                  </Typography>
-                  <Stack direction="row" spacing={1} flexWrap="wrap" gap={1}>
-                    <Chip
-                      label={t('profile.pointEmailCode')}
-                      color={emailCode ? 'success' : 'default'}
-                      size="small"
-                    />
-                    <Chip
-                      label={t('profile.pointTotp')}
-                      color={changeEmailTotpCode ? 'success' : 'default'}
-                      size="small"
-                    />
-                    <Chip
-                      label={t('profile.pointRecoveryKey')}
-                      color={changeEmailRecoveryKey ? 'success' : 'default'}
-                      size="small"
-                    />
-                    <Chip
-                      label={t('profile.pointWebAuthn')}
-                      color="default"
-                      size="small"
-                    />
-                  </Stack>
-                </Box>
 
                 <TextField
                   label={t('profile.newEmailLabel')}
@@ -2573,59 +2763,104 @@ export default function Profile() {
 
                 <Divider />
 
-                <Stack direction="row" spacing={1}>
+                <Box
+                  sx={{
+                    px: 2,
+                    py: 1.5,
+                    borderRadius: 2,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                  }}
+                >
+                  <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
+                    <Box>
+                      <Typography variant="subtitle2">
+                        {t('profile.currentVerificationMethod')}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {selectedChangeEmailMethod === 'webauthn'
+                          ? t('profile.pointWebAuthn')
+                          : selectedChangeEmailMethod === 'totp'
+                            ? t('profile.pointTotp')
+                            : selectedChangeEmailMethod === 'email'
+                              ? t('profile.pointEmailCode')
+                              : t('profile.pointRecoveryKey')}
+                      </Typography>
+                    </Box>
+                    {changeEmailMethodOptions.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="text"
+                        size="small"
+                        onClick={() => setChangeEmailMethodDialogOpen(true)}
+                        disabled={changeEmailLoading || sendingEmailCode}
+                        sx={{ textTransform: 'none', whiteSpace: 'nowrap' }}
+                      >
+                        {t('profile.switchVerificationMethod')}
+                      </Button>
+                    )}
+                  </Stack>
+                </Box>
+
+                {selectedChangeEmailMethod === 'email' && (
+                  <Stack direction="row" spacing={1}>
+                    <TextField
+                      label={t('profile.emailCodeLabel')}
+                      value={emailCode}
+                      onChange={(e) => setEmailCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      placeholder={t('profile.emailCodePlaceholder')}
+                      fullWidth
+                      disabled={changeEmailLoading || sendingEmailCode}
+                      helperText={t('profile.changeEmailMethodEmailDescription')}
+                    />
+                    <Button
+                      type="button"
+                      variant="outlined"
+                      onClick={handleSendChangeEmailCode}
+                      disabled={sendingEmailCode || changeEmailLoading}
+                      sx={{ height: 56 }}
+                    >
+                      {sendingEmailCode ? t('common.loading') : t('profile.sendCodeToCurrentEmail')}
+                    </Button>
+                  </Stack>
+                )}
+
+                {selectedChangeEmailMethod === 'totp' && (
                   <TextField
-                    label={t('profile.emailCodeLabel')}
-                    value={emailCode}
-                    onChange={(e) => setEmailCode(e.target.value)}
-                    placeholder={t('profile.emailCodePlaceholder')}
+                    label={t('profile.totpTitle')}
+                    value={changeEmailTotpCode}
+                    onChange={(e) => setChangeEmailTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    placeholder={t('login.totpPlaceholder')}
                     fullWidth
                     disabled={changeEmailLoading}
-                    helperText={t('profile.pointEmailCode')}
+                    helperText={t('profile.changeEmailMethodTotpDescription')}
                   />
-                  <Button
-                    variant="outlined"
-                    onClick={handleSendChangeEmailCode}
-                    disabled={sendingEmailCode || changeEmailLoading}
-                    sx={{ height: 56 }}
-                  >
-                    {sendingEmailCode ? t('common.loading') : t('profile.sendCodeToCurrentEmail')}
-                  </Button>
-                </Stack>
+                )}
 
-                <TextField
-                  label={t('profile.totpTitle')}
-                  value={changeEmailTotpCode}
-                  onChange={(e) => setChangeEmailTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  placeholder={t('login.totpPlaceholder')}
-                  fullWidth
-                  disabled={changeEmailLoading}
-                  helperText={t('profile.pointTotp')}
-                />
+                {selectedChangeEmailMethod === 'recovery_key' && (
+                  <TextField
+                    label={t('profile.recoveryKeyLabel')}
+                    value={changeEmailRecoveryKey}
+                    onChange={(e) => setChangeEmailRecoveryKey(e.target.value.toUpperCase().slice(0, 19))}
+                    placeholder={t('profile.recoveryKeyPlaceholder')}
+                    fullWidth
+                    disabled={changeEmailLoading}
+                    helperText={t('profile.changeEmailMethodRecoveryDescription')}
+                  />
+                )}
 
-                <TextField
-                  label={t('profile.recoveryKeyLabel')}
-                  value={changeEmailRecoveryKey}
-                  onChange={(e) => setChangeEmailRecoveryKey(e.target.value.toUpperCase().slice(0, 19))}
-                  placeholder={t('profile.recoveryKeyPlaceholder')}
-                  fullWidth
-                  disabled={changeEmailLoading}
-                  helperText={t('profile.pointRecoveryKey')}
-                />
+                {selectedChangeEmailMethod === 'webauthn' && (
+                  <Alert severity="info">
+                    {t('profile.changeEmailMethodPasskeyDescription')}
+                  </Alert>
+                )}
               </>
             )}
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setChangeEmailDialogOpen(false)} disabled={changeEmailLoading}>
+          <Button onClick={closeChangeEmailDialog} disabled={changeEmailLoading}>
             {t('common.cancel')}
-          </Button>
-          <Button
-            variant="outlined"
-            onClick={handleBeginWebAuthnSudo}
-            disabled={changeEmailLoading || !webauthnClientSupported}
-          >
-            {t('profile.pointWebAuthn')}
           </Button>
           <Button
             variant="contained"
@@ -2636,6 +2871,38 @@ export default function Profile() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <VerificationMethodPickerDialog
+        open={changeEmailMethodDialogOpen}
+        title={t('profile.chooseVerificationMethodDialogTitle')}
+        description={t('profile.changeEmailMethodDialogDescription')}
+        value={selectedChangeEmailMethod}
+        options={changeEmailMethodOptions}
+        closeLabel={t('common.cancel')}
+        revealEmergencyLabel={t('profile.recoveryMethodGroup')}
+        emergencyDescription={t('profile.recoveryMethodHint')}
+        onSelect={(method) => {
+          void selectChangeEmailMethod(method);
+          setChangeEmailMethodDialogOpen(false);
+        }}
+        onClose={() => setChangeEmailMethodDialogOpen(false)}
+      />
+
+      <VerificationMethodPickerDialog
+        open={recoveryKeyMethodDialogOpen}
+        title={t('profile.chooseVerificationMethodDialogTitle')}
+        description={t('profile.recoveryKeyMethodDialogDescription')}
+        value={selectedRecoveryKeyMethod}
+        options={recoveryKeyMethodOptions}
+        closeLabel={t('common.cancel')}
+        revealEmergencyLabel={t('profile.recoveryMethodGroup')}
+        emergencyDescription={t('profile.recoveryMethodHint')}
+        onSelect={(method) => {
+          void selectRecoveryKeyMethod(method);
+          setRecoveryKeyMethodDialogOpen(false);
+        }}
+        onClose={() => setRecoveryKeyMethodDialogOpen(false)}
+      />
     </Box>
   );
 }

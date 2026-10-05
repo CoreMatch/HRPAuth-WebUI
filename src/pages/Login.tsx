@@ -18,6 +18,11 @@ import {
 import { completeLogin } from '../utils/auth';
 import { useMeta } from '../hooks/useMeta';
 import { authenticateWithWebAuthn, isWebAuthnSupported } from '../utils/webauthn';
+import VerificationMethodPickerDialog, {
+  getPreferredVerificationMethod,
+  type VerificationMethodKey,
+  type VerificationMethodOption,
+} from '../components/VerificationMethodPickerDialog';
 
 export default function Login() {
   useMeta('login');
@@ -28,22 +33,22 @@ export default function Login() {
   const [totpCode, setTotpCode] = useState('');
   const [email2faCode, setEmail2faCode] = useState('');
   const [recoveryKey, setRecoveryKey] = useState('');
-  const [showTotp, setShowTotp] = useState(false);
-  const [showEmail2fa, setShowEmail2fa] = useState(false);
-  const [showRecoveryKey, setShowRecoveryKey] = useState(false);
+  const [selectedSecondFactor, setSelectedSecondFactor] = useState<VerificationMethodKey | null>(null);
+  const [secondFactorDialogOpen, setSecondFactorDialogOpen] = useState(false);
   const [totpAvailable, setTotpAvailable] = useState(false);
   const [emailAvailable, setEmailAvailable] = useState(false);
   const [recoveryKeyAvailable, setRecoveryKeyAvailable] = useState(false);
-  const [webauthnRequired, setWebauthnRequired] = useState(false);
   const [webauthnAvailable, setWebauthnAvailable] = useState(false);
   const [loginTicket, setLoginTicketVal] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [remember, setRemember] = useState(true);
   const [loading, setLoading] = useState(false);
   const [sendingEmail, setSendingEmail] = useState(false);
+  const [emailCodeSent, setEmailCodeSent] = useState(false);
   const [webauthnLoading, setWebauthnLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const navigate = useNavigate();
+  const webauthnSupported = isWebAuthnSupported();
 
   // If navigated from Register with a login_ticket (TOTP required after auto-register),
   // automatically enter TOTP mode.
@@ -53,15 +58,91 @@ export default function Login() {
       setEmail(state.email);
       setLoginTicketVal(state.login_ticket);
       setTotpAvailable(true);
-      setShowTotp(true);
-      setShowEmail2fa(false);
-      setShowRecoveryKey(false);
-      setWebauthnRequired(false);
+      setSelectedSecondFactor('totp');
+      setEmailAvailable(false);
+      setRecoveryKeyAvailable(false);
       setWebauthnAvailable(false);
+      setEmailCodeSent(false);
       // Clear state so a page refresh won't re-trigger this
       window.history.replaceState({}, '');
     }
   }, [location.state]);
+
+  const availableSecondFactors: VerificationMethodKey[] = [
+    ...(webauthnAvailable ? ['webauthn' as const] : []),
+    ...(totpAvailable ? ['totp' as const] : []),
+    ...(emailAvailable ? ['email' as const] : []),
+    ...(recoveryKeyAvailable ? ['recovery_key' as const] : []),
+  ];
+
+  const selectableSecondFactors: VerificationMethodKey[] = [
+    ...(webauthnAvailable && webauthnSupported ? ['webauthn' as const] : []),
+    ...(totpAvailable ? ['totp' as const] : []),
+    ...(emailAvailable ? ['email' as const] : []),
+    ...(recoveryKeyAvailable ? ['recovery_key' as const] : []),
+  ];
+
+  const activeSecondFactor = (
+    selectedSecondFactor && availableSecondFactors.includes(selectedSecondFactor)
+      ? selectedSecondFactor
+      : getPreferredVerificationMethod(
+        selectableSecondFactors.length > 0 ? selectableSecondFactors : availableSecondFactors
+      )
+  );
+
+  const secondFactorOptions: VerificationMethodOption[] = [
+    ...(webauthnAvailable && webauthnSupported ? [{
+      key: 'webauthn' as const,
+      title: t('login.usePasskeySecondFactorOption'),
+      description: t('login.secondFactorPasskeyDescription'),
+    }] : []),
+    ...(totpAvailable ? [{
+      key: 'totp' as const,
+      title: t('login.useAuthenticatorSecondFactor'),
+      description: t('login.secondFactorTotpDescription'),
+    }] : []),
+    ...(emailAvailable ? [{
+      key: 'email' as const,
+      title: t('login.useEmailSecondFactor'),
+      description: t('login.secondFactorEmailDescription'),
+    }] : []),
+    ...(recoveryKeyAvailable ? [{
+      key: 'recovery_key' as const,
+      title: t('login.useRecoveryKeySecondFactor'),
+      description: t('login.secondFactorRecoveryDescription'),
+      emergency: true,
+    }] : []),
+  ];
+
+  async function sendEmail2faCodeForTicket(ticket: string) {
+    if (!ticket) return false;
+
+    setSendingEmail(true);
+    try {
+      const res = await sendEmail2faCode(ticket);
+      if (!res.success) {
+        setError(res.message || t('login.errors.loginFailed'));
+        return false;
+      }
+
+      setEmailCodeSent(true);
+      return true;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('login.errors.networkError'));
+      return false;
+    } finally {
+      setSendingEmail(false);
+    }
+  }
+
+  async function selectSecondFactor(method: VerificationMethodKey) {
+    setSelectedSecondFactor(method);
+    setError(null);
+
+    if (method === 'email' && loginTicket && !emailCodeSent) {
+      await sendEmail2faCodeForTicket(loginTicket);
+    }
+  }
 
   function validate() {
     setError(null);
@@ -76,24 +157,29 @@ export default function Login() {
         setError(t('login.errors.passwordRequired'));
         return false;
       }
-    } else if (showTotp) {
-      if (!totpCode || totpCode.length !== 6) {
-        setError(t('login.errors.totpRequired'));
+    } else {
+      if (activeSecondFactor === 'totp') {
+        if (!totpCode || totpCode.length !== 6) {
+          setError(t('login.errors.totpRequired'));
+          return false;
+        }
+      } else if (activeSecondFactor === 'email') {
+        if (!email2faCode || email2faCode.length !== 6) {
+          setError(t('login.errors.emailCodeRequired'));
+          return false;
+        }
+      } else if (activeSecondFactor === 'recovery_key') {
+        if (!recoveryKey.trim()) {
+          setError(t('login.errors.recoveryKeyRequired'));
+          return false;
+        }
+      } else if (activeSecondFactor === 'webauthn') {
+        setError(webauthnSupported ? t('login.webauthnSecondFactorRequired') : t('login.webauthnUnsupported'));
+        return false;
+      } else {
+        setError(t('login.errors.loginFailed'));
         return false;
       }
-    } else if (showEmail2fa) {
-      if (!email2faCode || email2faCode.length !== 6) {
-        setError(t('login.errors.emailCodeRequired'));
-        return false;
-      }
-    } else if (showRecoveryKey) {
-      if (!recoveryKey.trim()) {
-        setError(t('login.errors.recoveryKeyRequired'));
-        return false;
-      }
-    } else if (webauthnAvailable) {
-      setError(t('login.webauthnSecondFactorRequired'));
-      return false;
     }
 
     return true;
@@ -196,18 +282,7 @@ export default function Login() {
   }
 
   async function handleSendEmail2faCode() {
-    if (!loginTicket) return;
-    setSendingEmail(true);
-    try {
-      const res = await sendEmail2faCode(loginTicket);
-      if (!res.success) {
-        setError(res.message || t('login.errors.loginFailed'));
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('login.errors.networkError'));
-    } finally {
-      setSendingEmail(false);
-    }
+    await sendEmail2faCodeForTicket(loginTicket);
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -218,7 +293,7 @@ export default function Login() {
     setError(null);
 
     try {
-      if (!showTotp && !showEmail2fa) {
+      if (!loginTicket) {
         const res = await getLoginTicket(email, password);
         if (!res.success) {
           setError(mapLoginError(res.message, res.code));
@@ -246,37 +321,44 @@ export default function Login() {
             ? secondFactors.includes('recovery_key')
             : Boolean(data.recovery_key_required);
 
+          const ticket = data.login_ticket || '';
+          const nextAvailableSecondFactors: VerificationMethodKey[] = [
+            ...(nextWebauthnAvailable ? ['webauthn' as const] : []),
+            ...(nextTotpAvailable ? ['totp' as const] : []),
+            ...(nextEmailAvailable ? ['email' as const] : []),
+            ...(nextRecoveryKeyAvailable ? ['recovery_key' as const] : []),
+          ];
+          const nextSelectableSecondFactors: VerificationMethodKey[] = [
+            ...(nextWebauthnAvailable && webauthnSupported ? ['webauthn' as const] : []),
+            ...(nextTotpAvailable ? ['totp' as const] : []),
+            ...(nextEmailAvailable ? ['email' as const] : []),
+            ...(nextRecoveryKeyAvailable ? ['recovery_key' as const] : []),
+          ];
+          const preferredSecondFactor = getPreferredVerificationMethod(
+            nextSelectableSecondFactors.length > 0 ? nextSelectableSecondFactors : nextAvailableSecondFactors
+          );
+
           setTotpAvailable(nextTotpAvailable);
           setEmailAvailable(nextEmailAvailable);
           setWebauthnAvailable(nextWebauthnAvailable);
           setRecoveryKeyAvailable(nextRecoveryKeyAvailable);
-          setWebauthnRequired(nextWebauthnAvailable && !nextTotpAvailable && !nextEmailAvailable && !nextRecoveryKeyAvailable);
-          
-          setLoginTicketVal(data.login_ticket || '');
+          setSelectedSecondFactor(preferredSecondFactor);
+          setEmailCodeSent(false);
+          setLoginTicketVal(ticket);
 
-          if (nextTotpAvailable) {
-            setShowTotp(true);
-            setShowEmail2fa(false);
-            setShowRecoveryKey(false);
-          } else if (nextEmailAvailable) {
-            setShowTotp(false);
-            setShowEmail2fa(true);
-            setShowRecoveryKey(false);
-            // Automatically send code if email is the only factor
-            if (secondFactors.length === 1 || (!nextTotpAvailable && !nextWebauthnAvailable && !nextRecoveryKeyAvailable)) {
-              await sendEmail2faCode(data.login_ticket || '');
+          if (preferredSecondFactor === 'email' && ticket) {
+            const emailSent = await sendEmail2faCodeForTicket(ticket);
+            if (!emailSent) {
+              setLoading(false);
+              return;
             }
-          } else if (nextRecoveryKeyAvailable) {
-            setShowTotp(false);
-            setShowEmail2fa(false);
-            setShowRecoveryKey(true);
           }
           
           setLoading(false);
         } else if (data?.access_token) {
           await handleLoginSuccess(data.access_token, data.refresh_token || '', data.uid || '', remember);
         }
-      } else if (showTotp) {
+      } else if (activeSecondFactor === 'totp') {
         const res = await verifyTotp(loginTicket, totpCode);
         if (!res.success) {
           setError(res.message || t('login.errors.codeIncorrect'));
@@ -288,7 +370,7 @@ export default function Login() {
         if (data?.access_token) {
           await handleLoginSuccess(data.access_token, data.refresh_token, data.uid, remember);
         }
-      } else if (showEmail2fa) {
+      } else if (activeSecondFactor === 'email') {
         const res = await verifyEmail2fa(loginTicket, email2faCode);
         if (!res.success) {
           setError(res.message || t('login.errors.codeIncorrect'));
@@ -300,7 +382,7 @@ export default function Login() {
         if (data?.access_token) {
           await handleLoginSuccess(data.access_token, data.refresh_token, data.uid, remember);
         }
-      } else if (showRecoveryKey) {
+      } else if (activeSecondFactor === 'recovery_key') {
         const res = await verifyRecoveryKey(loginTicket, recoveryKey.trim().toUpperCase());
         if (!res.success) {
           setError(res.message || t('login.errors.codeIncorrect'));
@@ -326,8 +408,16 @@ export default function Login() {
   }
 
   const awaitingSecondFactor = Boolean(loginTicket) && (totpAvailable || webauthnAvailable || emailAvailable || recoveryKeyAvailable);
-  const availableSecondFactorCount = [totpAvailable, webauthnAvailable, emailAvailable, recoveryKeyAvailable].filter(Boolean).length;
-  const showSecondFactorSelector = awaitingSecondFactor && availableSecondFactorCount > 1;
+  const showSecondFactorSelector = awaitingSecondFactor && secondFactorOptions.length > 1;
+  const activeSecondFactorLabel = activeSecondFactor === 'webauthn'
+    ? t('login.usePasskeySecondFactorOption')
+    : activeSecondFactor === 'totp'
+      ? t('login.useAuthenticatorSecondFactor')
+      : activeSecondFactor === 'email'
+        ? t('login.useEmailSecondFactor')
+        : activeSecondFactor === 'recovery_key'
+          ? t('login.useRecoveryKeySecondFactor')
+          : '';
 
   return (
     <Box sx={{ maxWidth: 480 }}>
@@ -348,84 +438,6 @@ export default function Login() {
       ) : (
         <Stack spacing={2}>
           <form onSubmit={handleSubmit}>
-            {showSecondFactorSelector && (
-              <Stack spacing={1.5} sx={{ mb: 2 }}>
-                <Typography variant="subtitle2">
-                  {t('login.secondFactorTitle')}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {t('login.secondFactorSelectorHint')}
-                </Typography>
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-                  {totpAvailable && (
-                    <Button
-                      type="button"
-                      variant={showTotp ? 'contained' : 'outlined'}
-                      onClick={() => {
-                        setShowTotp(true);
-                        setShowEmail2fa(false);
-                        setShowRecoveryKey(false);
-                        setError(null);
-                      }}
-                      disabled={loading || webauthnLoading}
-                      fullWidth
-                    >
-                      {t('login.useAuthenticatorSecondFactor')}
-                    </Button>
-                  )}
-                  {emailAvailable && (
-                    <Button
-                      type="button"
-                      variant={showEmail2fa ? 'contained' : 'outlined'}
-                      onClick={() => {
-                        setShowTotp(false);
-                        setShowEmail2fa(true);
-                        setShowRecoveryKey(false);
-                        setError(null);
-                        handleSendEmail2faCode();
-                      }}
-                      disabled={loading || webauthnLoading || sendingEmail}
-                      fullWidth
-                    >
-                      {t('login.useEmailSecondFactor')}
-                    </Button>
-                  )}
-                  {recoveryKeyAvailable && (
-                    <Button
-                      type="button"
-                      variant={showRecoveryKey ? 'contained' : 'outlined'}
-                      onClick={() => {
-                        setShowTotp(false);
-                        setShowEmail2fa(false);
-                        setShowRecoveryKey(true);
-                        setError(null);
-                      }}
-                      disabled={loading || webauthnLoading}
-                      fullWidth
-                    >
-                      {t('login.useRecoveryKeySecondFactor')}
-                    </Button>
-                  )}
-                  {webauthnAvailable && (
-                    <Button
-                      type="button"
-                      variant={!showTotp && !showEmail2fa && !showRecoveryKey ? 'contained' : 'outlined'}
-                      onClick={() => {
-                        setShowTotp(false);
-                        setShowEmail2fa(false);
-                        setShowRecoveryKey(false);
-                        setError(null);
-                      }}
-                      disabled={loading || webauthnLoading}
-                      fullWidth
-                    >
-                      {t('login.usePasskeySecondFactorOption')}
-                    </Button>
-                  )}
-                </Stack>
-              </Stack>
-            )}
-
             {!awaitingSecondFactor ? (
               <>
                 <TextField
@@ -443,7 +455,7 @@ export default function Login() {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  required={!webauthnRequired}
+                  required
                   fullWidth
                   sx={{ mb: 2 }}
                   disabled={loading || webauthnLoading}
@@ -454,79 +466,121 @@ export default function Login() {
                   </Link>
                 </Box>
               </>
-            ) : showTotp ? (
-              <>
-                <TextField
-                  label={t('login.totpLabel')}
-                  type="text"
-                  value={totpCode}
-                  onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  placeholder={t('login.totpPlaceholder')}
-                  required
-                  fullWidth
-                  sx={{ mb: 2 }}
-                  disabled={loading || webauthnLoading}
-                  slotProps={{ htmlInput: { maxLength: 6 } }}
-                />
-                {(webauthnAvailable || emailAvailable) && (
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                    {t('login.webauthnAlternative')}
-                  </Typography>
-                )}
-              </>
-            ) : showEmail2fa ? (
-              <>
-                <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
-                  <TextField
-                    label={t('verifyEmail.codeLabel')}
-                    type="text"
-                    value={email2faCode}
-                    onChange={(e) => setEmail2faCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    placeholder="6-digit code"
-                    required
-                    fullWidth
-                    disabled={loading || webauthnLoading || sendingEmail}
-                    slotProps={{ htmlInput: { maxLength: 6 } }}
-                  />
-                  <Button
-                    variant="outlined"
-                    onClick={handleSendEmail2faCode}
-                    disabled={loading || webauthnLoading || sendingEmail}
-                    sx={{ height: 56, minWidth: 100 }}
-                  >
-                    {sendingEmail ? t('common.loading') : t('verifyEmail.sendCode')}
-                  </Button>
-                </Stack>
-                {(webauthnAvailable || totpAvailable) && (
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                    {t('login.webauthnAlternative')}
-                  </Typography>
-                )}
-              </>
-            ) : showRecoveryKey ? (
-              <>
-                <TextField
-                  label={t('login.recoveryKeyLabel')}
-                  type="text"
-                  value={recoveryKey}
-                  onChange={(e) => setRecoveryKey(e.target.value.toUpperCase().slice(0, 19))}
-                  placeholder={t('login.recoveryKeyPlaceholder')}
-                  required
-                  fullWidth
-                  sx={{ mb: 2 }}
-                  disabled={loading || webauthnLoading}
-                  slotProps={{ htmlInput: { maxLength: 19 } }}
-                />
-                {(webauthnAvailable || totpAvailable || emailAvailable) && (
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                    {t('login.secondFactorSelectorHint')}
-                  </Typography>
-                )}
-              </>
             ) : (
-              <Alert severity="info" sx={{ mb: 2 }}>
-                {t('login.webauthnSecondFactorRequired')}
-              </Alert>
+              <>
+                <Box
+                  sx={{
+                    mb: 2,
+                    px: 2,
+                    py: 1.5,
+                    borderRadius: 2,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    bgcolor: 'background.paper',
+                  }}
+                >
+                  <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
+                    <Box>
+                      <Typography variant="subtitle2">
+                        {t('login.currentMethodLabel')}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {activeSecondFactorLabel}
+                      </Typography>
+                    </Box>
+                    {showSecondFactorSelector && (
+                      <Button
+                        type="button"
+                        variant="text"
+                        size="small"
+                        onClick={() => setSecondFactorDialogOpen(true)}
+                        disabled={loading || webauthnLoading || sendingEmail}
+                        sx={{ textTransform: 'none', whiteSpace: 'nowrap' }}
+                      >
+                        {t('login.switchMethod')}
+                      </Button>
+                    )}
+                  </Stack>
+                </Box>
+
+                {activeSecondFactor === 'totp' && (
+                  <>
+                    <TextField
+                      label={t('login.totpLabel')}
+                      type="text"
+                      value={totpCode}
+                      onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      placeholder={t('login.totpPlaceholder')}
+                      required
+                      fullWidth
+                      sx={{ mb: 2 }}
+                      disabled={loading || webauthnLoading}
+                      slotProps={{ htmlInput: { maxLength: 6 } }}
+                    />
+                    {showSecondFactorSelector && (
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                        {t('login.secondFactorTotpDescription')}
+                      </Typography>
+                    )}
+                  </>
+                )}
+
+                {activeSecondFactor === 'email' && (
+                  <>
+                    <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
+                      <TextField
+                        label={t('verifyEmail.codeLabel')}
+                        type="text"
+                        value={email2faCode}
+                        onChange={(e) => setEmail2faCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        placeholder="6-digit code"
+                        required
+                        fullWidth
+                        disabled={loading || webauthnLoading || sendingEmail}
+                        slotProps={{ htmlInput: { maxLength: 6 } }}
+                      />
+                      <Button
+                        type="button"
+                        variant="outlined"
+                        onClick={handleSendEmail2faCode}
+                        disabled={loading || webauthnLoading || sendingEmail}
+                        sx={{ height: 56, minWidth: 100 }}
+                      >
+                        {sendingEmail ? t('common.loading') : t('verifyEmail.sendCode')}
+                      </Button>
+                    </Stack>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                      {t('login.secondFactorEmailDescription')}
+                    </Typography>
+                  </>
+                )}
+
+                {activeSecondFactor === 'recovery_key' && (
+                  <>
+                    <TextField
+                      label={t('login.recoveryKeyLabel')}
+                      type="text"
+                      value={recoveryKey}
+                      onChange={(e) => setRecoveryKey(e.target.value.toUpperCase().slice(0, 19))}
+                      placeholder={t('login.recoveryKeyPlaceholder')}
+                      required
+                      fullWidth
+                      sx={{ mb: 2 }}
+                      disabled={loading || webauthnLoading}
+                      slotProps={{ htmlInput: { maxLength: 19 } }}
+                    />
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                      {t('login.secondFactorRecoveryDescription')}
+                    </Typography>
+                  </>
+                )}
+
+                {activeSecondFactor === 'webauthn' && (
+                  <Alert severity={webauthnSupported ? 'info' : 'error'} sx={{ mb: 2 }}>
+                    {webauthnSupported ? t('login.webauthnSecondFactorReady') : t('login.webauthnUnsupported')}
+                  </Alert>
+                )}
+              </>
             )}
 
             <FormControlLabel
@@ -541,19 +595,19 @@ export default function Login() {
               sx={{ mb: 2 }}
             />
 
-            {(!awaitingSecondFactor || showTotp || showEmail2fa || showRecoveryKey) && (
+            {(!awaitingSecondFactor || (activeSecondFactor && activeSecondFactor !== 'webauthn')) && (
               <Button
                 variant="contained"
                 type="submit"
                 disabled={loading || webauthnLoading || sendingEmail}
                 fullWidth
               >
-                {loading ? t('common.pleaseWait') : (showTotp || showEmail2fa || showRecoveryKey ? t('login.submitTotp') : t('login.submit'))}
+                {loading ? t('common.pleaseWait') : (awaitingSecondFactor ? t('login.submitTotp') : t('login.submit'))}
               </Button>
             )}
           </form>
 
-          {isWebAuthnSupported() && !awaitingSecondFactor && (
+          {webauthnSupported && !awaitingSecondFactor && (
             <Button
               variant="outlined"
               onClick={handleWebAuthnPrimaryLogin}
@@ -564,7 +618,7 @@ export default function Login() {
             </Button>
           )}
 
-          {isWebAuthnSupported() && webauthnAvailable && loginTicket && !showTotp && !showRecoveryKey && !showEmail2fa && (
+          {webauthnSupported && activeSecondFactor === 'webauthn' && webauthnAvailable && loginTicket && (
             <Button
               variant="outlined"
               onClick={handleWebAuthnSecondFactorLogin}
@@ -576,6 +630,22 @@ export default function Login() {
           )}
         </Stack>
       )}
+
+      <VerificationMethodPickerDialog
+        open={secondFactorDialogOpen}
+        title={t('login.chooseSecondFactorDialogTitle')}
+        description={t('login.secondFactorSelectorHint')}
+        value={activeSecondFactor}
+        options={secondFactorOptions}
+        closeLabel={t('common.cancel')}
+        revealEmergencyLabel={t('login.recoveryMethodGroup')}
+        emergencyDescription={t('login.recoveryMethodHint')}
+        onSelect={(method) => {
+          void selectSecondFactor(method);
+          setSecondFactorDialogOpen(false);
+        }}
+        onClose={() => setSecondFactorDialogOpen(false)}
+      />
     </Box>
   );
 }
