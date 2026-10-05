@@ -94,22 +94,18 @@ export default function Login() {
     ...(webauthnAvailable && webauthnSupported ? [{
       key: 'webauthn' as const,
       title: t('login.usePasskeySecondFactorOption'),
-      description: t('login.secondFactorPasskeyDescription'),
     }] : []),
     ...(totpAvailable ? [{
       key: 'totp' as const,
       title: t('login.useAuthenticatorSecondFactor'),
-      description: t('login.secondFactorTotpDescription'),
     }] : []),
     ...(emailAvailable ? [{
       key: 'email' as const,
       title: t('login.useEmailSecondFactor'),
-      description: t('login.secondFactorEmailDescription'),
     }] : []),
     ...(recoveryKeyAvailable ? [{
       key: 'recovery_key' as const,
       title: t('login.useRecoveryKeySecondFactor'),
-      description: t('login.secondFactorRecoveryDescription'),
       emergency: true,
     }] : []),
   ];
@@ -612,13 +608,9 @@ export default function Login() {
       <VerificationMethodPickerDialog
         open={secondFactorDialogOpen}
         title={t('login.chooseSecondFactorDialogTitle')}
-        description={t('login.secondFactorSelectorHint')}
         value={activeSecondFactor}
         options={secondFactorOptions}
         closeLabel={t('common.cancel')}
-        currentLabel={t('login.currentMethodLabel')}
-        revealEmergencyLabel={t('login.recoveryMethodGroup')}
-        emergencyDescription={t('login.recoveryMethodHint')}
         onSelect={(method) => {
           void selectSecondFactor(method);
           setSecondFactorDialogOpen(false);

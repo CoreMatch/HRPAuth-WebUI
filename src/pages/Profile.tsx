@@ -541,22 +541,18 @@ export default function Profile() {
     ...(webauthnSudoAvailable ? [{
       key: 'webauthn' as const,
       title: t('profile.pointWebAuthn'),
-      description: t('profile.changeEmailMethodPasskeyDescription'),
     }] : []),
     ...(userInfo?.totp_enabled ? [{
       key: 'totp' as const,
       title: t('profile.pointTotp'),
-      description: t('profile.changeEmailMethodTotpDescription'),
     }] : []),
     {
       key: 'email' as const,
       title: t('profile.pointEmailCode'),
-      description: t('profile.changeEmailMethodEmailDescription'),
     },
     ...(recoveryKeyEnabled ? [{
       key: 'recovery_key' as const,
       title: t('profile.pointRecoveryKey'),
-      description: t('profile.changeEmailMethodRecoveryDescription'),
       emergency: true,
     }] : []),
   ];
@@ -565,22 +561,18 @@ export default function Profile() {
     ...(webauthnSudoAvailable ? [{
       key: 'webauthn' as const,
       title: t('profile.pointWebAuthn'),
-      description: t('profile.recoveryKeyMethodPasskeyDescription'),
     }] : []),
     ...(userInfo?.totp_enabled ? [{
       key: 'totp' as const,
       title: t('profile.pointTotp'),
-      description: t('profile.recoveryKeyMethodTotpDescription'),
     }] : []),
     {
       key: 'email' as const,
       title: t('profile.pointEmailCode'),
-      description: t('profile.recoveryKeyMethodEmailDescription'),
     },
     ...(recoveryKeyEnabled ? [{
       key: 'recovery_key' as const,
       title: t('profile.pointRecoveryKey'),
-      description: t('profile.recoveryKeyMethodRecoveryDescription'),
       emergency: true,
     }] : []),
   ];
@@ -2842,13 +2834,9 @@ export default function Profile() {
       <VerificationMethodPickerDialog
         open={changeEmailMethodDialogOpen}
         title={t('profile.chooseVerificationMethodDialogTitle')}
-        description={t('profile.changeEmailMethodDialogDescription')}
         value={selectedChangeEmailMethod}
         options={changeEmailMethodOptions}
         closeLabel={t('common.cancel')}
-        currentLabel={t('profile.currentVerificationMethod')}
-        revealEmergencyLabel={t('profile.recoveryMethodGroup')}
-        emergencyDescription={t('profile.recoveryMethodHint')}
         onSelect={(method) => {
           void selectChangeEmailMethod(method);
           setChangeEmailMethodDialogOpen(false);
@@ -2859,13 +2847,9 @@ export default function Profile() {
       <VerificationMethodPickerDialog
         open={recoveryKeyMethodDialogOpen}
         title={t('profile.chooseVerificationMethodDialogTitle')}
-        description={t('profile.recoveryKeyMethodDialogDescription')}
         value={selectedRecoveryKeyMethod}
         options={recoveryKeyMethodOptions}
         closeLabel={t('common.cancel')}
-        currentLabel={t('profile.currentVerificationMethod')}
-        revealEmergencyLabel={t('profile.recoveryMethodGroup')}
-        emergencyDescription={t('profile.recoveryMethodHint')}
         onSelect={(method) => {
           void selectRecoveryKeyMethod(method);
           setRecoveryKeyMethodDialogOpen(false);

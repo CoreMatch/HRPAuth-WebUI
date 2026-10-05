@@ -5,7 +5,6 @@ export type VerificationMethodKey = 'webauthn' | 'totp' | 'email' | 'recovery_ke
 export interface VerificationMethodOption {
   key: VerificationMethodKey;
   title: string;
-  description?: string;
   emergency?: boolean;
   disabled?: boolean;
 }
@@ -13,13 +12,9 @@ export interface VerificationMethodOption {
 interface VerificationMethodPickerDialogProps {
   open: boolean;
   title: string;
-  description?: string;
   value: VerificationMethodKey | null;
   options: VerificationMethodOption[];
   closeLabel: string;
-  currentLabel?: string;
-  revealEmergencyLabel?: string;
-  emergencyDescription?: string;
   onSelect: (method: VerificationMethodKey) => void;
   onClose: () => void;
 }
@@ -61,11 +56,6 @@ function MethodButton({
         <Typography variant="body1" sx={{ fontWeight: 600 }} color="inherit">
           {option.title}
         </Typography>
-        {option.description && (
-          <Typography variant="body2" color={selected ? 'inherit' : 'text.secondary'} sx={{ textAlign: 'left' }}>
-            {option.description}
-          </Typography>
-        )}
       </Stack>
     </Button>
   );
@@ -74,13 +64,9 @@ function MethodButton({
 export default function VerificationMethodPickerDialog({
   open,
   title,
-  description,
   value,
   options,
   closeLabel,
-  currentLabel,
-  revealEmergencyLabel,
-  emergencyDescription,
   onSelect,
   onClose,
 }: VerificationMethodPickerDialogProps) {
@@ -93,23 +79,6 @@ export default function VerificationMethodPickerDialog({
       <DialogTitle>{title}</DialogTitle>
       <DialogContent>
         <Stack spacing={1.5} sx={{ mt: 1 }}>
-          {description && (
-            <Typography variant="body2" color="text.secondary">
-              {description}
-            </Typography>
-          )}
-
-          {currentOption && (
-            <Stack spacing={0.5}>
-              <Typography variant="subtitle2">
-                {currentLabel}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {currentOption.title}
-              </Typography>
-            </Stack>
-          )}
-
           {otherPrimaryOptions.map((option) => (
             <MethodButton
               key={option.key}
@@ -122,16 +91,6 @@ export default function VerificationMethodPickerDialog({
           {otherEmergencyOptions.length > 0 && (
             <>
               {(otherPrimaryOptions.length > 0 || currentOption) && <Divider />}
-              {revealEmergencyLabel && (
-                <Typography variant="subtitle2">
-                  {revealEmergencyLabel}
-                </Typography>
-              )}
-              {emergencyDescription && (
-                <Typography variant="body2" color="text.secondary">
-                  {emergencyDescription}
-                </Typography>
-              )}
               {otherEmergencyOptions.map((option) => (
                 <MethodButton
                   key={option.key}
