@@ -39,7 +39,7 @@ import {
   changeEmail,
   beginWebAuthnSudo,
 } from '../api/user';
-import { clearAuthCookies, getUserEmail, getAuthToken, getUid, getVerified, getTotpEnabled, setTotpEnabled } from '../utils/cookie';
+import { clearAuthCookies, getUserEmail, getAuthToken, getUid, getTotpEnabled, setTotpEnabled } from '../utils/cookie';
 import { BackendUrl } from '../utils/config';
 import { authenticateWithWebAuthn, isWebAuthnSupported, registerWithWebAuthn } from '../utils/webauthn';
 import VerificationMethodPickerDialog, {
@@ -751,17 +751,16 @@ export default function Profile() {
         setRecoveryKeyEnabled(recovery_key_enabled);
         setEmail2faEnabled(email_2fa_enabled);
 
-        setUserInfo((prev) =>
-          prev
-            ? {
-                ...prev,
-                totp_enabled,
-                webauthn_2fa_enabled,
-                recovery_key_enabled,
-                email_2fa_enabled,
-              }
-            : prev
-        );
+        setUserInfo((prev) => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            totp_enabled,
+            webauthn_2fa_enabled,
+            recovery_key_enabled,
+            email_2fa_enabled,
+          };
+        });
         return resp.data;
       }
     } catch (e) {
@@ -812,111 +811,87 @@ export default function Profile() {
         return;
       }
 
-      // 尝试使用缓存
+      // 1. 先尝试从缓存初始化 UI
       const cachedUser = dataCache.getUser();
       const cachedTwoFactor = dataCache.getTwoFactorStatus();
       const cachedCreds = dataCache.getWebauthnCredentials();
 
       if (cachedUser) {
-        let totpEnabled = getTotpEnabled() ?? false;
-        if (cachedTwoFactor) {
-          totpEnabled = cachedTwoFactor.totp_enabled;
-        }
+        const totpEnabledFromCache = cachedTwoFactor?.totp_enabled ?? getTotpEnabled() ?? false;
+        const webauthnEnabledFromCache = cachedTwoFactor?.webauthn_2fa_enabled ?? readWebAuthnEnabledFromValue(cachedUser) ?? false;
+        const recoveryKeyEnabledFromCache = cachedTwoFactor?.recovery_key_enabled ?? readRecoveryKeyEnabledFromValue(cachedUser) ?? false;
+        const email2faEnabledFromCache = cachedTwoFactor?.email_2fa_enabled ?? false;
 
-        const webauthnEnabled = cachedTwoFactor?.webauthn_2fa_enabled ?? readWebAuthnEnabledFromValue(cachedUser) ?? false;
-        const cachedRecoveryKeyEnabled = cachedTwoFactor?.recovery_key_enabled ?? readRecoveryKeyEnabledFromValue(cachedUser) ?? false;
-        const cachedEmail2faEnabled = cachedTwoFactor?.email_2fa_enabled ?? false;
-
-        applyWebAuthnState(cachedCreds || [], webauthnEnabled);
-        setRecoveryKeyEnabled(cachedRecoveryKeyEnabled);
-        setEmail2faEnabled(cachedEmail2faEnabled);
+        applyWebAuthnState(cachedCreds || [], webauthnEnabledFromCache);
+        setRecoveryKeyEnabled(recoveryKeyEnabledFromCache);
+        setEmail2faEnabled(email2faEnabledFromCache);
 
         setUserInfo({
           email: cachedUser.email || email || '',
           username: cachedUser.username || (email ? email.split('@')[0] : 'User'),
           avatar: cachedUser.avatar,
           verified: Boolean(cachedUser.verified),
-          totp_enabled: totpEnabled,
-          webauthn_2fa_enabled: webauthnEnabled,
-          recovery_key_enabled: cachedRecoveryKeyEnabled,
-          email_2fa_enabled: cachedEmail2faEnabled,
+          totp_enabled: totpEnabledFromCache,
+          webauthn_2fa_enabled: webauthnEnabledFromCache,
+          recovery_key_enabled: recoveryKeyEnabledFromCache,
+          email_2fa_enabled: email2faEnabledFromCache,
           uid: cachedUser.uid,
         });
         setLoading(false);
       }
 
+      // 2. 后台并行刷新所有数据
       try {
-        const [resp, twoFactorResp, webauthnResp] = await Promise.all([
+        const [userResp, twoFactorData, webauthnResp] = await Promise.all([
           request(`${BackendUrl}/user`, {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ uid, email }),
           }),
-          getTwoFactorStatus(uid || undefined),
+          refreshTwoFactorStatus(uid || undefined),
           listWebAuthnCredentials(),
         ]);
-        
-        if (resp.success) dataCache.setUser(resp.data);
-        if (twoFactorResp.success && twoFactorResp.data) dataCache.setTwoFactorStatus(twoFactorResp.data);
-        if (webauthnResp.success) dataCache.setWebauthnCredentials(webauthnResp.data);
 
-        let totpEnabled = getTotpEnabled() ?? false;
-        if (twoFactorResp.success && twoFactorResp.data) {
-          totpEnabled = twoFactorResp.data.totp_enabled;
-          setTotpEnabled(totpEnabled);
+        if (userResp.success && userResp.data) {
+          dataCache.setUser(userResp.data);
+          
+          // 如果 refreshTwoFactorStatus 成功，twoFactorData 将包含最新数据
+          // 如果失败（null），我们使用兜底逻辑
+          const currentTwoFactor = twoFactorData || {
+            totp_enabled: getTotpEnabled() ?? false,
+            webauthn_2fa_enabled: readWebAuthnEnabledFromValue(userResp.data) ?? false,
+            recovery_key_enabled: readRecoveryKeyEnabledFromValue(userResp.data) ?? false,
+            email_2fa_enabled: false,
+            webauthn_credentials: 0,
+          };
+
+          setUserInfo({
+            email: userResp.data.email || email || '',
+            username: userResp.data.username || (email ? email.split('@')[0] : 'User'),
+            avatar: userResp.data.avatar,
+            verified: Boolean(userResp.data.verified),
+            totp_enabled: currentTwoFactor.totp_enabled,
+            webauthn_2fa_enabled: currentTwoFactor.webauthn_2fa_enabled,
+            recovery_key_enabled: currentTwoFactor.recovery_key_enabled,
+            email_2fa_enabled: currentTwoFactor.email_2fa_enabled,
+            uid: userResp.data.uid,
+          });
+
+          // 同步更新独立状态
+          setRecoveryKeyEnabled(currentTwoFactor.recovery_key_enabled);
+          setEmail2faEnabled(currentTwoFactor.email_2fa_enabled);
         }
 
-        const email2faEnabled = (twoFactorResp.success && twoFactorResp.data) ? twoFactorResp.data.email_2fa_enabled : false;
-        setEmail2faEnabled(email2faEnabled);
-
-        const webauthnEnabled = twoFactorResp.success && twoFactorResp.data 
-          ? twoFactorResp.data.webauthn_2fa_enabled 
-          : (resp.success ? (readWebAuthnEnabledFromValue(resp.data) ?? false) : false);
-
-        const recoveryKeyEnabled = twoFactorResp.success && twoFactorResp.data
-          ? twoFactorResp.data.recovery_key_enabled
-          : (resp.success ? (readRecoveryKeyEnabledFromValue(resp.data) ?? false) : false);
-
-        setRecoveryKeyEnabled(recoveryKeyEnabled);
-        applyWebAuthnState(webauthnResp.success ? webauthnResp.data : [], webauthnEnabled);
-
-        if (resp.success && resp.data) {
-          setUserInfo({
-            email: resp.data.email || email || '',
-            username: resp.data.username || (email ? email.split('@')[0] : 'User'),
-            avatar: resp.data.avatar,
-            verified: Boolean(resp.data.verified),
-            totp_enabled: totpEnabled,
-            webauthn_2fa_enabled: webauthnEnabled,
-            recovery_key_enabled: recoveryKeyEnabled,
-            email_2fa_enabled: email2faEnabled,
-            uid: resp.data.uid,
-          });
-        } else {
-          setUserInfo({
-            email: email || '',
-            username: email ? email.split('@')[0] : 'User',
-            verified: Boolean(getVerified()),
-            totp_enabled: totpEnabled,
-            webauthn_2fa_enabled: webauthnEnabled,
-            recovery_key_enabled: recoveryKeyEnabled,
-            email_2fa_enabled: email2faEnabled,
-          });
+        if (webauthnResp.success) {
+          dataCache.setWebauthnCredentials(webauthnResp.data);
+          const currentWebAuthnEnabled = twoFactorData?.webauthn_2fa_enabled ?? false;
+          applyWebAuthnState(webauthnResp.data, currentWebAuthnEnabled);
         }
-      } catch {
-        const cookieTotp = getTotpEnabled();
-        applyWebAuthnState([], false);
-        setRecoveryKeyEnabled(false);
-        setUserInfo({
-          email: email || '',
-          username: email ? email.split('@')[0] : 'User',
-          verified: Boolean(getVerified()),
-          totp_enabled: cookieTotp !== undefined ? cookieTotp : false,
-          webauthn_2fa_enabled: false,
-          recovery_key_enabled: false,
-        });
+      } catch (err) {
+        console.error('Failed to fetch profile data', err);
+        if (!cachedUser) {
+          setError(t('common.serverError'));
+        }
       } finally {
         setLoading(false);
       }
@@ -1030,16 +1005,14 @@ export default function Profile() {
     try {
       const resp = await createRecoveryKey();
       if (resp.success && resp.data?.recovery_key) {
-        setRecoveryKeyEnabled(true);
-        setUserInfo((prev) => (prev ? { ...prev, recovery_key_enabled: true } : prev));
+        await refreshTwoFactorStatus();
         setGeneratedRecoveryKey(resp.data.recovery_key);
         setRecoveryKeyDialogMode('display');
         setRecoveryKeyDialogError(null);
         setRecoveryKeyDialogOpen(true);
       } else {
         if (resp.code === 'recovery_key_already_configured') {
-          setRecoveryKeyEnabled(true);
-          setUserInfo((prev) => (prev ? { ...prev, recovery_key_enabled: true } : prev));
+          await refreshTwoFactorStatus();
         }
         setTwoFactorFeedback({
           severity: 'error',
