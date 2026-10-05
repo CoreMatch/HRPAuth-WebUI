@@ -2638,51 +2638,25 @@ export default function Profile() {
                 )}
 
                 {recoveryKeyMethodOptions.length > 1 && (
-                  <Box
+                  <Button
+                    type="button"
+                    variant="text"
+                    onClick={() => setRecoveryKeyMethodDialogOpen(true)}
+                    disabled={recoveryKeyLoading || recoveryKeySendingEmailCode}
                     sx={{
-                      px: 2,
-                      py: 1.5,
-                      borderRadius: 2,
-                      border: '1px solid',
-                      borderColor: 'divider',
-                      mt: 1,
+                      mt: 0.5,
+                      px: 0.5,
+                      py: 1.25,
+                      minHeight: 44,
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      fontSize: '1rem',
+                      justifyContent: 'flex-start',
+                      alignSelf: 'flex-start',
                     }}
                   >
-                    <Stack spacing={1.5}>
-                      <Box>
-                        <Typography variant="subtitle2">
-                          {t('profile.currentVerificationMethod')}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {selectedRecoveryKeyMethod === 'webauthn'
-                            ? t('profile.pointWebAuthn')
-                            : selectedRecoveryKeyMethod === 'totp'
-                              ? t('profile.pointTotp')
-                              : selectedRecoveryKeyMethod === 'email'
-                                ? t('profile.pointEmailCode')
-                                : t('profile.pointRecoveryKey')}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>
-                          {t('profile.switchVerificationMethodHint')}
-                        </Typography>
-                      </Box>
-                      <Button
-                        type="button"
-                        variant="outlined"
-                        fullWidth
-                        onClick={() => setRecoveryKeyMethodDialogOpen(true)}
-                        disabled={recoveryKeyLoading || recoveryKeySendingEmailCode}
-                        sx={{
-                          textTransform: 'none',
-                          minHeight: 48,
-                          borderWidth: 1.5,
-                          fontWeight: 600,
-                        }}
-                      >
-                        {t('profile.switchVerificationMethod')}
-                      </Button>
-                    </Stack>
-                  </Box>
+                    {t('profile.switchVerificationMethod')}
+                  </Button>
                 )}
               </>
             )}
@@ -2827,51 +2801,25 @@ export default function Profile() {
                 )}
 
                 {changeEmailMethodOptions.length > 1 && (
-                  <Box
+                  <Button
+                    type="button"
+                    variant="text"
+                    onClick={() => setChangeEmailMethodDialogOpen(true)}
+                    disabled={changeEmailLoading || sendingEmailCode}
                     sx={{
-                      px: 2,
-                      py: 1.5,
-                      borderRadius: 2,
-                      border: '1px solid',
-                      borderColor: 'divider',
-                      mt: 1,
+                      mt: 0.5,
+                      px: 0.5,
+                      py: 1.25,
+                      minHeight: 44,
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      fontSize: '1rem',
+                      justifyContent: 'flex-start',
+                      alignSelf: 'flex-start',
                     }}
                   >
-                    <Stack spacing={1.5}>
-                      <Box>
-                        <Typography variant="subtitle2">
-                          {t('profile.currentVerificationMethod')}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {selectedChangeEmailMethod === 'webauthn'
-                            ? t('profile.pointWebAuthn')
-                            : selectedChangeEmailMethod === 'totp'
-                              ? t('profile.pointTotp')
-                              : selectedChangeEmailMethod === 'email'
-                                ? t('profile.pointEmailCode')
-                                : t('profile.pointRecoveryKey')}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>
-                          {t('profile.switchVerificationMethodHint')}
-                        </Typography>
-                      </Box>
-                      <Button
-                        type="button"
-                        variant="outlined"
-                        fullWidth
-                        onClick={() => setChangeEmailMethodDialogOpen(true)}
-                        disabled={changeEmailLoading || sendingEmailCode}
-                        sx={{
-                          textTransform: 'none',
-                          minHeight: 48,
-                          borderWidth: 1.5,
-                          fontWeight: 600,
-                        }}
-                      >
-                        {t('profile.switchVerificationMethod')}
-                      </Button>
-                    </Stack>
-                  </Box>
+                    {t('profile.switchVerificationMethod')}
+                  </Button>
                 )}
               </>
             )}

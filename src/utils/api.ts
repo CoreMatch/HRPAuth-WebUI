@@ -1,4 +1,11 @@
-import { getAuthToken, getRefreshToken, getRememberLogin, updateAccessToken, clearAuthCookies } from './cookie';
+import {
+  clearAuthCookies,
+  getAuthToken,
+  getRefreshToken,
+  getRememberLogin,
+  setCookie,
+  updateAccessToken,
+} from './cookie';
 import { BackendUrl } from './config';
 
 export interface ApiResponse<T = any> {
@@ -64,7 +71,6 @@ async function tryRefreshToken(): Promise<string> {
 
   // Refresh token rotation: update refresh_token cookie if a new one is issued
   if (newRefreshToken) {
-    const { setCookie } = await import('./cookie');
     setCookie('refresh_token', newRefreshToken, {
       path: '/',
       sameSite: 'lax',

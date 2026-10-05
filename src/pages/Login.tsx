@@ -409,15 +409,6 @@ export default function Login() {
 
   const awaitingSecondFactor = Boolean(loginTicket) && (totpAvailable || webauthnAvailable || emailAvailable || recoveryKeyAvailable);
   const showSecondFactorSelector = awaitingSecondFactor && secondFactorOptions.length > 1;
-  const activeSecondFactorLabel = activeSecondFactor === 'webauthn'
-    ? t('login.usePasskeySecondFactorOption')
-    : activeSecondFactor === 'totp'
-      ? t('login.useAuthenticatorSecondFactor')
-      : activeSecondFactor === 'email'
-        ? t('login.useEmailSecondFactor')
-        : activeSecondFactor === 'recovery_key'
-          ? t('login.useRecoveryKeySecondFactor')
-          : '';
 
   return (
     <Box sx={{ maxWidth: 480 }}>
@@ -547,46 +538,25 @@ export default function Login() {
                 )}
 
                 {showSecondFactorSelector && (
-                  <Box
+                  <Button
+                    type="button"
+                    variant="text"
+                    onClick={() => setSecondFactorDialogOpen(true)}
+                    disabled={loading || webauthnLoading || sendingEmail}
                     sx={{
                       mb: 2,
-                      px: 2,
-                      py: 1.5,
-                      borderRadius: 2,
-                      border: '1px solid',
-                      borderColor: 'divider',
-                      bgcolor: 'background.paper',
+                      px: 0.5,
+                      py: 1.25,
+                      minHeight: 44,
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      fontSize: '1rem',
+                      justifyContent: 'flex-start',
+                      alignSelf: 'flex-start',
                     }}
                   >
-                    <Stack spacing={1.5}>
-                      <Box>
-                        <Typography variant="subtitle2">
-                          {t('login.currentMethodLabel')}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {activeSecondFactorLabel}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>
-                          {t('login.switchMethodHint')}
-                        </Typography>
-                      </Box>
-                      <Button
-                        type="button"
-                        variant="outlined"
-                        fullWidth
-                        onClick={() => setSecondFactorDialogOpen(true)}
-                        disabled={loading || webauthnLoading || sendingEmail}
-                        sx={{
-                          textTransform: 'none',
-                          minHeight: 48,
-                          borderWidth: 1.5,
-                          fontWeight: 600,
-                        }}
-                      >
-                        {t('login.switchMethod')}
-                      </Button>
-                    </Stack>
-                  </Box>
+                    {t('login.switchMethod')}
+                  </Button>
                 )}
               </>
             )}
