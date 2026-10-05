@@ -28,6 +28,7 @@ import {
   setupTotp,
   toggleTotp,
   toggleWebAuthnSecondFactor,
+  type RecoveryKeyVerificationRequest,
   type WebAuthnCredentialRecord,
   type WebAuthnPublicKeyOptions,
   verifyTotp,
@@ -42,7 +43,7 @@ import {
 } from '../api/user';
 import { clearAuthCookies, getUserEmail, getAuthToken, getUid, getVerified, getTotpEnabled, setTotpEnabled } from '../utils/cookie';
 import { BackendUrl } from '../utils/config';
-import { isWebAuthnSupported, registerWithWebAuthn } from '../utils/webauthn';
+import { authenticateWithWebAuthn, isWebAuthnSupported, registerWithWebAuthn } from '../utils/webauthn';
 
 interface UserInfo {
   email: string;
@@ -499,8 +500,10 @@ export default function Profile() {
   const [recoveryKeyDialogMode, setRecoveryKeyDialogMode] = useState<'display' | 'regenerate' | 'revoke'>('display');
   const [generatedRecoveryKey, setGeneratedRecoveryKey] = useState('');
   const [recoveryKeyTotpCode, setRecoveryKeyTotpCode] = useState('');
+  const [recoveryKeyEmailCode, setRecoveryKeyEmailCode] = useState('');
   const [recoveryKeyVerificationValue, setRecoveryKeyVerificationValue] = useState('');
   const [recoveryKeyDialogError, setRecoveryKeyDialogError] = useState<string | null>(null);
+  const [recoveryKeySendingEmailCode, setRecoveryKeySendingEmailCode] = useState(false);
   const [webauthnCredentials, setWebauthnCredentials] = useState<WebAuthnCredentialRecord[]>([]);
   const [webauthn2faEnabled, setWebauthn2faEnabled] = useState(false);
   const [webauthnBackendAvailable, setWebauthnBackendAvailable] = useState(true);
@@ -957,13 +960,14 @@ export default function Profile() {
   };
 
   const closeRecoveryKeyDialog = () => {
-    if (recoveryKeyLoading) {
+    if (recoveryKeyLoading || recoveryKeySendingEmailCode) {
       return;
     }
 
     setRecoveryKeyDialogOpen(false);
     setRecoveryKeyDialogError(null);
     setRecoveryKeyTotpCode('');
+    setRecoveryKeyEmailCode('');
     setRecoveryKeyVerificationValue('');
     setGeneratedRecoveryKey('');
   };
@@ -1005,13 +1009,67 @@ export default function Profile() {
     setRecoveryKeyDialogMode(mode);
     setGeneratedRecoveryKey('');
     setRecoveryKeyTotpCode('');
+    setRecoveryKeyEmailCode('');
     setRecoveryKeyVerificationValue('');
     setRecoveryKeyDialogError(null);
     setRecoveryKeyDialogOpen(true);
   };
 
+  const buildRecoveryKeyPayload = (
+    webauthn?: RecoveryKeyVerificationRequest['webauthn']
+  ): RecoveryKeyVerificationRequest => ({
+    totp_code: recoveryKeyTotpCode || undefined,
+    email_code: recoveryKeyEmailCode || undefined,
+    recovery_key: recoveryKeyVerificationValue.trim().toUpperCase() || undefined,
+    webauthn,
+  });
+
+  const performRecoveryKeyAction = async (payload: RecoveryKeyVerificationRequest) => {
+    if (recoveryKeyDialogMode === 'regenerate') {
+      const resp = await regenerateRecoveryKey(payload);
+      if (resp.success && resp.data?.recovery_key) {
+        setRecoveryKeyEnabled(true);
+        setUserInfo((prev) => (prev ? { ...prev, recovery_key_enabled: true } : prev));
+        setGeneratedRecoveryKey(resp.data.recovery_key);
+        setRecoveryKeyDialogMode('display');
+        setRecoveryKeyTotpCode('');
+        setRecoveryKeyEmailCode('');
+        setRecoveryKeyVerificationValue('');
+        setTwoFactorFeedback({
+          severity: 'success',
+          message: t('profile.recoveryKeyRegenerated'),
+        });
+      } else {
+        if (resp.code === 'recovery_key_not_configured') {
+          setRecoveryKeyEnabled(false);
+          setUserInfo((prev) => (prev ? { ...prev, recovery_key_enabled: false } : prev));
+        }
+        setRecoveryKeyDialogError(resp.message || t('profile.recoveryKeyRegenerateFailed'));
+      }
+      return;
+    }
+
+    const resp = await revokeRecoveryKey(payload);
+    if (resp.success) {
+      setRecoveryKeyEnabled(false);
+      setUserInfo((prev) => (prev ? { ...prev, recovery_key_enabled: false } : prev));
+      closeRecoveryKeyDialog();
+      setTwoFactorFeedback({
+        severity: 'success',
+        message: t('profile.recoveryKeyRevoked'),
+      });
+    } else {
+      if (resp.code === 'recovery_key_not_configured') {
+        setRecoveryKeyEnabled(false);
+        setUserInfo((prev) => (prev ? { ...prev, recovery_key_enabled: false } : prev));
+      }
+      setRecoveryKeyDialogError(resp.message || t('profile.recoveryKeyRevokeFailed'));
+    }
+  };
+
   const handleSubmitRecoveryKeyAction = async () => {
-    if (!recoveryKeyTotpCode && !recoveryKeyVerificationValue.trim()) {
+    const payload = buildRecoveryKeyPayload();
+    if (!payload.totp_code && !payload.email_code && !payload.recovery_key) {
       setRecoveryKeyDialogError(t('profile.recoveryKeyFactorRequired'));
       return;
     }
@@ -1021,52 +1079,55 @@ export default function Profile() {
     setTwoFactorFeedback(null);
 
     try {
-      const payload = {
-        totp_code: recoveryKeyTotpCode || undefined,
-        recovery_key: recoveryKeyVerificationValue.trim().toUpperCase() || undefined,
-      };
+      await performRecoveryKeyAction(payload);
+    } catch {
+      setRecoveryKeyDialogError(t('common.serverError'));
+    } finally {
+      setRecoveryKeyLoading(false);
+    }
+  };
 
-      if (recoveryKeyDialogMode === 'regenerate') {
-        const resp = await regenerateRecoveryKey(payload);
-        if (resp.success && resp.data?.recovery_key) {
-          setRecoveryKeyEnabled(true);
-          setUserInfo((prev) => (prev ? { ...prev, recovery_key_enabled: true } : prev));
-          setGeneratedRecoveryKey(resp.data.recovery_key);
-          setRecoveryKeyDialogMode('display');
-          setRecoveryKeyTotpCode('');
-          setRecoveryKeyVerificationValue('');
-          setTwoFactorFeedback({
-            severity: 'success',
-            message: t('profile.recoveryKeyRegenerated'),
-          });
-        } else {
-          if (resp.code === 'recovery_key_not_configured') {
-            setRecoveryKeyEnabled(false);
-            setUserInfo((prev) => (prev ? { ...prev, recovery_key_enabled: false } : prev));
-          }
-          setRecoveryKeyDialogError(resp.message || t('profile.recoveryKeyRegenerateFailed'));
-        }
+  const handleSendRecoveryKeyEmailCode = async () => {
+    setRecoveryKeySendingEmailCode(true);
+    setRecoveryKeyDialogError(null);
+
+    try {
+      const resp = await sendChangeEmailCode();
+      if (!resp.success) {
+        setRecoveryKeyDialogError(resp.message || t('profile.recoveryKeySendEmailCodeFailed'));
         return;
       }
 
-      const resp = await revokeRecoveryKey(payload);
-      if (resp.success) {
-        setRecoveryKeyEnabled(false);
-        setUserInfo((prev) => (prev ? { ...prev, recovery_key_enabled: false } : prev));
-        closeRecoveryKeyDialog();
-        setTwoFactorFeedback({
-          severity: 'success',
-          message: t('profile.recoveryKeyRevoked'),
-        });
-      } else {
-        if (resp.code === 'recovery_key_not_configured') {
-          setRecoveryKeyEnabled(false);
-          setUserInfo((prev) => (prev ? { ...prev, recovery_key_enabled: false } : prev));
-        }
-        setRecoveryKeyDialogError(resp.message || t('profile.recoveryKeyRevokeFailed'));
-      }
+      setTwoFactorFeedback({
+        severity: 'success',
+        message: t('profile.recoveryKeyEmailCodeSent'),
+      });
     } catch {
       setRecoveryKeyDialogError(t('common.serverError'));
+    } finally {
+      setRecoveryKeySendingEmailCode(false);
+    }
+  };
+
+  const handleRecoveryKeyWebAuthnAction = async () => {
+    setRecoveryKeyLoading(true);
+    setRecoveryKeyDialogError(null);
+    setTwoFactorFeedback(null);
+
+    try {
+      const beginResp = await beginWebAuthnSudo();
+      if (!beginResp.success || !beginResp.data) {
+        setRecoveryKeyDialogError(beginResp.message || t('profile.webauthnOperationFailed'));
+        return;
+      }
+
+      const credential = await authenticateWithWebAuthn(beginResp.data.options);
+      await performRecoveryKeyAction(buildRecoveryKeyPayload({
+        flow_id: beginResp.data.flow_id,
+        credential,
+      }));
+    } catch (err: any) {
+      setRecoveryKeyDialogError(err?.message || t('profile.webauthnOperationFailed'));
     } finally {
       setRecoveryKeyLoading(false);
     }
@@ -1096,7 +1157,7 @@ export default function Profile() {
     try {
       const beginResp = await beginWebAuthnSudo();
       if (beginResp.success && beginResp.data) {
-        const credential = await registerWithWebAuthn(beginResp.data.options);
+        const credential = await authenticateWithWebAuthn(beginResp.data.options);
         const params = {
           new_email: newEmail,
           webauthn: {
@@ -2361,6 +2422,24 @@ export default function Profile() {
                   fullWidth
                   disabled={recoveryKeyLoading}
                 />
+                <Stack direction="row" spacing={1}>
+                  <TextField
+                    label={t('profile.emailCodeLabel')}
+                    value={recoveryKeyEmailCode}
+                    onChange={(e) => setRecoveryKeyEmailCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    placeholder={t('profile.emailCodePlaceholder')}
+                    fullWidth
+                    disabled={recoveryKeyLoading || recoveryKeySendingEmailCode}
+                  />
+                  <Button
+                    variant="outlined"
+                    onClick={handleSendRecoveryKeyEmailCode}
+                    disabled={recoveryKeyLoading || recoveryKeySendingEmailCode}
+                    sx={{ height: 56 }}
+                  >
+                    {recoveryKeySendingEmailCode ? t('common.loading') : t('profile.sendCodeToCurrentEmail')}
+                  </Button>
+                </Stack>
                 <TextField
                   label={t('profile.recoveryKeyCurrentLabel')}
                   value={recoveryKeyVerificationValue}
@@ -2370,12 +2449,19 @@ export default function Profile() {
                   disabled={recoveryKeyLoading}
                   helperText={t('profile.recoveryKeyFactorHint')}
                 />
+                <Button
+                  variant="outlined"
+                  onClick={handleRecoveryKeyWebAuthnAction}
+                  disabled={recoveryKeyLoading || recoveryKeySendingEmailCode || !isWebAuthnSupported()}
+                >
+                  {t('profile.pointWebAuthn')}
+                </Button>
               </>
             )}
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={closeRecoveryKeyDialog} disabled={recoveryKeyLoading}>
+          <Button onClick={closeRecoveryKeyDialog} disabled={recoveryKeyLoading || recoveryKeySendingEmailCode}>
             {t('common.cancel')}
           </Button>
           {recoveryKeyDialogMode !== 'display' && (
@@ -2383,7 +2469,7 @@ export default function Profile() {
               variant="contained"
               color={recoveryKeyDialogMode === 'revoke' ? 'warning' : 'primary'}
               onClick={handleSubmitRecoveryKeyAction}
-              disabled={recoveryKeyLoading}
+              disabled={recoveryKeyLoading || recoveryKeySendingEmailCode}
             >
               {recoveryKeyLoading
                 ? t('common.pleaseWait')
