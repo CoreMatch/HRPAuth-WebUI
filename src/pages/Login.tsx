@@ -479,7 +479,7 @@ export default function Login() {
                     bgcolor: 'background.paper',
                   }}
                 >
-                  <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
+                  <Stack spacing={1.5}>
                     <Box>
                       <Typography variant="subtitle2">
                         {t('login.currentMethodLabel')}
@@ -491,11 +491,16 @@ export default function Login() {
                     {showSecondFactorSelector && (
                       <Button
                         type="button"
-                        variant="text"
-                        size="small"
+                        variant="outlined"
+                        fullWidth
                         onClick={() => setSecondFactorDialogOpen(true)}
                         disabled={loading || webauthnLoading || sendingEmail}
-                        sx={{ textTransform: 'none', whiteSpace: 'nowrap' }}
+                        sx={{
+                          textTransform: 'none',
+                          minHeight: 48,
+                          borderWidth: 1.5,
+                          fontWeight: 600,
+                        }}
                       >
                         {t('login.switchMethod')}
                       </Button>
@@ -638,6 +643,7 @@ export default function Login() {
         value={activeSecondFactor}
         options={secondFactorOptions}
         closeLabel={t('common.cancel')}
+        currentLabel={t('login.currentMethodLabel')}
         revealEmergencyLabel={t('login.recoveryMethodGroup')}
         emergencyDescription={t('login.recoveryMethodHint')}
         onSelect={(method) => {

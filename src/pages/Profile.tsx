@@ -2592,7 +2592,7 @@ export default function Profile() {
                     borderColor: 'divider',
                   }}
                 >
-                  <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
+                  <Stack spacing={1.5}>
                     <Box>
                       <Typography variant="subtitle2">
                         {t('profile.currentVerificationMethod')}
@@ -2610,11 +2610,16 @@ export default function Profile() {
                     {recoveryKeyMethodOptions.length > 1 && (
                       <Button
                         type="button"
-                        variant="text"
-                        size="small"
+                        variant="outlined"
+                        fullWidth
                         onClick={() => setRecoveryKeyMethodDialogOpen(true)}
                         disabled={recoveryKeyLoading || recoveryKeySendingEmailCode}
-                        sx={{ textTransform: 'none', whiteSpace: 'nowrap' }}
+                        sx={{
+                          textTransform: 'none',
+                          minHeight: 48,
+                          borderWidth: 1.5,
+                          fontWeight: 600,
+                        }}
                       >
                         {t('profile.switchVerificationMethod')}
                       </Button>
@@ -2772,7 +2777,7 @@ export default function Profile() {
                     borderColor: 'divider',
                   }}
                 >
-                  <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
+                  <Stack spacing={1.5}>
                     <Box>
                       <Typography variant="subtitle2">
                         {t('profile.currentVerificationMethod')}
@@ -2790,11 +2795,16 @@ export default function Profile() {
                     {changeEmailMethodOptions.length > 1 && (
                       <Button
                         type="button"
-                        variant="text"
-                        size="small"
+                        variant="outlined"
+                        fullWidth
                         onClick={() => setChangeEmailMethodDialogOpen(true)}
                         disabled={changeEmailLoading || sendingEmailCode}
-                        sx={{ textTransform: 'none', whiteSpace: 'nowrap' }}
+                        sx={{
+                          textTransform: 'none',
+                          minHeight: 48,
+                          borderWidth: 1.5,
+                          fontWeight: 600,
+                        }}
                       >
                         {t('profile.switchVerificationMethod')}
                       </Button>
@@ -2879,6 +2889,7 @@ export default function Profile() {
         value={selectedChangeEmailMethod}
         options={changeEmailMethodOptions}
         closeLabel={t('common.cancel')}
+        currentLabel={t('profile.currentVerificationMethod')}
         revealEmergencyLabel={t('profile.recoveryMethodGroup')}
         emergencyDescription={t('profile.recoveryMethodHint')}
         onSelect={(method) => {
@@ -2895,6 +2906,7 @@ export default function Profile() {
         value={selectedRecoveryKeyMethod}
         options={recoveryKeyMethodOptions}
         closeLabel={t('common.cancel')}
+        currentLabel={t('profile.currentVerificationMethod')}
         revealEmergencyLabel={t('profile.recoveryMethodGroup')}
         emergencyDescription={t('profile.recoveryMethodHint')}
         onSelect={(method) => {

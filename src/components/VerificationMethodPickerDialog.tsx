@@ -1,5 +1,4 @@
-import { useEffect, useState } from 'react';
-import { Button, Collapse, Dialog, DialogActions, DialogContent, DialogTitle, Divider, Stack, Typography } from '@mui/material';
+import { Button, Dialog, DialogActions, DialogContent, DialogTitle, Divider, Stack, Typography } from '@mui/material';
 
 export type VerificationMethodKey = 'webauthn' | 'totp' | 'email' | 'recovery_key';
 
@@ -18,6 +17,7 @@ interface VerificationMethodPickerDialogProps {
   value: VerificationMethodKey | null;
   options: VerificationMethodOption[];
   closeLabel: string;
+  currentLabel?: string;
   revealEmergencyLabel?: string;
   emergencyDescription?: string;
   onSelect: (method: VerificationMethodKey) => void;
@@ -52,7 +52,9 @@ function MethodButton({
         alignItems: 'stretch',
         textTransform: 'none',
         px: 2,
-        py: 1.5,
+        py: 1.75,
+        minHeight: 72,
+        borderWidth: selected ? 0 : 1.5,
       }}
     >
       <Stack spacing={0.5} alignItems="flex-start" sx={{ width: '100%' }}>
@@ -76,21 +78,15 @@ export default function VerificationMethodPickerDialog({
   value,
   options,
   closeLabel,
+  currentLabel,
   revealEmergencyLabel,
   emergencyDescription,
   onSelect,
   onClose,
 }: VerificationMethodPickerDialogProps) {
-  const [showEmergencyOptions, setShowEmergencyOptions] = useState(false);
-
-  useEffect(() => {
-    if (!open) {
-      setShowEmergencyOptions(false);
-    }
-  }, [open]);
-
-  const primaryOptions = options.filter((option) => !option.emergency);
-  const emergencyOptions = options.filter((option) => option.emergency);
+  const currentOption = value ? options.find((option) => option.key === value) ?? null : null;
+  const otherPrimaryOptions = options.filter((option) => option.key !== value && !option.emergency);
+  const otherEmergencyOptions = options.filter((option) => option.key !== value && option.emergency);
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
@@ -103,43 +99,47 @@ export default function VerificationMethodPickerDialog({
             </Typography>
           )}
 
-          {primaryOptions.map((option) => (
+          {currentOption && (
+            <Stack spacing={0.5}>
+              <Typography variant="subtitle2">
+                {currentLabel}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {currentOption.title}
+              </Typography>
+            </Stack>
+          )}
+
+          {otherPrimaryOptions.map((option) => (
             <MethodButton
               key={option.key}
               option={option}
-              selected={value === option.key}
+              selected={false}
               onClick={() => onSelect(option.key)}
             />
           ))}
 
-          {emergencyOptions.length > 0 && (
+          {otherEmergencyOptions.length > 0 && (
             <>
-              {primaryOptions.length > 0 && <Divider />}
-              <Button
-                type="button"
-                variant="text"
-                onClick={() => setShowEmergencyOptions((prev) => !prev)}
-                sx={{ alignSelf: 'flex-start', textTransform: 'none', px: 0 }}
-              >
-                {revealEmergencyLabel}
-              </Button>
-              <Collapse in={showEmergencyOptions}>
-                <Stack spacing={1.5}>
-                  {emergencyDescription && (
-                    <Typography variant="body2" color="text.secondary">
-                      {emergencyDescription}
-                    </Typography>
-                  )}
-                  {emergencyOptions.map((option) => (
-                    <MethodButton
-                      key={option.key}
-                      option={option}
-                      selected={value === option.key}
-                      onClick={() => onSelect(option.key)}
-                    />
-                  ))}
-                </Stack>
-              </Collapse>
+              {(otherPrimaryOptions.length > 0 || currentOption) && <Divider />}
+              {revealEmergencyLabel && (
+                <Typography variant="subtitle2">
+                  {revealEmergencyLabel}
+                </Typography>
+              )}
+              {emergencyDescription && (
+                <Typography variant="body2" color="text.secondary">
+                  {emergencyDescription}
+                </Typography>
+              )}
+              {otherEmergencyOptions.map((option) => (
+                <MethodButton
+                  key={option.key}
+                  option={option}
+                  selected={false}
+                  onClick={() => onSelect(option.key)}
+                />
+              ))}
             </>
           )}
         </Stack>
