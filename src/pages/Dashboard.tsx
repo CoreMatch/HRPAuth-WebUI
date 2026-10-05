@@ -15,8 +15,10 @@ import ApiIcon from '@mui/icons-material/Api';
 import { getRealBackendUrl } from '../utils/config';
 import { useMeta } from '../hooks/useMeta';
 import PersonIcon from '@mui/icons-material/Person';
+import SecurityIcon from '@mui/icons-material/Security';
 import VpnKeyIcon from '@mui/icons-material/VpnKey';
 import Profile from './Profile';
+import AccountSecurity from './AccountSecurity';
 import MojangBindDashboard from './MojangBindDashboard';
 import { getDiscoveredServicesByArea, getServiceSDK, onSDKLoaded } from '../utils/serviceRegistry';
 import type { ServiceSummary } from '../api/services';
@@ -133,6 +135,7 @@ export default function PermanentDrawerLeft() {
   // 使用 useMemo 避免每次渲染都重新创建组件实例，配合 display: none 实现真正的“无刷新”切换
   const baseItems: MenuItem[] = useMemo(() => [
     { id: 'Profile', label: t('dashboard.sidebar.profile'), content: '', jsxContent: <Profile />, icon: <PersonIcon /> },
+    { id: 'Security', label: t('dashboard.sidebar.security'), content: '', jsxContent: <AccountSecurity />, icon: <SecurityIcon /> },
     { id: 'MojangBind', label: t('dashboard.sidebar.mojangBind'), content: '', jsxContent: <MojangBindDashboard />, icon: <VpnKeyIcon /> },
     { id: 'Yggdrasil API', label: t('dashboard.sidebar.yggdrasil'), content: '', jsxContent: <YggdrasilDashboard />, icon: <ApiIcon /> },
   ], [t]);

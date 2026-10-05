@@ -145,6 +145,7 @@
   "dashboard": {
     "sidebar": {
       "profile": "资料",
+      "security": "账户安全",
       "mojangBind": "正版账号绑定",
       "yggdrasil": "Yggdrasil API"
     },
@@ -173,6 +174,7 @@
     "cancel": "取消",
     "save": "保存",
     "saveSuccess": "用户名更新成功！",
+    "accountCredentialsTitle": "账号凭据",
     "changeEmailTitle": "更换邮箱",
     "changeEmailSubtitle": "更换绑定的电子邮箱地址。敏感操作需要提供至少一个已开启的双因素认证因子。",
     "currentEmailLabel": "当前邮箱",
