@@ -1,4 +1,4 @@
 {
-  "baseUrl": "http://127.0.0.1:2778",
+  "baseUrl": "https://ha.mcnb.dev",
   "skinlibUrl": "http://127.0.0.1:2701"
 }

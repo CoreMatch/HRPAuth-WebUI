@@ -106,6 +106,27 @@ function reportWebAuthnDebug(
   }).catch(() => {});
 }
 
+function reportProfile2faDebug(
+  hypothesisId: string,
+  location: string,
+  msg: string,
+  data: Record<string, unknown> = {}
+) {
+  fetch('http://127.0.0.1:7777/event', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      sessionId: 'profile-2fa-status',
+      runId: 'pre-fix',
+      hypothesisId,
+      location,
+      msg: `[DEBUG] ${msg}`,
+      data,
+      ts: Date.now(),
+    }),
+  }).catch(() => {});
+}
+
 /**
  * 修正纹理 URL。
  * 后端返回的绝对 URL 可能指向内部域名或错误的协议（如生产环境下返回 http 而非 https），
@@ -738,6 +759,16 @@ export default function Profile() {
   const refreshTwoFactorStatus = async (uid?: string) => {
     try {
       const resp = await getTwoFactorStatus(uid);
+      // #region debug-point A:refresh-two-factor-response
+      reportProfile2faDebug('A', 'Profile.tsx:refreshTwoFactorStatus:response', 'Received two-factor status response', {
+        uid: uid ?? null,
+        success: resp.success,
+        code: resp.code ?? null,
+        message: resp.message,
+        hasData: Boolean(resp.data),
+        data: resp.data ?? null,
+      });
+      // #endregion
       if (resp.success && resp.data) {
         const {
           totp_enabled,
@@ -746,6 +777,14 @@ export default function Profile() {
           email_2fa_enabled,
         } = resp.data;
 
+        // #region debug-point B:refresh-two-factor-apply
+        reportProfile2faDebug('B', 'Profile.tsx:refreshTwoFactorStatus:apply', 'Applying two-factor status into React state', {
+          totp_enabled,
+          webauthn_2fa_enabled,
+          recovery_key_enabled,
+          email_2fa_enabled,
+        });
+        // #endregion
         setTotpEnabled(totp_enabled);
         setWebauthn2faEnabled(webauthn_2fa_enabled);
         setRecoveryKeyEnabled(recovery_key_enabled);
@@ -822,6 +861,22 @@ export default function Profile() {
         const recoveryKeyEnabledFromCache = cachedTwoFactor?.recovery_key_enabled ?? readRecoveryKeyEnabledFromValue(cachedUser) ?? false;
         const email2faEnabledFromCache = cachedTwoFactor?.email_2fa_enabled ?? false;
 
+        // #region debug-point C:cached-two-factor-hydration
+        reportProfile2faDebug('C', 'Profile.tsx:fetchData:cacheHydration', 'Hydrating profile from cached data', {
+          cachedUserUid: cachedUser.uid ?? null,
+          hasCachedTwoFactor: Boolean(cachedTwoFactor),
+          cachedTwoFactor: cachedTwoFactor ?? null,
+          totpEnabledFromCache,
+          webauthnEnabledFromCache,
+          recoveryKeyEnabledFromCache,
+          email2faEnabledFromCache,
+          cachedCredentialCount: Array.isArray(cachedCreds)
+            ? cachedCreds.length
+            : cachedCreds && typeof cachedCreds === 'object' && Array.isArray((cachedCreds as { credentials?: unknown[] }).credentials)
+              ? (cachedCreds as { credentials: unknown[] }).credentials.length
+              : null,
+        });
+        // #endregion
         applyWebAuthnState(cachedCreds || [], webauthnEnabledFromCache);
         setRecoveryKeyEnabled(recoveryKeyEnabledFromCache);
         setEmail2faEnabled(email2faEnabledFromCache);
@@ -865,6 +920,15 @@ export default function Profile() {
             webauthn_credentials: 0,
           };
 
+          // #region debug-point B:fetch-data-final-state
+          reportProfile2faDebug('B', 'Profile.tsx:fetchData:finalState', 'Composed final two-factor state for profile UI', {
+            userUid: userResp.data.uid ?? null,
+            twoFactorSource: twoFactorData ? 'api' : 'fallback',
+            twoFactorData: twoFactorData ?? null,
+            fallbackRecoveryKeyEnabled: readRecoveryKeyEnabledFromValue(userResp.data) ?? null,
+            finalState: currentTwoFactor,
+          });
+          // #endregion
           setUserInfo({
             email: userResp.data.email || email || '',
             username: userResp.data.username || (email ? email.split('@')[0] : 'User'),
@@ -899,6 +963,18 @@ export default function Profile() {
 
     fetchData();
   }, [t]);
+
+  useEffect(() => {
+    // #region debug-point B:rendered-two-factor-state
+    reportProfile2faDebug('B', 'Profile.tsx:stateObserver', 'Observed rendered two-factor state', {
+      userInfoRecoveryKeyEnabled: userInfo?.recovery_key_enabled ?? null,
+      recoveryKeyEnabled,
+      email2faEnabled,
+      webauthn2faEnabled,
+      totpEnabled: userInfo?.totp_enabled ?? null,
+    });
+    // #endregion
+  }, [userInfo?.recovery_key_enabled, userInfo?.totp_enabled, recoveryKeyEnabled, email2faEnabled, webauthn2faEnabled]);
 
   const handleSaveUsername = async () => {
     if (!newUsername.trim()) {

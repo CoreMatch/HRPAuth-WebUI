@@ -4,6 +4,8 @@ import react from '@vitejs/plugin-react'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
+import dns from 'node:dns'
+import { Agent as HttpsAgent } from 'node:https'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 interface BackendConfig { baseUrl: string, skinlibUrl: string }
@@ -12,6 +14,18 @@ const backendConfig: BackendConfig = JSON.parse(
 )
 const backendTarget = backendConfig.baseUrl.replace(/\/$/, '')
 const skinlibTarget = backendConfig.skinlibUrl.replace(/\/$/, '')
+
+// Prefer IPv4 for upstream proxy connections. The production host is reachable
+// from this environment, but Vite's proxy can stall when Node races IPv6/IPv4.
+dns.setDefaultResultOrder('ipv4first')
+
+const backendHttpsAgent = new HttpsAgent({
+  family: 4,
+})
+
+const backendProxyAgent = backendTarget.startsWith('https://')
+  ? backendHttpsAgent
+  : undefined
 
 // Paths that should be served by Vite (HMR, source files, public assets, etc.)
 // and not proxied to the backend.
@@ -65,6 +79,7 @@ export default defineConfig({
         target: backendTarget,
         changeOrigin: true,
         secure: true,
+        agent: backendProxyAgent,
         bypass: (req) => {
           const path = req.url || '/'
           // Let Vite's own middlewares handle internal asset / HMR requests.
