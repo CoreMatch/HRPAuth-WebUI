@@ -468,46 +468,6 @@ export default function Login() {
               </>
             ) : (
               <>
-                <Box
-                  sx={{
-                    mb: 2,
-                    px: 2,
-                    py: 1.5,
-                    borderRadius: 2,
-                    border: '1px solid',
-                    borderColor: 'divider',
-                    bgcolor: 'background.paper',
-                  }}
-                >
-                  <Stack spacing={1.5}>
-                    <Box>
-                      <Typography variant="subtitle2">
-                        {t('login.currentMethodLabel')}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {activeSecondFactorLabel}
-                      </Typography>
-                    </Box>
-                    {showSecondFactorSelector && (
-                      <Button
-                        type="button"
-                        variant="outlined"
-                        fullWidth
-                        onClick={() => setSecondFactorDialogOpen(true)}
-                        disabled={loading || webauthnLoading || sendingEmail}
-                        sx={{
-                          textTransform: 'none',
-                          minHeight: 48,
-                          borderWidth: 1.5,
-                          fontWeight: 600,
-                        }}
-                      >
-                        {t('login.switchMethod')}
-                      </Button>
-                    )}
-                  </Stack>
-                </Box>
-
                 {activeSecondFactor === 'totp' && (
                   <>
                     <TextField
@@ -584,6 +544,49 @@ export default function Login() {
                   <Alert severity={webauthnSupported ? 'info' : 'error'} sx={{ mb: 2 }}>
                     {webauthnSupported ? t('login.webauthnSecondFactorReady') : t('login.webauthnUnsupported')}
                   </Alert>
+                )}
+
+                {showSecondFactorSelector && (
+                  <Box
+                    sx={{
+                      mb: 2,
+                      px: 2,
+                      py: 1.5,
+                      borderRadius: 2,
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      bgcolor: 'background.paper',
+                    }}
+                  >
+                    <Stack spacing={1.5}>
+                      <Box>
+                        <Typography variant="subtitle2">
+                          {t('login.currentMethodLabel')}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {activeSecondFactorLabel}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>
+                          {t('login.switchMethodHint')}
+                        </Typography>
+                      </Box>
+                      <Button
+                        type="button"
+                        variant="outlined"
+                        fullWidth
+                        onClick={() => setSecondFactorDialogOpen(true)}
+                        disabled={loading || webauthnLoading || sendingEmail}
+                        sx={{
+                          textTransform: 'none',
+                          minHeight: 48,
+                          borderWidth: 1.5,
+                          fontWeight: 600,
+                        }}
+                      >
+                        {t('login.switchMethod')}
+                      </Button>
+                    </Stack>
+                  </Box>
                 )}
               </>
             )}
