@@ -4,7 +4,8 @@ import { request, type ApiResponse } from '../utils/api';
 /**
  * HRPAuth 微服务扩展层 API。
  * 契约定义见 HA-Contract/docs/dev/HRPAuth/microservices.md。
- * 前端 SPA 作为 SDK 消费方，公开发现相关服务并加载其 SDK。
+ * 前端不再做运行时 SDK 发现（GET /services/list 已移除），SDK 由 HA-WebUI-SDKHandler
+ * 在构建期注入（见 src/generated/）。这里仅保留 presence / route / relay 等旁路管理接口。
  */
 
 export interface PresenceScope {
@@ -12,29 +13,11 @@ export interface PresenceScope {
   frontend_areas: string[];
 }
 
-export interface PresenceRequest {
-  name: string;
-  /** 自定存在时间（秒）；<= 0 或省略表示永不过期 */
-  ttl_seconds?: number;
-  scope?: PresenceScope;
-  sdk_url?: string;
-  /** 鉴权级别：0 无须 / 1 用户级 / 2 运维级，默认 0 */
-  security_level?: number;
-  interacts_with?: string[];
-}
-
 export interface PresenceData {
   service: string;
   first_seen: string;
   last_seen: string;
   expires_at: string | null;
-}
-
-export interface ServiceSummary {
-  name: string;
-  scope_name: string;
-  frontend_areas: string[];
-  sdk_url?: string;
 }
 
 export interface RouteRule {
@@ -64,22 +47,22 @@ export interface RelayData {
 
 /**
  * 注册/刷新微服务心跳（bonjour 握手）。
+ * 注：WebUI 前端自身无需注册 presence，此函数保留供扩展方参考与调试使用
+ * （sdk_url 字段已废弃，见微服务契约）。
  */
-export function registerPresence(req: PresenceRequest): Promise<ApiResponse<PresenceData>> {
+export function registerPresence(req: {
+  name: string;
+  /** 自定存在时间（秒）；<= 0 或省略表示永不过期 */
+  ttl_seconds?: number;
+  scope?: PresenceScope;
+  /** 鉴权级别：0 无须 / 1 用户级 / 2 运维级，默认 0 */
+  security_level?: number;
+  interacts_with?: string[];
+}): Promise<ApiResponse<PresenceData>> {
   return request<PresenceData>(`${BackendUrl}/services/presence`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(req),
-  });
-}
-
-/**
- * 拉取当前可用的前端 SDK 微服务列表。
- * 公开接口，无需鉴权；前端不需要先通过 /services/presence 注册自身。
- */
-export function discoverServices(): Promise<ApiResponse<ServiceSummary[]>> {
-  return request<ServiceSummary[]>(`${BackendUrl}/services/list`, {
-    method: 'GET',
   });
 }
 

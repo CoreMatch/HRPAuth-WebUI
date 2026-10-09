@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import Drawer from '@mui/material/Drawer';
 import Toolbar from '@mui/material/Toolbar';
 import List from '@mui/material/List';
@@ -8,7 +8,7 @@ import ListItem from '@mui/material/ListItem';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
-import { Box, Card, CardContent, Grid, Button } from "@mui/material";
+import { Box, Card, CardContent, Grid, Button, CircularProgress } from "@mui/material";
 import { alpha } from '@mui/material/styles';
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import ApiIcon from '@mui/icons-material/Api';
@@ -20,10 +20,7 @@ import VpnKeyIcon from '@mui/icons-material/VpnKey';
 import Profile from './Profile';
 import AccountSecurity from './AccountSecurity';
 import MojangBindDashboard from './MojangBindDashboard';
-import { getDiscoveredServicesByArea, getServiceSDK, onSDKLoaded } from '../utils/serviceRegistry';
-import type { ServiceSummary } from '../api/services';
-import type { ServiceSDK, ServiceSDKDashboard } from '../types/service-sdk';
-import ServicePanel from '../components/ServicePanel';
+import { sdkDashboardItems } from '../generated/sdk-dashboard';
 import { useTranslation } from 'react-i18next';
 
 function CodeBlock({ children }: { children: string }) {
@@ -117,20 +114,12 @@ interface MenuItem {
   content: string;
   jsxContent?: React.ReactNode;
   icon?: React.ReactNode;
-  /** 微服务动态项：内容区嵌入地址（优先 mount 组件，回退 iframe） */
-  url?: string;
 }
 
 export default function PermanentDrawerLeft() {
   useMeta('dash');
   const { t } = useTranslation();
   const [selectedItem, setSelectedItem] = useState<string | null>('Profile');
-  const [, setSdkTick] = useState(0);
-
-  // 微服务 SDK 异步加载，加载完成后重渲染以读取其 dashboard 声明。
-  useEffect(() => {
-    return onSDKLoaded(() => setSdkTick((t) => t + 1));
-  }, []);
 
   // 使用 useMemo 避免每次渲染都重新创建组件实例，配合 display: none 实现真正的“无刷新”切换
   const baseItems: MenuItem[] = useMemo(() => [
@@ -140,27 +129,18 @@ export default function PermanentDrawerLeft() {
     { id: 'Yggdrasil API', label: t('dashboard.sidebar.yggdrasil'), content: '', jsxContent: <YggdrasilDashboard />, icon: <ApiIcon /> },
   ], [t]);
 
-  // 声明了 dashboard 的微服务：追加为左侧菜单项，内容区动态加载组件（回退 iframe）。
-  const serviceItems: MenuItem[] = useMemo(() => getDiscoveredServicesByArea('webui-dash')
-    .map((svc) => ({ svc, sdk: getServiceSDK(svc.name) }))
-    .filter(
-      (item): item is { svc: ServiceSummary; sdk: ServiceSDK & { dashboard: ServiceSDKDashboard } } =>
-        item.sdk?.dashboard != null
-    )
-    .flatMap(({ svc, sdk }) => {
-      const url = sdk.dashboard.url ?? sdk.iframeUrl;
-      return url
-        ? [
-            {
-              id: svc.name,
-              label: sdk.dashboard.label,
-              content: '',
-              url,
-              icon: <ApiIcon />,
-            } satisfies MenuItem,
-          ]
-        : [];
-    }), []);
+  // 构建期注入的 SDK Dashboard 项：追加为左侧菜单项，内容区直接渲染其 element。
+  const serviceItems: MenuItem[] = useMemo(
+    () =>
+      sdkDashboardItems.map((item) => ({
+        id: item.key,
+        label: item.label,
+        content: '',
+        jsxContent: item.element,
+        icon: <ApiIcon />,
+      })),
+    []
+  );
 
   const allItems: MenuItem[] = useMemo(() => [...baseItems, ...serviceItems], [baseItems, serviceItems]);
   const selected = allItems.find((item) => item.id === selectedItem) ?? null;
@@ -245,27 +225,27 @@ export default function PermanentDrawerLeft() {
         </Typography>
         
         {/* Render all tabs to avoid re-mounting flicker, using display: none for inactive ones */}
-        {allItems.map((item) => (
-          <Box 
-            key={item.id} 
-            sx={{ display: selectedItem === item.id ? 'block' : 'none' }}
-          >
-            {item.url ? (
-              <ServicePanel
-                name={item.id}
-                area="webui-dash"
-                url={item.url}
-                height="calc(100vh - 160px)"
-              />
-            ) : (
-              item.jsxContent ?? (
+        {/* 包一层 Suspense：构建期注入的 SDK element 可能含 React.lazy 懒加载组件。 */}
+        <Suspense
+          fallback={
+            <Box sx={{ py: 4, display: 'grid', placeItems: 'center' }}>
+              <CircularProgress color="secondary" size={32} />
+            </Box>
+          }
+        >
+          {allItems.map((item) => (
+            <Box
+              key={item.id}
+              sx={{ display: selectedItem === item.id ? 'block' : 'none' }}
+            >
+              {item.jsxContent ?? (
                 <Typography sx={{ whiteSpace: 'pre-line' }}>
                   {item.content}
                 </Typography>
-              )
-            )}
-          </Box>
-        ))}
+              )}
+            </Box>
+          ))}
+        </Suspense>
       </Box>
     </Box>
   );

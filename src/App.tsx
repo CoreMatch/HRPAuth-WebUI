@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
 import { Box, CircularProgress, Typography } from '@mui/material';
 import Layout from './components/Layout';
+import { sdkRouteElements } from './generated/sdk-routes';
 
 const Home = lazy(() => import('./pages/Home'));
 const Skinlib = lazy(() => import('./pages/Skinlib'));
@@ -11,7 +12,6 @@ const Login = lazy(() => import('./pages/Login'));
 const Register = lazy(() => import('./pages/Register'));
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 const VerifyEmail = lazy(() => import('./pages/VerifyEmail'));
-const ServiceEmbed = lazy(() => import('./pages/ServiceEmbed'));
 
 function LoadingFallback() {
   return (
@@ -47,7 +47,8 @@ export default function App() {
             <Route path="register" element={<Register />} />
             <Route path="forgot-password" element={<ForgotPassword />} />
             <Route path="verifyemail" element={<VerifyEmail />} />
-            <Route path="service/:name" element={<ServiceEmbed />} />
+            {/* 构建期注入的 SDK 路由（占位为空）；同样处于 Suspense 内，懒加载组件可正常显示 fallback。 */}
+            {sdkRouteElements}
             <Route path="profile" element={<Navigate to="/dash" replace />} />
           </Route>
         </Routes>

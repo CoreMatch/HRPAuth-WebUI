@@ -10,15 +10,12 @@ import LanguageSwitcher from './LanguageSwitcher';
 import { request } from '../utils/api';
 import { getAuthToken, getUserEmail, clearAuthCookies } from '../utils/cookie';
 import { BackendUrl } from '../utils/config';
-import { getDiscoveredServicesByArea, getServiceSDK, onSDKLoaded } from '../utils/serviceRegistry';
-import type { ServiceSummary } from '../api/services';
-import type { ServiceSDK, ServiceSDKMenu } from '../types/service-sdk';
+import { sdkNavbarItems } from '../generated/sdk-navbar';
 
 export default function Navbar() {
   const { t } = useTranslation();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [, setSdkTick] = useState(0);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -31,11 +28,6 @@ export default function Navbar() {
     const interval = setInterval(checkAuth, 1000);
 
     return () => clearInterval(interval);
-  }, []);
-
-  // 微服务 SDK 异步加载，加载完成后重渲染以读取其 menu 声明。
-  useEffect(() => {
-    return onSDKLoaded(() => setSdkTick((t) => t + 1));
   }, []);
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
@@ -182,22 +174,12 @@ export default function Navbar() {
                 <MenuItem component={Link} to="/skinlib" onClick={handleMenuClose}>
                   {t('navbar.skinlib')}
                 </MenuItem>
-                {getDiscoveredServicesByArea('webui-service')
-                  .map((svc) => ({ svc, sdk: getServiceSDK(svc.name) }))
-                  .filter(
-                    (item): item is { svc: ServiceSummary; sdk: ServiceSDK & { menu: ServiceSDKMenu } } =>
-                      item.sdk?.menu != null
-                  )
-                  .map(({ svc, sdk }) => (
-                    <MenuItem
-                      key={svc.name}
-                      component={Link}
-                      to={`/service/${encodeURIComponent(svc.name)}`}
-                      onClick={handleMenuClose}
-                    >
-                      {sdk.menu.label}
-                    </MenuItem>
-                  ))}
+                {/* 构建期注入的 SDK 菜单项（占位为空）。 */}
+                {sdkNavbarItems.map((item) => (
+                  <MenuItem key={item.key} component={Link} to={item.path} onClick={handleMenuClose}>
+                    {item.label}
+                  </MenuItem>
+                ))}
                 <MenuItem onClick={handleLogout}>
                   {t('navbar.logout')}
                 </MenuItem>

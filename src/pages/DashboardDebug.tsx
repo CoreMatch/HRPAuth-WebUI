@@ -1,10 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
-import { Box, Typography, Card, CardContent, CircularProgress, Alert, Paper, Stack, Chip, Divider, TextField, Button } from '@mui/material';
+import { useState, useEffect } from 'react';
+import { Box, Typography, Card, CardContent, CircularProgress, Alert, Paper, Stack, Chip, Divider } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import { getAuthToken, getUid, getUserEmail } from '../utils/cookie';
 import { BackendUrl } from '../utils/config';
 import { useMeta } from '../hooks/useMeta';
-import { getDiscoveredServices, getServiceSDK, onSDKLoaded, notifySDKLoaded } from '../utils/serviceRegistry';
 
 interface DebugInfo {
   requestUrl: string;
@@ -26,23 +25,7 @@ export default function DashboardDebug() {
   const [debugInfo, setDebugInfo] = useState<DebugInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [, setSdkTick] = useState(0);
   const isLoggedIn = !!(getAuthToken() && getUid() && getUserEmail());
-
-  // 手动加载 SDK
-  const [sdkName, setSdkName] = useState('');
-  const [sdkCode] = useState(
-`// 使用 __serviceName 变量（由调试工具自动注入，值为服务名称输入框内容）
-window[__serviceName + '-sdk'] = {
-  name: __serviceName,
-  version: '1.0.0',
-  menu: { label: 'My Service' },
-  dashboard: { label: 'My Service', url: 'https://example.com' },
-};`
-  );
-  const [sdkLoadError, setSdkLoadError] = useState<string | null>(null);
-  const [sdkLoadSuccess, setSdkLoadSuccess] = useState<string | null>(null);
-  const sdkCodeRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     const fetchRawData = async () => {
@@ -144,94 +127,6 @@ window[__serviceName + '-sdk'] = {
     fetchRawData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // 微服务 SDK 加载完成后刷新微服务列表展示。
-  useEffect(() => {
-    return onSDKLoaded(() => setSdkTick((t) => t + 1));
-  }, []);
-
-  const services = getDiscoveredServices();
-
-  const handleLoadSDK = () => {
-    setSdkLoadError(null);
-    setSdkLoadSuccess(null);
-
-    const name = sdkName.trim();
-    if (!name) {
-      setSdkLoadError(t('debug.nameRequired'));
-      return;
-    }
-
-    const code = sdkCodeRef.current?.value ?? sdkCode;
-    if (!code.trim()) {
-      setSdkLoadError(t('debug.codeRequired'));
-      return;
-    }
-
-    try {
-      // 通过 script 标签执行代码，能捕获语法错误和运行时错误
-      // 注入 __serviceName 变量，SDK 代码可通过 window[__serviceName + '-sdk'] 动态挂载
-      const script = document.createElement('script');
-      script.dataset.serviceSdk = `manual-${name}`;
-      script.textContent = `var __serviceName=${JSON.stringify(name)};\n${code}`;
-
-      let capturedError: string | null = null;
-
-      script.onerror = () => {
-        // script 标签 onerror 主要捕获 src 加载失败，内联脚本的运行时错误走 window.onerror
-        if (!capturedError) {
-          capturedError = '脚本执行失败（详情请查看控制台）';
-        }
-        setSdkLoadError(capturedError);
-        script.remove();
-      };
-
-      // 拦截运行时错误
-      const prevOnError = window.onerror;
-      window.onerror = (message, _source, _lineno, _colno, error) => {
-        capturedError = String(message);
-        if (error?.stack) {
-          capturedError += '\n\n' + error.stack;
-        }
-        setSdkLoadError(capturedError);
-        window.onerror = prevOnError;
-        return true; // 阻止默认错误处理
-      };
-
-      document.head.appendChild(script);
-      window.onerror = prevOnError;
-
-      // 验证 SDK 全局对象是否正确注册
-      const globalKey = `${name}-sdk`;
-      const sdk = (window as any)[globalKey];
-
-      if (!sdk || typeof sdk !== 'object') {
-        setSdkLoadError(t('debug.noGlobalObject', { key: globalKey }));
-        script.remove();
-        return;
-      }
-
-      // 验证必要字段
-      if (!sdk.name || !sdk.version) {
-        setSdkLoadError(t('debug.missingFields', { keys: JSON.stringify(Object.keys(sdk)) }));
-        script.remove();
-        return;
-      }
-
-      // 加载成功
-      setSdkLoadSuccess(t('debug.loadSuccessBody', {
-        name: sdk.name,
-        version: sdk.version,
-        menu: sdk.menu ? sdk.menu.label : t('debug.menuNo'),
-        dashboard: sdk.dashboard ? sdk.dashboard.label : t('debug.menuNo'),
-      }));
-      notifySDKLoaded(name);
-      script.remove();
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      setSdkLoadError(t('debug.loadFailed', { msg }));
-    }
-  };
 
   if (loading) {
     return (
@@ -354,135 +249,6 @@ window[__serviceName + '-sdk'] = {
           </CardContent>
         </Card>
       )}
-
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Typography variant="h6" gutterBottom color="primary">
-            {t('debug.discoveredServices')}
-          </Typography>
-          {services.length === 0 ? (
-            <Typography variant="body2" color="text.secondary">
-              {t('debug.noServices')}
-            </Typography>
-          ) : (
-            services.map((svc) => {
-              const sdk = getServiceSDK(svc.name);
-              return (
-                <Box key={svc.name} sx={{ mb: 2 }}>
-                  <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-                    <Typography variant="subtitle1" fontWeight="medium">
-                      {svc.name}
-                    </Typography>
-                    <Chip label={`scope: ${svc.scope_name}`} size="small" variant="outlined" />
-                    {svc.frontend_areas.map((area) => (
-                      <Chip key={`${svc.name}-${area}`} label={area} size="small" variant="outlined" />
-                    ))}
-                    <Chip
-                      label={sdk ? t('debug.sdkLoaded') : t('debug.sdkNotLoaded')}
-                      color={sdk ? 'success' : 'default'}
-                      size="small"
-                    />
-                  </Stack>
-                  {svc.sdk_url && (
-                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                      {t('debug.sdkUrl', { url: svc.sdk_url })}
-                    </Typography>
-                  )}
-                  {sdk && (
-                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                      {t('debug.sdkVersion', {
-                        version: sdk.version,
-                        menu: sdk.menu ? t('debug.menuYes') : t('debug.menuNo'),
-                        dashboard: sdk.dashboard ? t('debug.menuYes') : t('debug.menuNo'),
-                      })}
-                    </Typography>
-                  )}
-                </Box>
-              );
-            })
-          )}
-        </CardContent>
-      </Card>
-
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Typography variant="h6" gutterBottom color="primary">
-            {t('debug.manualLoadSDK')}
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            {t('debug.manualLoadSDKDesc')}
-          </Typography>
-
-          <Stack spacing={2}>
-            <TextField
-              label={t('debug.serviceNameLabel')}
-              placeholder={t('debug.serviceNamePlaceholder')}
-              size="small"
-              value={sdkName}
-              onChange={(e) => setSdkName(e.target.value)}
-              helperText={t('debug.serviceNameHelper')}
-              sx={{ maxWidth: 400 }}
-            />
-
-            <Box>
-              <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
-                {t('debug.sdkCodeLabel')}
-              </Typography>
-              <textarea
-                ref={sdkCodeRef}
-                defaultValue={sdkCode}
-                spellCheck={false}
-                style={{
-                  width: '100%',
-                  minHeight: '200px',
-                  padding: '12px',
-                  fontFamily: 'monospace',
-                  fontSize: '0.875rem',
-                  lineHeight: '1.5',
-                  backgroundColor: '#1e1e1e',
-                  color: '#e0e0e0',
-                  border: '1px solid #444',
-                  borderRadius: '4px',
-                  resize: 'vertical',
-                  outline: 'none',
-                  tabSize: 2,
-                }}
-              />
-            </Box>
-
-            <Stack direction="row" spacing={2} alignItems="center">
-              <Button variant="contained" color="primary" onClick={handleLoadSDK}>
-                {t('debug.loadSDK')}
-              </Button>
-              {sdkLoadSuccess && (
-                <Button
-                  variant="outlined"
-                  size="small"
-                  onClick={() => {
-                    setSdkLoadSuccess(null);
-                    setSdkLoadError(null);
-                  }}
-                >
-                  {t('debug.clearResult')}
-                </Button>
-              )}
-            </Stack>
-
-            {sdkLoadError && (
-              <Alert severity="error" sx={{ whiteSpace: 'pre-wrap' }}>
-                <Typography variant="subtitle2" gutterBottom>{t('debug.loadErrorTitle')}</Typography>
-                {sdkLoadError}
-              </Alert>
-            )}
-
-            {sdkLoadSuccess && (
-              <Alert severity="success" sx={{ whiteSpace: 'pre-wrap' }}>
-                {sdkLoadSuccess}
-              </Alert>
-            )}
-          </Stack>
-        </CardContent>
-      </Card>
 
       <Card>
         <CardContent>
