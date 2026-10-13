@@ -13,12 +13,21 @@ export interface UserData {
   recovery_key_enabled?: boolean;
   email_2fa_enabled?: boolean;
   uid?: number;
+  mbe?: boolean;
+  mojang_uuid?: string | null;
+}
+
+interface MojangProfile {
+  id: string;
+  name: string;
+  has_cape: boolean;
 }
 
 interface Cache {
   user: UserData | null;
   twoFactorStatus: TwoFactorStatusResponse | null;
   webauthnCredentials: any | null;
+  mojangProfile: MojangProfile | null;
   lastFetched: number;
 }
 
@@ -26,6 +35,7 @@ const cache: Cache = {
   user: null,
   twoFactorStatus: null,
   webauthnCredentials: null,
+  mojangProfile: null,
   lastFetched: 0,
 };
 
@@ -35,6 +45,7 @@ export const dataCache = {
   getUser: () => cache.user,
   getTwoFactorStatus: () => cache.twoFactorStatus,
   getWebauthnCredentials: () => cache.webauthnCredentials,
+  getMojangProfile: () => cache.mojangProfile,
 
   setUser: (user: UserData) => {
     cache.user = user;
@@ -46,6 +57,10 @@ export const dataCache = {
   },
   setWebauthnCredentials: (creds: any) => {
     cache.webauthnCredentials = creds;
+    cache.lastFetched = Date.now();
+  },
+  setMojangProfile: (profile: MojangProfile | null) => {
+    cache.mojangProfile = profile;
     cache.lastFetched = Date.now();
   },
 
@@ -87,6 +102,7 @@ export const dataCache = {
     cache.user = null;
     cache.twoFactorStatus = null;
     cache.webauthnCredentials = null;
+    cache.mojangProfile = null;
     cache.lastFetched = 0;
   }
 };
