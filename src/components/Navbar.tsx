@@ -5,7 +5,6 @@ import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from 'react-i18next';
 import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined';
 import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined';
-import CollectionsOutlinedIcon from '@mui/icons-material/CollectionsOutlined';
 import LanguageSwitcher from './LanguageSwitcher';
 import { request } from '../utils/api';
 import { getAuthToken, getUserEmail, clearAuthCookies } from '../utils/cookie';
@@ -130,15 +129,6 @@ export default function Navbar() {
               >
                 {t('navbar.dashboard')}
               </Button>
-              <Button
-                variant="outlined"
-                component={Link}
-                to="/skinlib"
-                startIcon={<CollectionsOutlinedIcon />}
-                sx={{ display: { xs: 'none', md: 'inline-flex' } }}
-              >
-                {t('navbar.skinlib')}
-              </Button>
               <IconButton onClick={handleMenuOpen} sx={{ ml: 0.5 }}>
                 <Avatar
                   sx={{
@@ -170,9 +160,6 @@ export default function Navbar() {
                 </MenuItem>
                 <MenuItem component={Link} to="/dashdebug" onClick={handleMenuClose}>
                   {t('navbar.debug')}
-                </MenuItem>
-                <MenuItem component={Link} to="/skinlib" onClick={handleMenuClose}>
-                  {t('navbar.skinlib')}
                 </MenuItem>
                 {/* 构建期注入的 SDK 菜单项（占位为空）。 */}
                 {sdkNavbarItems.map((item) => (

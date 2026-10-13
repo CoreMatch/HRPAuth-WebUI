@@ -5,7 +5,6 @@ import Layout from './components/Layout';
 import { sdkRouteElements } from './generated/sdk-routes';
 
 const Home = lazy(() => import('./pages/Home'));
-const Skinlib = lazy(() => import('./pages/Skinlib'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const DashboardDebug = lazy(() => import('./pages/DashboardDebug'));
 const Login = lazy(() => import('./pages/Login'));
@@ -40,7 +39,6 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Layout />}>
             <Route index element={<Home />} />
-            <Route path="skinlib" element={<Skinlib />} />
             <Route path="dash" element={<Dashboard />} />
             <Route path="dashdebug" element={<DashboardDebug />} />
             <Route path="login" element={<Login />} />

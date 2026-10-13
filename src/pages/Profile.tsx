@@ -1,18 +1,13 @@
-import { useState, useEffect, useRef, lazy, Suspense } from 'react';
-import type { ChangeEvent } from 'react';
-import { Box, Typography, Card, CardContent, Avatar, CircularProgress, Alert, Chip, Stack, TextField, Button, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
+import { useState, useEffect } from 'react';
+import { Box, Typography, Card, CardContent, Avatar, CircularProgress, Alert, Chip, Stack, TextField, Button } from '@mui/material';
 import CheckCircle from '@mui/icons-material/CheckCircle';
 import Warning from '@mui/icons-material/Warning';
 import Edit from '@mui/icons-material/Edit';
 import Save from '@mui/icons-material/Save';
-import CloudUpload from '@mui/icons-material/CloudUpload';
-import Delete from '@mui/icons-material/Delete';
-import Photo from '@mui/icons-material/Photo';
 import { useTranslation } from 'react-i18next';
 import { dataCache } from '../utils/dataCache';
-const SkinViewer3D = lazy(() => import('../components/SkinViewer3D'));
 import { request } from '../utils/api';
-import { getUserEmail, getAuthToken, getUid } from '../utils/cookie';
+import { getUserEmail, getUid } from '../utils/cookie';
 import { BackendUrl } from '../utils/config';
 
 interface UserInfo {
@@ -21,277 +16,6 @@ interface UserInfo {
   avatar?: string;
   verified?: boolean;
   uid?: number;
-}
-
-type TextureType = 'skin' | 'cape';
-
-interface TextureManageDialogProps {
-  open: boolean;
-  onClose: () => void;
-  token: string;
-  onUpdated?: () => void;
-}
-
-interface TextureInfo {
-  texture_type: string;
-  url: string;
-  model?: string;
-}
-
-function normalizeTextureUrl(url: string): string {
-  if (!url) return url;
-  try {
-    const parsed = new URL(url);
-    if (import.meta.env.DEV) return parsed.pathname;
-    if (BackendUrl && BackendUrl.startsWith('http')) {
-      const backendOrigin = new URL(BackendUrl).origin;
-      return url.replace(parsed.origin, backendOrigin);
-    }
-    return parsed.pathname;
-  } catch {
-    return url;
-  }
-}
-
-function TextureManageDialog({ open, onClose, token, onUpdated }: TextureManageDialogProps) {
-  const { t } = useTranslation();
-  const [skinCurrentUrl, setSkinCurrentUrl] = useState<string | null>(null);
-  const [capeCurrentUrl, setCapeCurrentUrl] = useState<string | null>(null);
-  const [skinLocalPreview, setSkinLocalPreview] = useState<string | null>(null);
-  const [capeLocalPreview, setCapeLocalPreview] = useState<string | null>(null);
-  const [skinFile, setSkinFile] = useState<File | null>(null);
-  const [capeFile, setCapeFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState<TextureType | null>(null);
-  const [deleting, setDeleting] = useState<TextureType | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<{ type: TextureType; action: 'upload' | 'delete' } | null>(null);
-  const [confirmDeleteType, setConfirmDeleteType] = useState<TextureType | null>(null);
-
-  const skinFileInputRef = useRef<HTMLInputElement>(null);
-  const capeFileInputRef = useRef<HTMLInputElement>(null);
-
-  const fetchTextures = async () => {
-    try {
-      const response = await request(`${BackendUrl}/texture/get`, { method: 'POST' });
-      if (response.success && response.data && response.data.textures) {
-        const skinTexture = response.data.textures.find((t: TextureInfo) => t.texture_type === 'skin');
-        const capeTexture = response.data.textures.find((t: TextureInfo) => t.texture_type === 'cape');
-        setSkinCurrentUrl(skinTexture?.url ? `${normalizeTextureUrl(skinTexture.url)}?${Date.now()}` : null);
-        setCapeCurrentUrl(capeTexture?.url ? `${normalizeTextureUrl(capeTexture.url)}?${Date.now()}` : null);
-      } else {
-        setSkinCurrentUrl(null);
-        setCapeCurrentUrl(null);
-      }
-    } catch {
-      setSkinCurrentUrl(null);
-      setCapeCurrentUrl(null);
-    }
-  };
-
-  useEffect(() => {
-    if (!open) {
-      setSkinLocalPreview(null);
-      setCapeLocalPreview(null);
-      setSkinFile(null);
-      setCapeFile(null);
-      setError(null);
-      setSuccess(null);
-      setConfirmDeleteType(null);
-      if (skinFileInputRef.current) skinFileInputRef.current.value = '';
-      if (capeFileInputRef.current) capeFileInputRef.current.value = '';
-      return;
-    }
-    fetchTextures();
-  }, [open, token]);
-
-  const handleFileSelect = (event: ChangeEvent<HTMLInputElement>, type: TextureType) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith('image/png')) {
-      setError(t('profile.textureDialog.errors.pngOnly'));
-      return;
-    }
-    if (file.size > 2 * 1024 * 1024) {
-      setError(t('profile.textureDialog.errors.tooLarge'));
-      return;
-    }
-    const img = new Image();
-    const objectUrl = URL.createObjectURL(file);
-    img.onload = () => {
-      URL.revokeObjectURL(objectUrl);
-      if (img.width > 8192 || img.height > 8192) {
-        setError(t('profile.textureDialog.errors.tooWide'));
-        return;
-      }
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const dataUrl = e.target?.result as string;
-        if (type === 'skin') {
-          setSkinLocalPreview(dataUrl);
-          setSkinFile(file);
-        } else {
-          setCapeLocalPreview(dataUrl);
-          setCapeFile(file);
-        }
-        setError(null);
-      };
-      reader.readAsDataURL(file);
-    };
-    img.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
-      setError(t('profile.textureDialog.errors.pngOnly'));
-    };
-    img.src = objectUrl;
-  };
-
-  const handleUpload = async (type: TextureType) => {
-    const file = type === 'skin' ? skinFile : capeFile;
-    if (!file) {
-      setError(t('profile.textureDialog.errors.selectFile', { type: t(type === 'skin' ? 'profile.textureDialog.skin' : 'profile.textureDialog.cape') }));
-      return;
-    }
-    setUploading(type);
-    setError(null);
-    try {
-      const formData = new FormData();
-      formData.append('texture_type', type);
-      formData.append('file', file);
-      const response = await request(`${BackendUrl}/texture/upload`, { method: 'POST', body: formData });
-      if (response.success) {
-        setSuccess({ type, action: 'upload' });
-        if (type === 'skin') {
-          setSkinFile(null);
-          setSkinLocalPreview(null);
-          if (skinFileInputRef.current) skinFileInputRef.current.value = '';
-        } else {
-          setCapeFile(null);
-          setCapeLocalPreview(null);
-          if (capeFileInputRef.current) capeFileInputRef.current.value = '';
-        }
-        await fetchTextures();
-        onUpdated?.();
-      } else {
-        setError(response.message || t('profile.textureDialog.errors.uploadFailed'));
-      }
-    } catch {
-      setError(t('common.serverError'));
-    } finally {
-      setUploading(null);
-    }
-  };
-
-  const handleDelete = async (type: TextureType) => {
-    setDeleting(type);
-    setError(null);
-    try {
-      const response = await request(`${BackendUrl}/texture/delete`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ texture_type: type }),
-      });
-      if (response.success) {
-        setSuccess({ type, action: 'delete' });
-        if (type === 'skin') setSkinCurrentUrl(null);
-        else setCapeCurrentUrl(null);
-        onUpdated?.();
-      } else {
-        setError(response.message || t('profile.textureDialog.errors.deleteFailed'));
-      }
-    } catch {
-      setError(t('common.serverError'));
-    } finally {
-      setDeleting(null);
-      setConfirmDeleteType(null);
-    }
-  };
-
-  const skinPreviewUrl = skinLocalPreview || skinCurrentUrl;
-  const capePreviewUrl = capeLocalPreview || capeCurrentUrl;
-  const hasPreview = !!skinPreviewUrl || !!capePreviewUrl;
-  const isLoading = uploading !== null || deleting !== null;
-
-  const renderUploadSection = (type: TextureType) => {
-    const label = t(type === 'skin' ? 'profile.textureDialog.skin' : 'profile.textureDialog.cape');
-    const file = type === 'skin' ? skinFile : capeFile;
-    const currentUrl = type === 'skin' ? skinCurrentUrl : capeCurrentUrl;
-    const fileInputRef = type === 'skin' ? skinFileInputRef : capeFileInputRef;
-    const isUploading = uploading === type;
-    const isDeleting = deleting === type;
-
-    return (
-      <Box sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
-        <Typography variant="subtitle1" sx={{ mb: 1.5, fontWeight: 600 }}>{label}</Typography>
-        <input ref={fileInputRef} type="file" accept="image/png" onChange={(e) => handleFileSelect(e, type)} style={{ display: 'none' }} id={`${type}-upload`} />
-        <Stack spacing={1.5}>
-          <Stack direction="row" spacing={1}>
-            <label htmlFor={`${type}-upload`} style={{ flex: 1 }}>
-              <Button variant="outlined" component="span" startIcon={<CloudUpload />} fullWidth disabled={isLoading}>{t('profile.textureDialog.chooseFile')}</Button>
-            </label>
-            {file && (
-              <Button variant="contained" onClick={() => handleUpload(type)} disabled={isLoading} sx={{ minWidth: 100 }}>
-                {isUploading ? t('profile.textureDialog.uploading') : t('profile.textureDialog.upload')}
-              </Button>
-            )}
-          </Stack>
-          {currentUrl && (
-            <Button variant="outlined" color="error" startIcon={<Delete />} onClick={() => setConfirmDeleteType(type)} disabled={isLoading}>
-              {isDeleting ? t('profile.textureDialog.deleting') : t('profile.textureDialog.delete') + ' ' + label}
-            </Button>
-          )}
-          {file && <Typography variant="caption" color="text.secondary">{t('profile.textureDialog.selected', { name: file.name })}</Typography>}
-        </Stack>
-      </Box>
-    );
-  };
-
-  return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-      <DialogTitle>{t('profile.textureDialog.title')}</DialogTitle>
-      <DialogContent>
-        {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
-        {success && !confirmDeleteType && (
-          <Alert severity="success" sx={{ mb: 2 }}>
-            {t(success.action === 'upload' ? 'profile.textureDialog.uploadedSuccess' : 'profile.textureDialog.deletedSuccess', {
-              type: t(success.type === 'skin' ? 'profile.textureDialog.skin' : 'profile.textureDialog.cape'),
-            })}
-          </Alert>
-        )}
-        {confirmDeleteType ? (
-          <Box sx={{ mt: 2 }}>
-            <Alert severity="warning" sx={{ mb: 2 }}>{t('profile.textureDialog.deleteConfirm', { type: t(confirmDeleteType === 'skin' ? 'profile.textureDialog.skin' : 'profile.textureDialog.cape') })}</Alert>
-            <Stack direction="row" spacing={2} justifyContent="flex-end">
-              <Button onClick={() => setConfirmDeleteType(null)} disabled={isLoading}>{t('common.cancel')}</Button>
-              <Button variant="contained" color="error" onClick={() => handleDelete(confirmDeleteType)} disabled={isLoading}>
-                {deleting ? t('profile.textureDialog.deleting') : t('common.confirm') + t('common.delete')}
-              </Button>
-            </Stack>
-          </Box>
-        ) : (
-          <Box sx={{ display: 'flex', gap: 4, mt: 2, flexDirection: { xs: 'column', md: 'row' } }}>
-            <Box sx={{ flex: 1 }}>
-              <Typography variant="body1" sx={{ mb: 2 }}>{t('profile.textureDialog.preview')}</Typography>
-              {hasPreview ? (
-                <Box sx={{ position: 'relative', width: 200, height: 400, margin: '0 auto' }}>
-                  <Suspense fallback={<CircularProgress sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }} />}>
-                    <SkinViewer3D skinUrl={skinPreviewUrl} capeUrl={capePreviewUrl} width={200} height={400} />
-                  </Suspense>
-                </Box>
-              ) : (
-                <Box sx={{ width: 200, height: 400, margin: '0 auto', backgroundColor: '#e0e0e0', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 1 }}>
-                  <Photo sx={{ width: 48, height: 48, color: '#999' }} />
-                </Box>
-              )}
-            </Box>
-            <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {renderUploadSection('skin')}
-              {renderUploadSection('cape')}
-            </Box>
-          </Box>
-        )}
-      </DialogContent>
-      <DialogActions><Button onClick={onClose}>{t('profile.textureDialog.close')}</Button></DialogActions>
-    </Dialog>
-  );
 }
 
 export default function Profile() {
@@ -305,53 +29,11 @@ export default function Profile() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
-  const [textureDialogOpen, setTextureDialogOpen] = useState(false);
-  const [skinUrl, setSkinUrl] = useState<string | null>(null);
-  const [capeUrl, setCapeUrl] = useState<string | null>(null);
-
-  const fetchTextures = async () => {
-    const cachedTextures = dataCache.getTextures();
-    if (cachedTextures) {
-      const skinTexture = cachedTextures.find((t: TextureInfo) => t.texture_type === 'skin');
-      const capeTexture = cachedTextures.find((t: TextureInfo) => t.texture_type === 'cape');
-      const cacheBust = Date.now();
-      setSkinUrl(skinTexture?.url ? `${normalizeTextureUrl(skinTexture.url)}?${cacheBust}` : null);
-      setCapeUrl(capeTexture?.url ? `${normalizeTextureUrl(capeTexture.url)}?${cacheBust}` : null);
-      return;
-    }
-    try {
-      const response = await request(`${BackendUrl}/texture/get`, { method: 'POST' });
-      if (response.success && response.data && Array.isArray(response.data.textures)) {
-        dataCache.setTextures(response.data.textures);
-        const skinTexture = response.data.textures.find((t: TextureInfo) => t.texture_type === 'skin');
-        const capeTexture = response.data.textures.find((t: TextureInfo) => t.texture_type === 'cape');
-        const cacheBust = Date.now();
-        setSkinUrl(skinTexture?.url ? `${normalizeTextureUrl(skinTexture.url)}?${cacheBust}` : null);
-        setCapeUrl(capeTexture?.url ? `${normalizeTextureUrl(capeTexture.url)}?${cacheBust}` : null);
-        return;
-      }
-      setSkinUrl(null);
-      setCapeUrl(null);
-    } catch {
-      setSkinUrl(null);
-      setCapeUrl(null);
-    }
-  };
-
-  useEffect(() => {
-    fetchTextures();
-  }, []);
-
   useEffect(() => {
     const fetchData = async () => {
       const email = getUserEmail();
-      const token = getAuthToken();
       const uid = getUid();
-      if (!token) {
-        setError(t('profile.notLoggedIn'));
-        setLoading(false);
-        return;
-      }
+      
       const cachedUser = dataCache.getUser();
       if (cachedUser) {
         setUserInfo({
@@ -477,30 +159,6 @@ export default function Profile() {
           </Box>
         </CardContent>
       </Card>
-
-      <Card sx={{ maxWidth: 600 }}>
-        <CardContent>
-          <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
-            <Box>
-              <Typography variant="h6" gutterBottom>{t('profile.skinCapeTitle')}</Typography>
-              <Typography variant="body2" color="text.secondary">{t('profile.skinCapeSubtitle')}</Typography>
-            </Box>
-            <Button variant="contained" startIcon={<CloudUpload />} onClick={() => setTextureDialogOpen(true)}>{t('profile.manage')}</Button>
-          </Stack>
-          <Box sx={{ width: '100%', height: 360, backgroundColor: 'grey.100', borderRadius: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-            {skinUrl || capeUrl ? (
-              <Suspense fallback={<CircularProgress />}><SkinViewer3D skinUrl={skinUrl} capeUrl={capeUrl} width={200} height={360} /></Suspense>
-            ) : (
-              <Stack alignItems="center" spacing={1}>
-                <Photo sx={{ width: 48, height: 48, color: 'grey.500' }} />
-                <Typography variant="body2" color="text.secondary">{t('profile.noSkinOrCape')}</Typography>
-              </Stack>
-            )}
-          </Box>
-        </CardContent>
-      </Card>
-
-      <TextureManageDialog open={textureDialogOpen} onClose={() => setTextureDialogOpen(false)} token={getAuthToken() || ''} onUpdated={fetchTextures} />
     </Box>
   );
 }

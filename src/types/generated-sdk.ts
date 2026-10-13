@@ -10,8 +10,8 @@ export interface SdkManifestEntry {
   name: string;
   version: string;
   routes: { path: string; module: string; title?: string }[];
-  menu?: { label: string; path: string };
-  dashboard?: { label: string; path: string };
+  menu?: { label: string; path: string }[];
+  dashboard?: { label: string; path: string }[];
   runScripts: boolean;
   sha256: string;
 }

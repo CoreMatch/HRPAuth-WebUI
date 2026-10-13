@@ -16,95 +16,10 @@ import { getRealBackendUrl } from '../utils/config';
 import { useMeta } from '../hooks/useMeta';
 import PersonIcon from '@mui/icons-material/Person';
 import SecurityIcon from '@mui/icons-material/Security';
-import VpnKeyIcon from '@mui/icons-material/VpnKey';
 import Profile from './Profile';
 import AccountSecurity from './AccountSecurity';
-import MojangBindDashboard from './MojangBindDashboard';
 import { sdkDashboardItems } from '../generated/sdk-dashboard';
 import { useTranslation } from 'react-i18next';
-
-function CodeBlock({ children }: { children: string }) {
-  return (
-    <Box
-      sx={{
-        position: "relative",
-        bgcolor: "grey.900",
-        color: "grey.100",
-        p: 2,
-        borderRadius: 2,
-        fontFamily: "monospace",
-        fontSize: "0.9rem",
-        whiteSpace: "pre-wrap",
-        border: "1px solid",
-        borderColor: "grey.800",
-      }}
-    >
-      {children}
-    </Box>
-  );
-}
-
-function YggdrasilDashboard() {
-  const { t } = useTranslation();
-  const [baseUrl, setBaseUrl] = useState('');
-  const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    let mounted = true;
-    getRealBackendUrl().then((url) => {
-      if (mounted) setBaseUrl(url);
-    });
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  const handleCopy = async () => {
-    if (!baseUrl) return;
-    await navigator.clipboard.writeText(baseUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  };
-
-  return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-      <Typography variant="h6">{t('dashboard.yggdrasil.intro')}</Typography>
-
-      <Grid container spacing={2}>
-        <Grid size={{ xs: 12, md: 6 }}>
-          <Card sx={{ height: '100%' }}>
-            <CardContent>
-              <Typography variant="subtitle2" color="text.secondary" gutterBottom>{t('dashboard.yggdrasil.serverAddress')}</Typography>
-              <CodeBlock>{baseUrl}</CodeBlock>
-              <Button
-                variant="contained"
-                startIcon={<ContentCopyIcon />}
-                onClick={handleCopy}
-                sx={{ mt: 2 }}
-                fullWidth
-              >
-                {copied ? t('dashboard.yggdrasil.copied') : t('dashboard.yggdrasil.copyUrl')}
-              </Button>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
-
-      <Card>
-        <CardContent>
-          <Typography variant="subtitle2" color="text.secondary" gutterBottom>{t('dashboard.yggdrasil.usageInstructions')}</Typography>
-          <Typography variant="body2" component="div">
-            <Box component="ol" sx={{ pl: 2, m: 0 }}>
-              <li>{t('dashboard.yggdrasil.steps.1')}</li>
-              <li>{t('dashboard.yggdrasil.steps.2')}</li>
-              <li>{t('dashboard.yggdrasil.steps.3')}</li>
-            </Box>
-          </Typography>
-        </CardContent>
-      </Card>
-    </Box>
-  );
-}
 
 const drawerWidth = 240;
 
@@ -125,8 +40,6 @@ export default function PermanentDrawerLeft() {
   const baseItems: MenuItem[] = useMemo(() => [
     { id: 'Profile', label: t('dashboard.sidebar.profile'), content: '', jsxContent: <Profile />, icon: <PersonIcon /> },
     { id: 'Security', label: t('dashboard.sidebar.security'), content: '', jsxContent: <AccountSecurity />, icon: <SecurityIcon /> },
-    { id: 'MojangBind', label: t('dashboard.sidebar.mojangBind'), content: '', jsxContent: <MojangBindDashboard />, icon: <VpnKeyIcon /> },
-    { id: 'Yggdrasil API', label: t('dashboard.sidebar.yggdrasil'), content: '', jsxContent: <YggdrasilDashboard />, icon: <ApiIcon /> },
   ], [t]);
 
   // 构建期注入的 SDK Dashboard 项：追加为左侧菜单项，内容区直接渲染其 element。
