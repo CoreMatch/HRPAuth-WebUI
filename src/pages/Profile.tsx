@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
 import { Box, Typography, Card, CardContent, Avatar, CircularProgress, Alert, Chip, Stack, TextField, Button } from '@mui/material';
 import CheckCircle from '@mui/icons-material/CheckCircle';
 import Warning from '@mui/icons-material/Warning';
@@ -9,6 +9,7 @@ import { dataCache } from '../utils/dataCache';
 import { request } from '../utils/api';
 import { getUserEmail, getUid } from '../utils/cookie';
 import { BackendUrl } from '../utils/config';
+import { sdkProfileCards } from '../generated/sdk-profile-cards';
 
 interface UserInfo {
   email: string;
@@ -117,6 +118,22 @@ export default function Profile() {
     setSaveSuccess(false);
   };
 
+  const orderedSdkProfileCards = useMemo(
+    () =>
+      [...sdkProfileCards].sort((a, b) => {
+        const aHasPriority = typeof a.priority === 'number';
+        const bHasPriority = typeof b.priority === 'number';
+        if (aHasPriority && bHasPriority && a.priority !== b.priority) {
+          return (b.priority as number) - (a.priority as number);
+        }
+        if (aHasPriority !== bHasPriority) {
+          return aHasPriority ? -1 : 1;
+        }
+        return a.loadOrder - b.loadOrder;
+      }),
+    []
+  );
+
   if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '200px' }}><CircularProgress /></Box>;
   if (error) return <Alert severity="error">{error}</Alert>;
   if (!userInfo) return null;
@@ -159,6 +176,23 @@ export default function Profile() {
           </Box>
         </CardContent>
       </Card>
+
+      <Suspense
+        fallback={
+          <Box sx={{ py: 4, display: 'grid', placeItems: 'center' }}>
+            <CircularProgress color="secondary" size={32} />
+          </Box>
+        }
+      >
+        {orderedSdkProfileCards.map((item) => (
+          <Card key={item.key}>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>{item.title}</Typography>
+              {item.element}
+            </CardContent>
+          </Card>
+        ))}
+      </Suspense>
     </Box>
   );
 }

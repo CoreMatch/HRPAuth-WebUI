@@ -12,6 +12,7 @@ export interface SdkManifestEntry {
   routes: { path: string; module: string; title?: string }[];
   menu?: { label: string; path: string }[];
   dashboard?: { label: string; path: string }[];
+  profileCards?: { title: string; module: string; priority?: number }[];
   runScripts: boolean;
   sha256: string;
 }
@@ -28,4 +29,13 @@ export interface SdkDashboardItem {
   key: string; // 服务名
   label: string;
   element: ReactNode; // 懒加载的路由内容组件
+}
+
+/** Profile 页动态卡片（对应 manifest.profile_cards）。 */
+export interface SdkProfileCardItem {
+  key: string; // 服务名或服务名-序号
+  title: string;
+  priority?: number;
+  loadOrder: number; // SDK handler 当前聚合顺序，供稳定排序
+  element: ReactNode; // 懒加载的卡片内容组件
 }
