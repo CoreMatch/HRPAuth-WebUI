@@ -138,7 +138,8 @@
   "dashboard": {
     "sidebar": {
       "profile": "Profile",
-      "security": "Security"
+      "security": "Security",
+      "skinlib": "Skin Library"
     }
   },
   "profile": {
@@ -348,6 +349,68 @@
     "missingFields": "SDK object is missing required fields: name and version.\nCurrent object: {{keys}}",
     "backendUrlEmpty": "BackendUrl is empty. This may mean /config.json failed to load. Please verify that config.json exists in the deployment directory and has the correct format.",
     "networkErrorHint": "Hint: this usually means the browser cannot reach the backend. Please check whether the backend service is running, or whether there is a CORS issue."
+  },
+  "skinlib": {
+    "title": "Skin Library",
+    "currentSource": "Current source: {{url}}",
+    "sourcePlaceholder": "http://example.com",
+    "sourceLabel": "Texture source URL",
+    "upload": "Upload Texture",
+    "typeFilter": "Type",
+    "typeAll": "All Skins",
+    "typeDefault": "Classic (Steve)",
+    "typeSlim": "Slim (Alex)",
+    "typeCape": "Cape",
+    "sort": "Sort",
+    "sortDesc": "Newest",
+    "sortAsc": "Oldest",
+    "searchPlaceholder": "Search by tag...",
+    "loadFailed": "Failed to load texture list",
+    "networkError": "Network error, please try again later",
+    "empty": "No matching textures found",
+    "noDescription": "No description",
+    "use": "Use",
+    "using": "Using...",
+    "applySuccess": "Texture \"{{name}}\" applied successfully!",
+    "applyFailed": "Failed to apply",
+    "operationError": "An error occurred during the operation",
+    "notLoggedInUid": "Please log in or re-login (invalid UID)",
+    "notLoggedIn": "Please log in first",
+    "delete": "Delete",
+    "deleteConfirmTitle": "Confirm Delete",
+    "deleteConfirm": "Are you sure you want to delete texture \"{{name}}\"?",
+    "deleteConfirmHint": "This will delete the original file and preview, and cannot be undone.",
+    "deleting": "Deleting...",
+    "deleteSuccess": "Texture \"{{name}}\" deleted",
+    "deleteFailed": "Delete failed",
+    "deleteError": "An error occurred during deletion",
+    "uploadDialog": {
+      "title": "Upload New Texture",
+      "selectFile": "Click to upload PNG file",
+      "selected": "Selected: {{name}}",
+      "pngOnly": "Only PNG files are supported",
+      "nameLabel": "Texture name",
+      "typeLabel": "Texture type",
+      "typeSkin": "Skin",
+      "typeCape": "Cape",
+      "modelLabel": "Skin model",
+      "modelDefault": "Classic (Steve)",
+      "modelSlim": "Slim (Alex)",
+      "descriptionLabel": "Description (optional)",
+      "tagsLabel": "Tags (optional, comma separated)",
+      "tagsPlaceholder": "e.g. anime, cool, blue",
+      "securityConfirm": "I understand: uploading textures to a custom texture source may leak your login credentials. If you do not understand this, stop immediately, clear the custom texture source, and try again.",
+      "selectFileAndName": "Please select a file and enter the texture name",
+      "confirmSecurityFirst": "Please confirm the security warning first",
+      "errors": {
+        "tooLarge": "[Frontend] Texture size cannot exceed 2MB",
+        "tooWide": "[Frontend] Texture dimensions cannot exceed 8192×8192"
+      },
+      "uploadFailed": "Upload failed",
+      "uploadError": "An error occurred during upload",
+      "uploading": "Uploading...",
+      "submit": "Start Upload"
+    }
   },
   "captcha": {
     "label": "Captcha",
