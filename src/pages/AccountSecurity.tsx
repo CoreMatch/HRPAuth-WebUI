@@ -1240,9 +1240,6 @@ export default function AccountSecurity() {
               <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                 {t('profile.deleteAccountSubtitle')}
               </Typography>
-              <Alert severity="warning" sx={{ mb: 2 }}>
-                {t('profile.deleteAccountWarning')}
-              </Alert>
               <Button color="error" variant="outlined" startIcon={<Delete />} onClick={handleOpenDeleteDialog}>
                 {t('profile.deleteAccountAction')}
               </Button>
@@ -1399,6 +1396,7 @@ export default function AccountSecurity() {
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             <Alert severity="warning">{t('profile.deleteAccountDialogWarning')}</Alert>
+            <Alert severity="warning">{t('profile.deleteAccountWarning')}</Alert>
             <Typography variant="body2" color="text.secondary">{t('profile.deleteAccountDialogDescription')}</Typography>
             <TextField type="password" label={t('profile.deletePasswordLabel')} value={deletePassword} onChange={(e) => setDeletePassword(e.target.value)} fullWidth autoComplete="current-password" error={!!deletePasswordError} helperText={deletePasswordError} />
           </Stack>
