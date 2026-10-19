@@ -1,9 +1,7 @@
-import { useState, useEffect, useMemo, Suspense } from 'react';
-import { Box, Typography, Card, CardContent, Avatar, CircularProgress, Alert, Chip, Stack, TextField, Button } from '@mui/material';
+import { useEffect, useMemo, Suspense, useState } from 'react';
+import { Box, Typography, Card, CardContent, Avatar, CircularProgress, Alert, Chip, Stack } from '@mui/material';
 import CheckCircle from '@mui/icons-material/CheckCircle';
 import Warning from '@mui/icons-material/Warning';
-import Edit from '@mui/icons-material/Edit';
-import Save from '@mui/icons-material/Save';
 import { useTranslation } from 'react-i18next';
 import { dataCache } from '../utils/dataCache';
 import { request } from '../utils/api';
@@ -24,17 +22,12 @@ export default function Profile() {
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [editMode, setEditMode] = useState(false);
-  const [newUsername, setNewUsername] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const [saveSuccess, setSaveSuccess] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
       const email = getUserEmail();
       const uid = getUid();
-      
+
       const cachedUser = dataCache.getUser();
       if (cachedUser) {
         setUserInfo({
@@ -72,52 +65,6 @@ export default function Profile() {
     fetchData();
   }, [t]);
 
-  const handleSaveUsername = async () => {
-    if (!newUsername.trim()) {
-      setSaveError(t('profile.usernameEmpty'));
-      return;
-    }
-    if (newUsername.length < 3 || newUsername.length > 16) {
-      setSaveError(t('profile.usernameLength'));
-      return;
-    }
-    if (!/^[a-zA-Z0-9_]+$/.test(newUsername)) {
-      setSaveError(t('profile.usernameInvalid'));
-      return;
-    }
-    setSaving(true);
-    setSaveError(null);
-    setSaveSuccess(false);
-    try {
-      const resp = await request(`${BackendUrl}/change-username`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: newUsername }),
-      });
-      if (resp.success) {
-        const updatedUsername = resp.data?.username || newUsername;
-        setUserInfo(prev => prev ? { ...prev, username: updatedUsername } : null);
-        setSaveSuccess(true);
-        setEditMode(false);
-        setNewUsername('');
-        setTimeout(() => setSaveSuccess(false), 3000);
-      } else {
-        setSaveError(resp.message || t('profile.saveFailed'));
-      }
-    } catch {
-      setSaveError(t('common.serverError'));
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleCancelEdit = () => {
-    setEditMode(false);
-    setNewUsername('');
-    setSaveError(null);
-    setSaveSuccess(false);
-  };
-
   const orderedSdkProfileCards = useMemo(
     () =>
       [...sdkProfileCards].sort((a, b) => {
@@ -152,23 +99,7 @@ export default function Profile() {
         <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
           {userInfo.avatar ? <Avatar src={userInfo.avatar} alt={userInfo.username} sx={{ width: 80, height: 80 }} /> : <Avatar sx={{ width: 80, height: 80, bgcolor: 'secondary.main', fontSize: '2rem' }}>{userInitial}</Avatar>}
           <Box sx={{ flex: 1 }}>
-            {editMode ? (
-              <Box sx={{ mb: 2 }}>
-                <TextField label={t('profile.newUsernameLabel')} value={newUsername} onChange={(e) => setNewUsername(e.target.value)} fullWidth margin="dense" error={!!saveError} helperText={saveError} />
-                <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
-                  <Button variant="contained" startIcon={<Save />} onClick={handleSaveUsername} disabled={saving}>{saving ? t('profile.saving') : t('profile.save')}</Button>
-                  <Button variant="outlined" onClick={handleCancelEdit} disabled={saving}>{t('profile.cancel')}</Button>
-                </Stack>
-              </Box>
-            ) : (
-              <>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Typography variant="h5" gutterBottom>{userInfo.username}</Typography>
-                  <Button startIcon={<Edit />} onClick={() => setEditMode(true)} size="small" color="primary">{t('profile.edit')}</Button>
-                </Box>
-                {saveSuccess && <Alert severity="success" sx={{ mt: 1, mb: 2 }}>{t('profile.saveSuccess')}</Alert>}
-              </>
-            )}
+            <Typography variant="h5" gutterBottom>{userInfo.username}</Typography>
             <Typography variant="body1" color="text.secondary">{userInfo.email}</Typography>
             <Stack direction="row" alignItems="center" spacing={1} sx={{ mt: 1 }}>
               <Chip icon={userInfo.verified ? <CheckCircle /> : <Warning />} label={userInfo.verified ? t('profile.emailVerified') : t('profile.emailNotVerified')} color={userInfo.verified ? 'success' : 'warning'} size="small" variant="outlined" />

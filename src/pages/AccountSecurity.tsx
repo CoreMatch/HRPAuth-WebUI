@@ -5,6 +5,7 @@ import Security from '@mui/icons-material/Security';
 import Email from '@mui/icons-material/Email';
 import VpnKey from '@mui/icons-material/VpnKey';
 import Fingerprint from '@mui/icons-material/Fingerprint';
+import Edit from '@mui/icons-material/Edit';
 import { QRCodeSVG } from 'qrcode.react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -124,6 +125,12 @@ export default function AccountSecurity() {
   const [deletePassword, setDeletePassword] = useState('');
   const [deletePasswordError, setDeletePasswordError] = useState<string | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+
+  const [changeUsernameDialogOpen, setChangeUsernameDialogOpen] = useState(false);
+  const [changeUsernameValue, setChangeUsernameValue] = useState('');
+  const [changeUsernameError, setChangeUsernameError] = useState<string | null>(null);
+  const [changeUsernameLoading, setChangeUsernameLoading] = useState(false);
+  const [changeUsernameFeedback, setChangeUsernameFeedback] = useState<ActionFeedback | null>(null);
 
   const webauthnClientSupported = typeof window !== 'undefined' && window.isSecureContext && isWebAuthnSupported();
   const webauthnSudoAvailable = webauthnClientSupported && webauthnCredentials.length > 0;
@@ -958,6 +965,62 @@ export default function AccountSecurity() {
     }
   };
 
+  const handleOpenChangeUsernameDialog = () => {
+    setChangeUsernameValue(userInfo?.username || '');
+    setChangeUsernameError(null);
+    setChangeUsernameDialogOpen(true);
+  };
+
+  const handleCloseChangeUsernameDialog = () => {
+    if (changeUsernameLoading) return;
+    setChangeUsernameDialogOpen(false);
+    setChangeUsernameValue('');
+    setChangeUsernameError(null);
+  };
+
+  const handleChangeUsername = async () => {
+    const trimmed = changeUsernameValue.trim();
+    if (!trimmed) {
+      setChangeUsernameError(t('profile.usernameEmpty'));
+      return;
+    }
+    if (trimmed.length < 3 || trimmed.length > 16) {
+      setChangeUsernameError(t('profile.usernameLength'));
+      return;
+    }
+    if (!/^[a-zA-Z0-9_]+$/.test(trimmed)) {
+      setChangeUsernameError(t('profile.usernameInvalid'));
+      return;
+    }
+    if (trimmed === userInfo?.username) {
+      setChangeUsernameError(t('profile.usernameUnchanged') || t('profile.saveFailed'));
+      return;
+    }
+    setChangeUsernameLoading(true);
+    setChangeUsernameError(null);
+    try {
+      const resp = await request(`${BackendUrl}/change-username`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: trimmed }),
+      });
+      if (resp.success) {
+        const updatedUsername = resp.data?.username || trimmed;
+        setUserInfo((prev) => (prev ? { ...prev, username: updatedUsername } : prev));
+        const cached = dataCache.getUser();
+        if (cached) dataCache.setUser({ ...cached, username: updatedUsername });
+        setChangeUsernameFeedback({ severity: 'success', message: t('profile.saveSuccess') });
+        handleCloseChangeUsernameDialog();
+      } else {
+        setChangeUsernameError(resp.message || t('profile.saveFailed'));
+      }
+    } catch {
+      setChangeUsernameError(t('common.serverError'));
+    } finally {
+      setChangeUsernameLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '200px' }}>
@@ -1139,13 +1202,47 @@ export default function AccountSecurity() {
 
       <Card sx={{ maxWidth: 600, mt: 2 }}>
         <CardContent>
-          <Stack spacing={2}>
+          <Stack spacing={3}>
             <Box>
-              <Typography variant="h6" gutterBottom>{t('profile.deleteAccountTitle')}</Typography>
-              <Typography variant="body2" color="text.secondary">{t('profile.deleteAccountSubtitle')}</Typography>
+              <Typography variant="h6" gutterBottom>{t('profile.criticalOperationsTitle')}</Typography>
+              <Typography variant="body2" color="text.secondary">
+                {t('profile.criticalOperationsSubtitle')}
+              </Typography>
             </Box>
-            <Alert severity="warning">{t('profile.deleteAccountWarning')}</Alert>
+
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Box>
+                <Typography variant="subtitle2" color="text.secondary">
+                  {t('profile.currentUsernameLabel')}
+                </Typography>
+                <Typography variant="body1">{userInfo.username}</Typography>
+              </Box>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<Edit />}
+                onClick={handleOpenChangeUsernameDialog}
+              >
+                {t('profile.changeUsernameAction')}
+              </Button>
+            </Box>
+
+            {changeUsernameFeedback && (
+              <Alert severity={changeUsernameFeedback.severity}>
+                {changeUsernameFeedback.message}
+              </Alert>
+            )}
+
+            <Divider />
+
             <Box>
+              <Typography variant="subtitle1" gutterBottom>{t('profile.deleteAccountTitle')}</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                {t('profile.deleteAccountSubtitle')}
+              </Typography>
+              <Alert severity="warning" sx={{ mb: 2 }}>
+                {t('profile.deleteAccountWarning')}
+              </Alert>
               <Button color="error" variant="outlined" startIcon={<Delete />} onClick={handleOpenDeleteDialog}>
                 {t('profile.deleteAccountAction')}
               </Button>
@@ -1458,6 +1555,43 @@ export default function AccountSecurity() {
         }}
         onClose={() => setRecoveryKeyMethodDialogOpen(false)}
       />
+
+      <Dialog open={changeUsernameDialogOpen} onClose={handleCloseChangeUsernameDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>{t('profile.changeUsernameDialogTitle')}</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <TextField
+              label={t('profile.newUsernameLabel')}
+              value={changeUsernameValue}
+              onChange={(e) => {
+                setChangeUsernameValue(e.target.value);
+                if (changeUsernameError) setChangeUsernameError(null);
+              }}
+              placeholder={t('profile.newUsernamePlaceholder')}
+              fullWidth
+              autoFocus
+              disabled={changeUsernameLoading}
+              error={!!changeUsernameError}
+              helperText={changeUsernameError || t('profile.newUsernamePlaceholder')}
+            />
+            <Typography variant="caption" color="text.secondary">
+              {t('profile.changeUsernameDataLossWarning')}
+            </Typography>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseChangeUsernameDialog} disabled={changeUsernameLoading}>
+            {t('common.cancel')}
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleChangeUsername}
+            disabled={changeUsernameLoading}
+          >
+            {changeUsernameLoading ? t('profile.saving') : t('profile.changeUsernameConfirm')}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
