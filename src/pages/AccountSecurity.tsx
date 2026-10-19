@@ -94,7 +94,7 @@ export default function AccountSecurity() {
   const [recoveryKeyEmailCodeSent, setRecoveryKeyEmailCodeSent] = useState(false);
 
   const [webauthnCredentials, setWebauthnCredentials] = useState<WebAuthnCredentialRecord[]>([]);
-  const [webauthn2faEnabled, setWebauthn2faEnabled] = useState(false);
+  const [, setWebauthn2faEnabled] = useState(false);
   const [webauthnBackendAvailable, setWebauthnBackendAvailable] = useState(true);
   const [webauthnLoading, setWebauthnLoading] = useState(false);
   const [webauthnFeedback, setWebauthnFeedback] = useState<ActionFeedback | null>(null);
