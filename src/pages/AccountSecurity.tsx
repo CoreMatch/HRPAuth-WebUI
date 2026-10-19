@@ -16,7 +16,6 @@ import {
   revokeRecoveryKey,
   setupTotp,
   toggleTotp,
-  toggleWebAuthnSecondFactor,
   type RecoveryKeyVerificationRequest,
   type WebAuthnCredentialRecord,
   verifyTotp,
@@ -827,13 +826,6 @@ export default function AccountSecurity() {
     return `otpauth://totp/${encodedIssuer}:${encodedAccount}?secret=${secret}&issuer=${encodedIssuer}&algorithm=SHA1&digits=6&period=30`;
   };
 
-  const formatDateTime = (value?: string | null) => {
-    if (!value) return t('profile.webauthnNeverUsed');
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return value;
-    return date.toLocaleString();
-  };
-
   const getWebAuthnAvailabilityError = () => {
     if (typeof window === 'undefined' || !window.isSecureContext) return t('profile.webauthnSecureContextRequired');
     if (!isWebAuthnSupported()) return t('profile.webauthnUnsupported');
@@ -903,27 +895,6 @@ export default function AccountSecurity() {
       else if (err instanceof Error && err.message === 'WebAuthn is not supported in this browser') message = t('profile.webauthnUnsupported');
       else if (err instanceof Error) message = err.message;
       setWebauthnFeedback({ severity: 'error', message });
-    } finally {
-      setWebauthnLoading(false);
-    }
-  };
-
-  const handleToggleWebAuthn2fa = async (enabled: boolean) => {
-    setWebauthnLoading(true);
-    setWebauthnFeedback(null);
-    try {
-      const resp = await toggleWebAuthnSecondFactor(enabled);
-      if (!resp.success) {
-        setWebauthnFeedback({ severity: 'error', message: resp.message || t('profile.webauthnOperationFailed') });
-        return;
-      }
-      await refreshTwoFactorStatus();
-      setWebauthnFeedback({
-        severity: 'success',
-        message: enabled ? t('profile.webauthnSecondFactorEnabled') : t('profile.webauthnSecondFactorDisabled'),
-      });
-    } catch {
-      setWebauthnFeedback({ severity: 'error', message: t('profile.webauthnOperationFailed') });
     } finally {
       setWebauthnLoading(false);
     }
@@ -1127,9 +1098,6 @@ export default function AccountSecurity() {
                   <Typography variant="body2" color="text.secondary">
                     {recoveryKeyEnabled ? t('profile.recoveryKeyEnabled') : t('profile.recoveryKeyDisabled')}
                   </Typography>
-                  <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
-                    {t('profile.recoveryKeyHint')}
-                  </Typography>
                 </Box>
                 {recoveryKeyEnabled ? (
                   <Stack direction="column" spacing={1} alignItems="flex-end">
@@ -1167,22 +1135,9 @@ export default function AccountSecurity() {
                   {webauthnClientSupported ? t('profile.webauthnSubtitle') : t('profile.webauthnUnsupportedHint')}
                 </Typography>
               </Box>
-              <Stack direction="column" spacing={2}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Button variant="outlined" size="small" startIcon={<Key />} onClick={handleOpenWebAuthnDialog} disabled={webauthnLoading || !webauthnRegistrationReady}>
-                    {webauthnLoading ? t('profile.totpLoading') : webauthnPrimaryActionLabel}
-                  </Button>
-                  <FormControlLabel
-                    control={<Switch size="small" checked={webauthn2faEnabled} onChange={(e) => handleToggleWebAuthn2fa(e.target.checked)} disabled={webauthnLoading || webauthnCredentials.length === 0} />}
-                    label={<Typography variant="body2">{t('profile.webauthnSecondFactorLabel')}</Typography>}
-                  />
-                </Box>
-                {webauthnCredentials.length === 0 && (
-                  <Typography variant="caption" color="text.secondary">
-                    {t('profile.webauthnSecondFactorDisabledHint')}
-                  </Typography>
-                )}
-              </Stack>
+              <Button variant="outlined" size="small" startIcon={<Key />} onClick={handleOpenWebAuthnDialog} disabled={webauthnLoading || !webauthnRegistrationReady}>
+                {webauthnLoading ? t('profile.totpLoading') : webauthnPrimaryActionLabel}
+              </Button>
             </Box>
 
             {(twoFactorFeedback || webauthnFeedback || webauthnAvailabilityError) && (
@@ -1194,21 +1149,14 @@ export default function AccountSecurity() {
             )}
 
             {webauthnCredentials.length > 0 && (
-              <Stack spacing={1.5}>
-                <Typography variant="subtitle2">{t('profile.webauthnCredentialsTitle')}</Typography>
+              <Stack spacing={1}>
                 {webauthnCredentials.map((credential) => (
-                  <Box key={credential.id} sx={{ p: 1.5, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
-                    <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={2}>
-                      <Box>
-                        <Typography variant="body2" sx={{ fontWeight: 500 }}>{credential.name || t('profile.webauthnUnnamedCredential')}</Typography>
-                        <Typography variant="caption" color="text.secondary" display="block">{t('profile.webauthnCreatedAt', { value: formatDateTime(credential.created_at) })}</Typography>
-                        <Typography variant="caption" color="text.secondary" display="block">{t('profile.webauthnLastUsedAt', { value: formatDateTime(credential.last_used_at) })}</Typography>
-                      </Box>
-                      <Button color="error" variant="text" size="small" startIcon={<Delete />} onClick={() => setCredentialToDelete(credential)} disabled={webauthnLoading}>
-                        {t('profile.webauthnDeleteCredential')}
-                      </Button>
-                    </Stack>
-                  </Box>
+                  <Stack key={credential.id} direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
+                    <Typography variant="body2">{credential.name || t('profile.webauthnUnnamedCredential')}</Typography>
+                    <Button color="error" variant="text" size="small" startIcon={<Delete />} onClick={() => setCredentialToDelete(credential)} disabled={webauthnLoading}>
+                      {t('profile.webauthnDeleteCredential')}
+                    </Button>
+                  </Stack>
                 ))}
               </Stack>
             )}
