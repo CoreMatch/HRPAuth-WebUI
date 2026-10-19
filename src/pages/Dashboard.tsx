@@ -16,7 +16,6 @@ import PersonIcon from '@mui/icons-material/Person';
 import SecurityIcon from '@mui/icons-material/Security';
 import Profile from './Profile';
 import AccountSecurity from './AccountSecurity';
-import Skinlib from './Skinlib';
 import { sdkDashboardItems } from '../generated/sdk-dashboard';
 import { useTranslation } from 'react-i18next';
 
@@ -39,7 +38,6 @@ export default function PermanentDrawerLeft() {
   const baseItems: MenuItem[] = useMemo(() => [
     { id: 'Profile', label: t('dashboard.sidebar.profile'), content: '', jsxContent: <Profile />, icon: <PersonIcon /> },
     { id: 'Security', label: t('dashboard.sidebar.security'), content: '', jsxContent: <AccountSecurity />, icon: <SecurityIcon /> },
-    { id: 'Skinlib', label: t('dashboard.sidebar.skinlib'), content: '', jsxContent: <Skinlib />, icon: <ApiIcon /> },
   ], [t]);
 
   // 构建期注入的 SDK Dashboard 项：追加为左侧菜单项，内容区直接渲染其 element。
