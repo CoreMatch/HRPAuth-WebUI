@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Box, Typography, Card, CardContent, CircularProgress, Alert, Chip, Stack, TextField, Button, Dialog, DialogTitle, DialogContent, DialogActions, InputAdornment, FormControlLabel, Switch, Divider } from '@mui/material';
-import Key from '@mui/icons-material/Key';
 import Delete from '@mui/icons-material/Delete';
+import Security from '@mui/icons-material/Security';
+import Email from '@mui/icons-material/Email';
+import VpnKey from '@mui/icons-material/VpnKey';
+import Fingerprint from '@mui/icons-material/Fingerprint';
 import { QRCodeSVG } from 'qrcode.react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -1016,104 +1019,88 @@ export default function AccountSecurity() {
               </Typography>
             </Box>
 
-            <Box>
-              <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={2}>
-                <Box sx={{ flex: 1 }}>
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                      {t('profile.totpTitle')}
-                    </Typography>
-                    <Chip
-                      label={userInfo.totp_enabled ? t('profile.statusEnabled') : t('profile.statusDisabled')}
-                      color={userInfo.totp_enabled ? 'success' : 'default'}
-                      size="small"
-                      variant="outlined"
-                    />
-                  </Stack>
-                </Box>
-                {userInfo.totp_enabled ? (
-                  <Stack direction="column" spacing={1} alignItems="flex-end">
-                    <Button variant="outlined" size="small" startIcon={<Key />} onClick={handleOpenTotpDialog} disabled={totpLoading}>
-                      {totpLoading ? t('profile.totpLoading') : t('profile.totpReset')}
-                    </Button>
-                    <Button color="warning" variant="text" size="small" onClick={() => setDisableTotpDialogOpen(true)} disabled={totpLoading}>
-                      {t('profile.totpDisable')}
-                    </Button>
-                  </Stack>
-                ) : (
-                  <Button variant="contained" startIcon={<Key />} onClick={handleEnableTotp} disabled={totpLoading}>
-                    {totpLoading ? t('profile.totpLoading') : t('profile.totpEnable')}
-                  </Button>
-                )}
-              </Stack>
-            </Box>
-
-            <Divider />
-
-            <Box>
-              <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={2}>
-                <Box sx={{ flex: 1 }}>
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                      {t('profile.email2faTitle')}
-                    </Typography>
-                    <Chip
-                      label={email2faEnabled ? t('profile.statusEnabled') : t('profile.statusDisabled')}
-                      color={email2faEnabled ? 'success' : 'default'}
-                      size="small"
-                      variant="outlined"
-                    />
-                  </Stack>
-                </Box>
-                <FormControlLabel
-                  control={<Switch size="small" checked={email2faEnabled} onChange={(e) => handleToggleEmail2fa(e.target.checked)} disabled={email2faLoading} />}
-                  label=""
-                  sx={{ mr: 0 }}
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', py: 1 }}>
+              <Stack direction="row" spacing={1.5} alignItems="center">
+                <Security sx={{ color: 'text.secondary' }} />
+                <Typography variant="subtitle1">{t('profile.totpTitle')}</Typography>
+                <Chip
+                  label={userInfo.totp_enabled ? t('profile.statusEnabled') : t('profile.statusDisabled')}
+                  color={userInfo.totp_enabled ? 'success' : 'default'}
+                  size="small"
+                  variant="outlined"
                 />
               </Stack>
-            </Box>
-
-            <Divider />
-
-            <Box>
-              <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={2}>
-                <Box sx={{ flex: 1 }}>
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                      {t('profile.recoveryKeyTitle')}
-                    </Typography>
-                    <Chip
-                      label={recoveryKeyEnabled ? t('profile.statusEnabled') : t('profile.statusDisabled')}
-                      color={recoveryKeyEnabled ? 'success' : 'default'}
-                      size="small"
-                      variant="outlined"
-                    />
-                  </Stack>
-                </Box>
-                {recoveryKeyEnabled ? (
-                  <Stack direction="column" spacing={1} alignItems="flex-end">
-                    <Button variant="outlined" size="small" startIcon={<Key />} onClick={() => openRecoveryKeyVerificationDialog('regenerate')} disabled={recoveryKeyLoading}>
-                      {recoveryKeyLoading ? t('profile.totpLoading') : t('profile.recoveryKeyRegenerate')}
-                    </Button>
-                    <Button color="warning" variant="text" size="small" onClick={() => openRecoveryKeyVerificationDialog('revoke')} disabled={recoveryKeyLoading}>
-                      {t('profile.recoveryKeyRevoke')}
-                    </Button>
-                  </Stack>
-                ) : (
-                  <Button variant="contained" startIcon={<Key />} onClick={handleCreateRecoveryKey} disabled={recoveryKeyLoading}>
-                    {recoveryKeyLoading ? t('profile.totpLoading') : t('profile.recoveryKeyCreate')}
+              {userInfo.totp_enabled ? (
+                <Stack direction="row" spacing={1}>
+                  <Button variant="outlined" size="small" onClick={handleOpenTotpDialog} disabled={totpLoading}>
+                    {t('profile.totpReset')}
                   </Button>
-                )}
-              </Stack>
+                  <Button color="warning" variant="text" size="small" onClick={() => setDisableTotpDialogOpen(true)} disabled={totpLoading}>
+                    {t('profile.totpDisable')}
+                  </Button>
+                </Stack>
+              ) : (
+                <Button variant="contained" size="small" onClick={handleEnableTotp} disabled={totpLoading}>
+                  {t('profile.totpEnable')}
+                </Button>
+              )}
             </Box>
 
             <Divider />
 
-            <Box>
-              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                  {t('profile.webauthnTitle')}
-                </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', py: 1 }}>
+              <Stack direction="row" spacing={1.5} alignItems="center">
+                <Email sx={{ color: 'text.secondary' }} />
+                <Typography variant="subtitle1">{t('profile.email2faTitle')}</Typography>
+                <Chip
+                  label={email2faEnabled ? t('profile.statusEnabled') : t('profile.statusDisabled')}
+                  color={email2faEnabled ? 'success' : 'default'}
+                  size="small"
+                  variant="outlined"
+                />
+              </Stack>
+              <FormControlLabel
+                control={<Switch size="small" checked={email2faEnabled} onChange={(e) => handleToggleEmail2fa(e.target.checked)} disabled={email2faLoading} />}
+                label=""
+                sx={{ mr: 0 }}
+              />
+            </Box>
+
+            <Divider />
+
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', py: 1 }}>
+              <Stack direction="row" spacing={1.5} alignItems="center">
+                <VpnKey sx={{ color: 'text.secondary' }} />
+                <Typography variant="subtitle1">{t('profile.recoveryKeyTitle')}</Typography>
+                <Chip
+                  label={recoveryKeyEnabled ? t('profile.statusEnabled') : t('profile.statusDisabled')}
+                  color={recoveryKeyEnabled ? 'success' : 'default'}
+                  size="small"
+                  variant="outlined"
+                />
+              </Stack>
+              {recoveryKeyEnabled ? (
+                <Stack direction="row" spacing={1}>
+                  <Button variant="outlined" size="small" onClick={() => openRecoveryKeyVerificationDialog('regenerate')} disabled={recoveryKeyLoading}>
+                    {t('profile.recoveryKeyRegenerate')}
+                  </Button>
+                  <Button color="warning" variant="text" size="small" onClick={() => openRecoveryKeyVerificationDialog('revoke')} disabled={recoveryKeyLoading}>
+                    {t('profile.recoveryKeyRevoke')}
+                  </Button>
+                </Stack>
+              ) : (
+                <Button variant="contained" size="small" onClick={handleCreateRecoveryKey} disabled={recoveryKeyLoading}>
+                  {t('profile.recoveryKeyCreate')}
+                </Button>
+              )}
+            </Box>
+
+            <Divider />
+
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', py: 1 }}>
+              <Stack direction="row" spacing={1.5} alignItems="center">
+                <Fingerprint sx={{ color: 'text.secondary' }} />
+                <Typography variant="subtitle1">{t('profile.webauthnTitle')}</Typography>
                 <Chip
                   label={webauthnCredentialSummary}
                   color={webauthnCredentials.length > 0 ? 'success' : 'default'}
@@ -1121,8 +1108,8 @@ export default function AccountSecurity() {
                   variant="outlined"
                 />
               </Stack>
-              <Button variant="outlined" size="small" startIcon={<Key />} onClick={handleOpenWebAuthnDialog} disabled={webauthnLoading || !webauthnRegistrationReady}>
-                {webauthnLoading ? t('profile.totpLoading') : webauthnPrimaryActionLabel}
+              <Button variant="outlined" size="small" onClick={handleOpenWebAuthnDialog} disabled={webauthnLoading || !webauthnRegistrationReady}>
+                {webauthnPrimaryActionLabel}
               </Button>
             </Box>
 
