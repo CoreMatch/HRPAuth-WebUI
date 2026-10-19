@@ -1019,7 +1019,7 @@ export default function AccountSecurity() {
             <Box>
               <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={2}>
                 <Box sx={{ flex: 1 }}>
-                  <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                  <Stack direction="row" spacing={1} alignItems="center">
                     <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
                       {t('profile.totpTitle')}
                     </Typography>
@@ -1030,9 +1030,6 @@ export default function AccountSecurity() {
                       variant="outlined"
                     />
                   </Stack>
-                  <Typography variant="body2" color="text.secondary">
-                    {userInfo.totp_enabled ? t('profile.totpEnabled') : t('profile.totpDisabled')}
-                  </Typography>
                 </Box>
                 {userInfo.totp_enabled ? (
                   <Stack direction="column" spacing={1} alignItems="flex-end">
@@ -1056,7 +1053,7 @@ export default function AccountSecurity() {
             <Box>
               <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={2}>
                 <Box sx={{ flex: 1 }}>
-                  <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                  <Stack direction="row" spacing={1} alignItems="center">
                     <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
                       {t('profile.email2faTitle')}
                     </Typography>
@@ -1067,9 +1064,6 @@ export default function AccountSecurity() {
                       variant="outlined"
                     />
                   </Stack>
-                  <Typography variant="body2" color="text.secondary">
-                    {t('profile.email2faSubtitle')}
-                  </Typography>
                 </Box>
                 <FormControlLabel
                   control={<Switch size="small" checked={email2faEnabled} onChange={(e) => handleToggleEmail2fa(e.target.checked)} disabled={email2faLoading} />}
@@ -1084,7 +1078,7 @@ export default function AccountSecurity() {
             <Box>
               <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={2}>
                 <Box sx={{ flex: 1 }}>
-                  <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                  <Stack direction="row" spacing={1} alignItems="center">
                     <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
                       {t('profile.recoveryKeyTitle')}
                     </Typography>
@@ -1095,9 +1089,6 @@ export default function AccountSecurity() {
                       variant="outlined"
                     />
                   </Stack>
-                  <Typography variant="body2" color="text.secondary">
-                    {recoveryKeyEnabled ? t('profile.recoveryKeyEnabled') : t('profile.recoveryKeyDisabled')}
-                  </Typography>
                 </Box>
                 {recoveryKeyEnabled ? (
                   <Stack direction="column" spacing={1} alignItems="flex-end">
@@ -1119,22 +1110,17 @@ export default function AccountSecurity() {
             <Divider />
 
             <Box>
-              <Box sx={{ mb: 2 }}>
-                <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                    {t('profile.webauthnTitle')}
-                  </Typography>
-                  <Chip
-                    label={webauthnCredentialSummary}
-                    color={webauthnCredentials.length > 0 ? 'success' : 'default'}
-                    size="small"
-                    variant="outlined"
-                  />
-                </Stack>
-                <Typography variant="body2" color="text.secondary">
-                  {webauthnClientSupported ? t('profile.webauthnSubtitle') : t('profile.webauthnUnsupportedHint')}
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                  {t('profile.webauthnTitle')}
                 </Typography>
-              </Box>
+                <Chip
+                  label={webauthnCredentialSummary}
+                  color={webauthnCredentials.length > 0 ? 'success' : 'default'}
+                  size="small"
+                  variant="outlined"
+                />
+              </Stack>
               <Button variant="outlined" size="small" startIcon={<Key />} onClick={handleOpenWebAuthnDialog} disabled={webauthnLoading || !webauthnRegistrationReady}>
                 {webauthnLoading ? t('profile.totpLoading') : webauthnPrimaryActionLabel}
               </Button>
