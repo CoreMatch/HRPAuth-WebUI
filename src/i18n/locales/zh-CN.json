@@ -194,7 +194,6 @@
     "noSkinOrCape": "尚未上传皮肤或披风",
     "twoFactorSectionTitle": "两步验证 (2FA)",
     "twoFactorSectionSubtitle": "为你的账户添加额外的安全层。启用后，登录时需要提供密码以外的验证信息。",
-    "twoFactorManageDialogTitle": "管理两步验证",
     "statusEnabled": "已启用",
     "statusDisabled": "未启用",
     "totpTitle": "验证器应用 (TOTP)",

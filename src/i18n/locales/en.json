@@ -194,7 +194,6 @@
     "noSkinOrCape": "No skin or cape uploaded yet",
     "twoFactorSectionTitle": "Two-Factor Authentication (2FA)",
     "twoFactorSectionSubtitle": "Add an extra layer of security to your account. When enabled, you'll need to provide more than just your password to sign in.",
-    "twoFactorManageDialogTitle": "Manage two-factor authentication",
     "statusEnabled": "Enabled",
     "statusDisabled": "Disabled",
     "totpTitle": "Authenticator app (TOTP)",
