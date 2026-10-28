@@ -31,6 +31,13 @@ export interface SdkDashboardItem {
   element: ReactNode; // 懒加载的路由内容组件
 }
 
+/** Account Security 页 Critical Operations 中的 SDK 路由入口。 */
+export interface SdkCriticalOperationItem {
+  key: string; // 服务名 + 操作序号
+  label: string;
+  path: string; // 同一 SDK 声明的路由路径
+}
+
 /** Profile 页动态卡片（对应 manifest.profile_cards）。 */
 export interface SdkProfileCardItem {
   key: string; // 服务名或服务名-序号

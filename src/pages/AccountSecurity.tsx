@@ -34,6 +34,7 @@ import {
 import { clearAuthCookies, getUserEmail, getAuthToken, getUid, getTotpEnabled, setTotpEnabled } from '../utils/cookie';
 import { BackendUrl } from '../utils/config';
 import { authenticateWithWebAuthn, isWebAuthnSupported, registerWithWebAuthn } from '../utils/webauthn';
+import { sdkCriticalOperations } from '../generated/sdk-critical-operations';
 import VerificationMethodPickerDialog, {
   getPreferredVerificationMethod,
   type VerificationMethodKey,
@@ -1209,6 +1210,22 @@ export default function AccountSecurity() {
                 {t('profile.criticalOperationsSubtitle')}
               </Typography>
             </Box>
+
+            {sdkCriticalOperations.length > 0 && (
+              <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                {sdkCriticalOperations.map((operation) => (
+                  <Button
+                    key={operation.key}
+                    color="warning"
+                    variant="outlined"
+                    size="small"
+                    onClick={() => navigate(operation.path)}
+                  >
+                    {operation.label}
+                  </Button>
+                ))}
+              </Stack>
+            )}
 
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <Box>
