@@ -9,6 +9,8 @@
     "delete": "删除",
     "save": "保存",
     "edit": "编辑",
+    "add": "添加",
+    "manage": "管理",
     "close": "关闭"
   },
   "navbar": {
@@ -192,6 +194,7 @@
     "noSkinOrCape": "尚未上传皮肤或披风",
     "twoFactorSectionTitle": "两步验证 (2FA)",
     "twoFactorSectionSubtitle": "为你的账户添加额外的安全层。启用后，登录时需要提供密码以外的验证信息。",
+    "twoFactorManageDialogTitle": "管理两步验证",
     "statusEnabled": "已启用",
     "statusDisabled": "未启用",
     "totpTitle": "验证器应用 (TOTP)",
@@ -264,9 +267,7 @@
     "webauthnCredentialsTitle": "已绑定凭据",
     "webauthnUnnamedCredential": "未命名凭据",
     "webauthnEmpty": "你还没有绑定任何 Passkey 或安全密钥。",
-    "webauthnNotRegistered": "未绑定凭据",
     "webauthnCredentialCount": "已绑定 {{count}} 个凭据",
-    "webauthnManage": "管理凭据",
     "webauthnCreatedAt": "绑定时间：{{value}}",
     "webauthnLastUsedAt": "最近使用：{{value}}",
     "webauthnNeverUsed": "尚未使用",

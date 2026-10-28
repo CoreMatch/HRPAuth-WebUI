@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Box, Typography, Card, CardContent, CircularProgress, Alert, Chip, Stack, TextField, Button, Dialog, DialogTitle, DialogContent, DialogActions, InputAdornment, FormControlLabel, Switch, Divider } from '@mui/material';
+import { Box, Typography, Card, CardContent, CircularProgress, Alert, Stack, TextField, Button, Dialog, DialogTitle, DialogContent, DialogActions, InputAdornment, Switch, Divider } from '@mui/material';
 import Delete from '@mui/icons-material/Delete';
 import Security from '@mui/icons-material/Security';
 import Email from '@mui/icons-material/Email';
@@ -82,6 +82,7 @@ export default function AccountSecurity() {
   const [verifying, setVerifying] = useState(false);
   const [setupSuccess, setSetupSuccess] = useState(false);
   const [disableTotpDialogOpen, setDisableTotpDialogOpen] = useState(false);
+  const [twoFactorDialogOpen, setTwoFactorDialogOpen] = useState(false);
   const [twoFactorFeedback, setTwoFactorFeedback] = useState<ActionFeedback | null>(null);
 
   const [recoveryKeyEnabled, setRecoveryKeyEnabled] = useState(false);
@@ -844,6 +845,15 @@ export default function AccountSecurity() {
     return null;
   };
 
+  const handleOpenTwoFactorDialog = () => {
+    setTwoFactorDialogOpen(true);
+  };
+
+  const handleCloseTwoFactorDialog = () => {
+    if (totpLoading || email2faLoading || recoveryKeyLoading || webauthnLoading) return;
+    setTwoFactorDialogOpen(false);
+  };
+
   const handleOpenWebAuthnDialog = () => {
     setWebauthnDialogOpen(true);
     setWebauthnName('');
@@ -1035,12 +1045,12 @@ export default function AccountSecurity() {
 
   const webauthnAvailabilityError = getWebAuthnAvailabilityError();
   const webauthnRegistrationReady = !webauthnAvailabilityError;
-  const webauthnCredentialSummary = webauthnCredentials.length > 0
-    ? t('profile.webauthnCredentialCount', { count: webauthnCredentials.length })
-    : t('profile.webauthnNotRegistered');
-  const webauthnPrimaryActionLabel = webauthnCredentials.length > 0
-    ? t('profile.webauthnManage')
-    : t('profile.webauthnRegister');
+  const totpConfigured = Boolean(userInfo.totp_enabled);
+  const email2faConfigured = email2faEnabled;
+  const recoveryKeyConfigured = recoveryKeyEnabled;
+  const webauthnConfigured = webauthnCredentials.length > 0;
+  const factorActionLabel = (configured: boolean) =>
+    configured ? t('common.manage') : t('common.add');
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -1087,27 +1097,14 @@ export default function AccountSecurity() {
               <Stack direction="row" spacing={1.5} alignItems="center">
                 <Security sx={{ color: 'text.secondary' }} />
                 <Typography variant="subtitle1">{t('profile.totpTitle')}</Typography>
-                <Chip
-                  label={userInfo.totp_enabled ? t('profile.statusEnabled') : t('profile.statusDisabled')}
-                  color={userInfo.totp_enabled ? 'success' : 'default'}
-                  size="small"
-                  variant="outlined"
-                />
               </Stack>
-              {userInfo.totp_enabled ? (
-                <Stack direction="row" spacing={1}>
-                  <Button variant="outlined" size="small" onClick={handleOpenTotpDialog} disabled={totpLoading}>
-                    {t('profile.totpReset')}
-                  </Button>
-                  <Button color="warning" variant="text" size="small" onClick={() => setDisableTotpDialogOpen(true)} disabled={totpLoading}>
-                    {t('profile.totpDisable')}
-                  </Button>
-                </Stack>
-              ) : (
-                <Button variant="contained" size="small" onClick={handleEnableTotp} disabled={totpLoading}>
-                  {t('profile.totpEnable')}
-                </Button>
-              )}
+              <Button
+                variant={totpConfigured ? 'outlined' : 'contained'}
+                size="small"
+                onClick={handleOpenTwoFactorDialog}
+              >
+                {factorActionLabel(totpConfigured)}
+              </Button>
             </Box>
 
             <Divider />
@@ -1116,18 +1113,14 @@ export default function AccountSecurity() {
               <Stack direction="row" spacing={1.5} alignItems="center">
                 <Email sx={{ color: 'text.secondary' }} />
                 <Typography variant="subtitle1">{t('profile.email2faTitle')}</Typography>
-                <Chip
-                  label={email2faEnabled ? t('profile.statusEnabled') : t('profile.statusDisabled')}
-                  color={email2faEnabled ? 'success' : 'default'}
-                  size="small"
-                  variant="outlined"
-                />
               </Stack>
-              <FormControlLabel
-                control={<Switch size="small" checked={email2faEnabled} onChange={(e) => handleToggleEmail2fa(e.target.checked)} disabled={email2faLoading} />}
-                label=""
-                sx={{ mr: 0 }}
-              />
+              <Button
+                variant={email2faConfigured ? 'outlined' : 'contained'}
+                size="small"
+                onClick={handleOpenTwoFactorDialog}
+              >
+                {factorActionLabel(email2faConfigured)}
+              </Button>
             </Box>
 
             <Divider />
@@ -1136,27 +1129,14 @@ export default function AccountSecurity() {
               <Stack direction="row" spacing={1.5} alignItems="center">
                 <VpnKey sx={{ color: 'text.secondary' }} />
                 <Typography variant="subtitle1">{t('profile.recoveryKeyTitle')}</Typography>
-                <Chip
-                  label={recoveryKeyEnabled ? t('profile.statusEnabled') : t('profile.statusDisabled')}
-                  color={recoveryKeyEnabled ? 'success' : 'default'}
-                  size="small"
-                  variant="outlined"
-                />
               </Stack>
-              {recoveryKeyEnabled ? (
-                <Stack direction="row" spacing={1}>
-                  <Button variant="outlined" size="small" onClick={() => openRecoveryKeyVerificationDialog('regenerate')} disabled={recoveryKeyLoading}>
-                    {t('profile.recoveryKeyRegenerate')}
-                  </Button>
-                  <Button color="warning" variant="text" size="small" onClick={() => openRecoveryKeyVerificationDialog('revoke')} disabled={recoveryKeyLoading}>
-                    {t('profile.recoveryKeyRevoke')}
-                  </Button>
-                </Stack>
-              ) : (
-                <Button variant="contained" size="small" onClick={handleCreateRecoveryKey} disabled={recoveryKeyLoading}>
-                  {t('profile.recoveryKeyCreate')}
-                </Button>
-              )}
+              <Button
+                variant={recoveryKeyConfigured ? 'outlined' : 'contained'}
+                size="small"
+                onClick={handleOpenTwoFactorDialog}
+              >
+                {factorActionLabel(recoveryKeyConfigured)}
+              </Button>
             </Box>
 
             <Divider />
@@ -1165,18 +1145,23 @@ export default function AccountSecurity() {
               <Stack direction="row" spacing={1.5} alignItems="center">
                 <Fingerprint sx={{ color: 'text.secondary' }} />
                 <Typography variant="subtitle1">{t('profile.webauthnTitle')}</Typography>
-                <Chip
-                  label={webauthnCredentialSummary}
-                  color={webauthnCredentials.length > 0 ? 'success' : 'default'}
-                  size="small"
-                  variant="outlined"
-                />
               </Stack>
-              <Button variant="outlined" size="small" onClick={handleOpenWebAuthnDialog} disabled={webauthnLoading || !webauthnRegistrationReady}>
-                {webauthnPrimaryActionLabel}
+              <Button
+                variant={webauthnConfigured ? 'outlined' : 'contained'}
+                size="small"
+                onClick={handleOpenTwoFactorDialog}
+              >
+                {factorActionLabel(webauthnConfigured)}
               </Button>
             </Box>
+          </Stack>
+        </CardContent>
+      </Card>
 
+      <Dialog open={twoFactorDialogOpen} onClose={handleCloseTwoFactorDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>{t('profile.twoFactorManageDialogTitle')}</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
             {(twoFactorFeedback || webauthnFeedback || webauthnAvailabilityError) && (
               <Stack spacing={1}>
                 {twoFactorFeedback && <Alert severity={twoFactorFeedback.severity}>{twoFactorFeedback.message}</Alert>}
@@ -1185,8 +1170,107 @@ export default function AccountSecurity() {
               </Stack>
             )}
 
-            {webauthnCredentials.length > 0 && (
-              <Stack spacing={1}>
+            <Box>
+              <Stack direction="row" spacing={1.5} alignItems="center" justifyContent="space-between">
+                <Stack direction="row" spacing={1.5} alignItems="center">
+                  <Security sx={{ color: 'text.secondary' }} />
+                  <Typography variant="subtitle1">{t('profile.totpTitle')}</Typography>
+                </Stack>
+                <Typography variant="body2" color="text.secondary">
+                  {totpConfigured ? t('profile.statusEnabled') : t('profile.statusDisabled')}
+                </Typography>
+              </Stack>
+              {totpConfigured ? (
+                <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+                  <Button variant="outlined" size="small" onClick={handleOpenTotpDialog} disabled={totpLoading}>
+                    {t('profile.totpReset')}
+                  </Button>
+                  <Button color="warning" variant="text" size="small" onClick={() => setDisableTotpDialogOpen(true)} disabled={totpLoading}>
+                    {t('profile.totpDisable')}
+                  </Button>
+                </Stack>
+              ) : (
+                <Button variant="contained" size="small" sx={{ mt: 1 }} onClick={handleEnableTotp} disabled={totpLoading}>
+                  {t('profile.totpEnable')}
+                </Button>
+              )}
+            </Box>
+
+            <Divider />
+
+            <Box>
+              <Stack direction="row" spacing={1.5} alignItems="center" justifyContent="space-between">
+                <Stack direction="row" spacing={1.5} alignItems="center">
+                  <Email sx={{ color: 'text.secondary' }} />
+                  <Typography variant="subtitle1">{t('profile.email2faTitle')}</Typography>
+                </Stack>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Typography variant="body2" color="text.secondary">
+                    {email2faConfigured ? t('profile.statusEnabled') : t('profile.statusDisabled')}
+                  </Typography>
+                  <Switch
+                    size="small"
+                    checked={email2faEnabled}
+                    onChange={(e) => handleToggleEmail2fa(e.target.checked)}
+                    disabled={email2faLoading}
+                  />
+                </Stack>
+              </Stack>
+            </Box>
+
+            <Divider />
+
+            <Box>
+              <Stack direction="row" spacing={1.5} alignItems="center" justifyContent="space-between">
+                <Stack direction="row" spacing={1.5} alignItems="center">
+                  <VpnKey sx={{ color: 'text.secondary' }} />
+                  <Typography variant="subtitle1">{t('profile.recoveryKeyTitle')}</Typography>
+                </Stack>
+                <Typography variant="body2" color="text.secondary">
+                  {recoveryKeyConfigured ? t('profile.statusEnabled') : t('profile.statusDisabled')}
+                </Typography>
+              </Stack>
+              {recoveryKeyConfigured ? (
+                <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+                  <Button variant="outlined" size="small" onClick={() => openRecoveryKeyVerificationDialog('regenerate')} disabled={recoveryKeyLoading}>
+                    {t('profile.recoveryKeyRegenerate')}
+                  </Button>
+                  <Button color="warning" variant="text" size="small" onClick={() => openRecoveryKeyVerificationDialog('revoke')} disabled={recoveryKeyLoading}>
+                    {t('profile.recoveryKeyRevoke')}
+                  </Button>
+                </Stack>
+              ) : (
+                <Button variant="contained" size="small" sx={{ mt: 1 }} onClick={handleCreateRecoveryKey} disabled={recoveryKeyLoading}>
+                  {t('profile.recoveryKeyCreate')}
+                </Button>
+              )}
+            </Box>
+
+            <Divider />
+
+            <Box>
+              <Stack direction="row" spacing={1.5} alignItems="center" justifyContent="space-between">
+                <Stack direction="row" spacing={1.5} alignItems="center">
+                  <Fingerprint sx={{ color: 'text.secondary' }} />
+                  <Typography variant="subtitle1">{t('profile.webauthnTitle')}</Typography>
+                </Stack>
+                <Typography variant="body2" color="text.secondary">
+                  {webauthnConfigured
+                    ? t('profile.webauthnCredentialCount', { count: webauthnCredentials.length })
+                    : t('profile.statusDisabled')}
+                </Typography>
+              </Stack>
+              <Stack spacing={1} sx={{ mt: 1 }}>
+                <Box>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    onClick={handleOpenWebAuthnDialog}
+                    disabled={webauthnLoading || !webauthnRegistrationReady}
+                  >
+                    {t('profile.webauthnRegister')}
+                  </Button>
+                </Box>
                 {webauthnCredentials.map((credential) => (
                   <Stack key={credential.id} direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
                     <Typography variant="body2">{credential.name || t('profile.webauthnUnnamedCredential')}</Typography>
@@ -1196,10 +1280,15 @@ export default function AccountSecurity() {
                   </Stack>
                 ))}
               </Stack>
-            )}
+            </Box>
           </Stack>
-        </CardContent>
-      </Card>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseTwoFactorDialog} disabled={totpLoading || email2faLoading || recoveryKeyLoading || webauthnLoading}>
+            {t('common.close')}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Card sx={{ maxWidth: 600, mt: 2 }}>
         <CardContent>

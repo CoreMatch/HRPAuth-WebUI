@@ -9,6 +9,8 @@
     "delete": "Delete",
     "save": "Save",
     "edit": "Edit",
+    "add": "Add",
+    "manage": "Manage",
     "close": "Close"
   },
   "navbar": {
@@ -192,6 +194,7 @@
     "noSkinOrCape": "No skin or cape uploaded yet",
     "twoFactorSectionTitle": "Two-Factor Authentication (2FA)",
     "twoFactorSectionSubtitle": "Add an extra layer of security to your account. When enabled, you'll need to provide more than just your password to sign in.",
+    "twoFactorManageDialogTitle": "Manage two-factor authentication",
     "statusEnabled": "Enabled",
     "statusDisabled": "Disabled",
     "totpTitle": "Authenticator app (TOTP)",
@@ -264,9 +267,7 @@
     "webauthnCredentialsTitle": "Registered credentials",
     "webauthnUnnamedCredential": "Unnamed credential",
     "webauthnEmpty": "You have not registered any passkeys or security keys yet.",
-    "webauthnNotRegistered": "No credentials",
     "webauthnCredentialCount": "{{count}} credential(s) registered",
-    "webauthnManage": "Manage Credentials",
     "webauthnCreatedAt": "Registered: {{value}}",
     "webauthnLastUsedAt": "Last used: {{value}}",
     "webauthnNeverUsed": "Never used",
