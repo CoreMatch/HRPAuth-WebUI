@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Box, Typography, Card, CardContent, CircularProgress, Alert, Stack, TextField, Button, Dialog, DialogTitle, DialogContent, DialogActions, InputAdornment, Switch, Divider } from '@mui/material';
+import { Box, Typography, Card, CardContent, CircularProgress, Alert, Stack, TextField, Button, Dialog, DialogTitle, DialogContent, DialogActions, InputAdornment, Switch, Divider, Radio, RadioGroup, FormControlLabel } from '@mui/material';
 import Delete from '@mui/icons-material/Delete';
+import Print from '@mui/icons-material/Print';
 import Security from '@mui/icons-material/Security';
 import Email from '@mui/icons-material/Email';
 import VpnKey from '@mui/icons-material/VpnKey';
@@ -40,6 +41,10 @@ import VerificationMethodPickerDialog, {
   type VerificationMethodKey,
   type VerificationMethodOption,
 } from '../components/VerificationMethodPickerDialog';
+import RecoveryKeyPrintSheet, {
+  type RecoveryKeyPrintMode,
+} from '../components/RecoveryKeyPrintSheet';
+import { printRecoveryKey } from '../components/recoveryKeyPrint';
 
 interface UserInfo {
   email: string;
@@ -90,6 +95,8 @@ export default function AccountSecurity() {
   const [recoveryKeyDialogOpen, setRecoveryKeyDialogOpen] = useState(false);
   const [recoveryKeyDialogMode, setRecoveryKeyDialogMode] = useState<'display' | 'regenerate' | 'revoke'>('display');
   const [generatedRecoveryKey, setGeneratedRecoveryKey] = useState('');
+  const [generatedRecoveryKeyAt, setGeneratedRecoveryKeyAt] = useState<Date | null>(null);
+  const [recoveryKeyPrintMode, setRecoveryKeyPrintMode] = useState<RecoveryKeyPrintMode>('key');
   const [recoveryKeyTotpCode, setRecoveryKeyTotpCode] = useState('');
   const [recoveryKeyEmailCode, setRecoveryKeyEmailCode] = useState('');
   const [recoveryKeyVerificationValue, setRecoveryKeyVerificationValue] = useState('');
@@ -403,6 +410,8 @@ export default function AccountSecurity() {
     setRecoveryKeyEmailCode('');
     setRecoveryKeyVerificationValue('');
     setGeneratedRecoveryKey('');
+    setGeneratedRecoveryKeyAt(null);
+    setRecoveryKeyPrintMode('key');
     setSelectedRecoveryKeyMethod(null);
     setRecoveryKeyEmailCodeSent(false);
   };
@@ -415,6 +424,7 @@ export default function AccountSecurity() {
       if (resp.success && resp.data?.recovery_key) {
         await refreshTwoFactorStatus();
         setGeneratedRecoveryKey(resp.data.recovery_key);
+        setGeneratedRecoveryKeyAt(new Date());
         setRecoveryKeyDialogMode('display');
         setRecoveryKeyDialogError(null);
         setRecoveryKeyDialogOpen(true);
@@ -435,6 +445,7 @@ export default function AccountSecurity() {
   const openRecoveryKeyVerificationDialog = (mode: 'regenerate' | 'revoke') => {
     setRecoveryKeyDialogMode(mode);
     setGeneratedRecoveryKey('');
+    setGeneratedRecoveryKeyAt(null);
     setRecoveryKeyTotpCode('');
     setRecoveryKeyEmailCode('');
     setRecoveryKeyVerificationValue('');
@@ -494,6 +505,7 @@ export default function AccountSecurity() {
       if (resp.success && resp.data?.recovery_key) {
         await refreshTwoFactorStatus();
         setGeneratedRecoveryKey(resp.data.recovery_key);
+        setGeneratedRecoveryKeyAt(new Date());
         setRecoveryKeyDialogMode('display');
         setRecoveryKeyTotpCode('');
         setRecoveryKeyEmailCode('');
@@ -1464,6 +1476,28 @@ export default function AccountSecurity() {
                 <Alert severity="success">{t('profile.recoveryKeyDisplaySuccess')}</Alert>
                 <Typography variant="body2" color="text.secondary">{t('profile.recoveryKeyDisplayHint')}</Typography>
                 <TextField label={t('profile.recoveryKeyLabel')} value={generatedRecoveryKey} fullWidth slotProps={{ input: { readOnly: true } }} />
+                <Box>
+                  <Typography variant="subtitle2" gutterBottom>{t('profile.recoveryKeyPrintModeLabel')}</Typography>
+                  <RadioGroup
+                    value={recoveryKeyPrintMode}
+                    onChange={(e) => setRecoveryKeyPrintMode(e.target.value as RecoveryKeyPrintMode)}
+                  >
+                    <FormControlLabel value="key" control={<Radio />} label={t('profile.recoveryKeyPrintModeKey')} />
+                    <FormControlLabel value="full" control={<Radio />} label={t('profile.recoveryKeyPrintModeFull')} />
+                  </RadioGroup>
+                  <Typography variant="body2" color="text.secondary">
+                    {recoveryKeyPrintMode === 'key'
+                      ? t('profile.recoveryKeyPrintModeKeyDescription')
+                      : t('profile.recoveryKeyPrintModeFullDescription')}
+                  </Typography>
+                </Box>
+                <RecoveryKeyPrintSheet
+                  mode={recoveryKeyPrintMode}
+                  recoveryKey={generatedRecoveryKey}
+                  accountName={userInfo.username}
+                  accountEmail={userInfo.email}
+                  generatedAt={generatedRecoveryKeyAt}
+                />
               </>
             ) : (
               <>
@@ -1489,7 +1523,11 @@ export default function AccountSecurity() {
         </DialogContent>
         <DialogActions>
           <Button onClick={closeRecoveryKeyDialog} disabled={recoveryKeyLoading || recoveryKeySendingEmailCode}>{t('common.cancel')}</Button>
-          {recoveryKeyDialogMode !== 'display' && (
+          {recoveryKeyDialogMode === 'display' ? (
+            <Button variant="contained" startIcon={<Print />} onClick={printRecoveryKey}>
+              {t('profile.recoveryKeyPrintButton')}
+            </Button>
+          ) : (
             <Button variant="contained" color={recoveryKeyDialogMode === 'revoke' ? 'warning' : 'primary'} onClick={handleSubmitRecoveryKeyAction} disabled={recoveryKeyLoading || recoveryKeySendingEmailCode}>
               {recoveryKeyLoading ? t('common.pleaseWait') : (recoveryKeyDialogMode === 'regenerate' ? t('profile.recoveryKeyRegenerate') : t('profile.recoveryKeyRevoke'))}
             </Button>

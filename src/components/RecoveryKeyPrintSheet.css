@@ -1,0 +1,154 @@
+/* 恢复密钥打印纸张
+   - 屏幕状态下完全隐藏，只在用户点击“打印”后随页面一起输出
+   - 打印隔离依赖 body.rk-print-active，由 recoveryKeyPrint.ts 中的 printRecoveryKey 在打印时临时添加 */
+
+.rk-print-root {
+  display: none;
+}
+
+.rk-sheet {
+  box-sizing: border-box;
+  width: 100%;
+  color: #1b1b1f;
+  font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.rk-sheet-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12pt;
+}
+
+.rk-sheet-brand {
+  font-size: 8.5pt;
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: #6b6b76;
+}
+
+.rk-sheet-title {
+  margin: 0;
+  font-size: 18pt;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.rk-sheet-rule {
+  margin: 9pt 0 20pt;
+  border-top: 1.4pt solid #1b1b1f;
+}
+
+.rk-sheet-key {
+  display: flex;
+  justify-content: center;
+}
+
+.rk-sheet--full .rk-sheet-key {
+  padding: 18pt 16pt;
+  border: 1.2pt dashed #9a9aa5;
+  border-radius: 3pt;
+  background: #f6f6f9;
+}
+
+.rk-sheet-key-value {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  font-family: ui-monospace, "SFMono-Regular", "JetBrains Mono", "Roboto Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 26pt;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  line-height: 1.35;
+  color: #12121a;
+}
+
+.rk-sheet--key .rk-sheet-key-value {
+  font-size: 30pt;
+}
+
+.rk-sheet-key-group {
+  white-space: nowrap;
+}
+
+.rk-sheet-key-sep {
+  margin: 0 0.28em;
+  color: #8b8b96;
+  font-weight: 400;
+}
+
+.rk-sheet-meta {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  row-gap: 7pt;
+  column-gap: 18pt;
+  margin: 24pt 0 0;
+  font-size: 11pt;
+}
+
+.rk-sheet-meta-row {
+  display: contents;
+}
+
+.rk-sheet-meta dt {
+  color: #6b6b76;
+}
+
+.rk-sheet-meta dd {
+  margin: 0;
+  font-weight: 600;
+  word-break: break-all;
+}
+
+.rk-sheet-notice {
+  margin-top: 26pt;
+  padding-top: 13pt;
+  border-top: 0.8pt solid #c9c9d2;
+}
+
+.rk-sheet-notice-title {
+  margin: 0 0 7pt;
+  font-size: 11pt;
+  font-weight: 700;
+}
+
+.rk-sheet-notice-list {
+  margin: 0;
+  padding-left: 16pt;
+  color: #34343d;
+  font-size: 10pt;
+  line-height: 1.75;
+}
+
+.rk-sheet-notice-list li {
+  margin: 0;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 16mm;
+  }
+
+  body.rk-print-active {
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  body.rk-print-active > *:not(.rk-print-root) {
+    display: none !important;
+  }
+
+  body.rk-print-active .rk-print-root {
+    display: block !important;
+  }
+
+  .rk-sheet--key .rk-sheet-key {
+    padding-top: 32pt;
+  }
+}
