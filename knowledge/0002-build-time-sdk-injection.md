@@ -67,9 +67,12 @@ Supporting rules:
 
 All paths relative to this repository at commit `cde6689` unless noted.
 
-- Six glue files and their headers: `src/generated/sdk-manifest.ts:1-5`,
-  `sdk-routes.tsx:1-9`, `sdk-navbar.tsx:1-5`, `sdk-dashboard.tsx:1-5`,
-  `sdk-profile-cards.tsx:1-5`, `sdk-critical-operations.ts:1-5`.
+- Six glue files and their headers: `src/generated/sdk-manifest.ts::sdkManifest`,
+  `src/generated/sdk-routes.tsx::sdkRouteElements`,
+  `src/generated/sdk-navbar.tsx::sdkNavbarItems`,
+  `src/generated/sdk-dashboard.tsx::sdkDashboardItems`,
+  `src/generated/sdk-profile-cards.tsx::sdkProfileCards`,
+  `src/generated/sdk-critical-operations.ts::sdkCriticalOperations`.
 - Mount points: `src/App.tsx:5,51`; `src/components/Navbar.tsx:13,179`;
   `src/pages/Dashboard.tsx:19,46`; `src/pages/Profile.tsx:10,70`;
   `src/pages/AccountSecurity.tsx:38,1354-1356`.
@@ -78,7 +81,9 @@ All paths relative to this repository at commit `cde6689` unless noted.
   (sdk-profile-cards), `b76f2cf` (sdk-critical-operations).
 - Host carries SDK dependency: `package.json` dependencies (`skinview3d`);
   declared by the yggdrasil-api SDK manifest
-  (`HRPAuth-Yggdrasil-API/sdk/manifest.json`, checked in this pass).
-- Mounting contract authority: HA-Contract `docs/dev/HRPAuth/sdk-package.md`
+  (`/home/lnb/Desktop/HA/HRPAuth-Yggdrasil-API/sdk/manifest.json`, checked in
+  this pass).
+- Mounting contract authority: HA-Contract
+  `/home/lnb/Desktop/HA/HA-Contract/docs/dev/HRPAuth/sdk-package.md`
   ("Generated Frontend Contract" referenced from `src/types/generated-sdk.ts:3`) —
   checked in this pass.
