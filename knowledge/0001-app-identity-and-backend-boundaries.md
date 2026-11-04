@@ -37,7 +37,7 @@ application for build-time SDK page injection** (ADR-0002). Its boundaries:
   `src/generated/services/<name>/`, overwrites the `src/generated/sdk-*.ts(x)`
   glue files, and compiles the result (SDKHandler config defaults
   `TemplateGitURL = https://github.com/CoreMatch/HRPAuth-WebUI.git`, checked in
-  `HA-WebUI-SDKHandler/internal/config/config.go:127-128,192-195`).
+  `/home/lnb/Desktop/HA/HA-WebUI-SDKHandler/internal/config/config.go (field: TemplateGitURL)`).
 - **Default branch is `104`**, not `main` (`README.md:16-17`; remote HEAD points
   at `origin/104`).
 
@@ -65,7 +65,8 @@ All paths relative to this repository at commit `cde6689` unless noted.
 - Cookie session state: `src/utils/cookie.ts:98-133`.
 - Skinlib calls go to `SkinlibUrl`: `src/api/texture.ts:13,38,47,90,101`.
 - Yggdrasil pages reached via core relay prefix: `README.md:62-66`.
-- SDKHandler template relationship: `HA-WebUI-SDKHandler/internal/config/config.go:127-128,192-195`
+- SDKHandler template relationship:
+  `/home/lnb/Desktop/HA/HA-WebUI-SDKHandler/internal/config/config.go (field: TemplateGitURL)`
   (checked in this pass).
 - Default branch: `README.md:16-17`; `git remote show origin` HEAD → `origin/104`
   (checked in this pass).

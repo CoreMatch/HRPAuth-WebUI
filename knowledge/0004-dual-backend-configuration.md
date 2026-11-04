@@ -66,7 +66,8 @@ All paths relative to this repository at commit `cde6689` unless noted.
   (production, "If either field is missing or empty, the configuration is ignored").
 - Checked-in production-pointing values: `public/config.json` (baseUrl
   `https://ha.mcnb.dev/`, skinlibUrl `https://skin.mcnb.dev/`);
-  `config/backend-dev.json` (skinlibUrl `http://127.0.0.1:2701`).
+  `config/backend-dev.json (field: skinlibUrl)` (local dev HASkinLib at
+  `http://127.0.0.1`, port 2701).
 - Relay discovery: `src/utils/config.ts:92-124`; consumer
   `src/generated/services/yggdrasil-api/src/pages/YggdrasilApi.tsx:35` (snapshot
   code, see ADR-0005).
