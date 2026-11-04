@@ -51,13 +51,13 @@ need to know what these directories actually are.
 - Because the snapshots are type-checked, syncing them carelessly (e.g. copying a
   new SDK version whose imports expect new host utilities) can break the build of
   this standalone repository.
-- **Gap — publish pipeline contradiction (owner to confirm)**:
-  `.github/workflows/npm-publish.yml` runs `npm publish --access public` on every
-  GitHub release, but `package.json` sets `"private": true`, which npm refuses to
-  publish. The known consumer (HA-WebUI-SDKHandler) clones this repository by git
-  URL instead. Whether the npm workflow is dead config or the `private` flag is
-  wrong cannot be decided from the code — flagged for the author rather than
-  resolved here.
+- **The npm publish workflow was removed on 2026-11-04** (commit `28a0009`).
+  It had previously contradicted `package.json` `"private": true` (npm refuses to
+  publish private packages). The author confirmed the pipeline was unmaintained
+  and no longer needed; the known consumer (HA-WebUI-SDKHandler) clones this
+  repository by git URL, not through npm. `"private": true` is kept as-is: with
+  no publish workflow and no publish script left, it conflicts with nothing and
+  correctly states that this package is not published to npm.
 
 ## Evidence
 
@@ -83,5 +83,8 @@ All paths relative to this repository at commit `cde6689` unless noted.
   in this pass).
 - haskinproxy parity: `diff -rq src/generated/services/haskinproxy/src
   HASkinProxy/sdk/src` — no differences (checked in this pass).
-- Publish contradiction: `.github/workflows/npm-publish.yml` (`npm publish
-  --access public` on release) vs `package.json:3` (`"private": true`).
+- Workflow removal: commit `28a0009` (2026-11-04) deletes
+  `.github/workflows/npm-publish.yml`; no other workflow, script, or document
+  referenced it (repository-wide search checked in this pass). `package.json:3`
+  (`"private": true`) remains and is now conflict-free — `package.json` scripts
+  contain no publish entry.
