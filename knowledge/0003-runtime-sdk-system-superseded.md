@@ -67,7 +67,8 @@ All paths relative to this repository at commit `cde6689` unless noted.
   `170d07d` (external SDK URLs + debug services), `6ddf3ba` (2026-09-03),
   `9f85acc` and `fb094f7` (2026-09-02 relay/race fixes).
 - Old model naming (`sdk_url` + `window['<service-name>-sdk']`) and broker
-  rationale: HA-Contract `docs/dev/HRPAuth/sdk-package.md`, opening paragraph and
-  "Design Positioning" — checked in this pass.
+  rationale: HA-Contract
+  `/home/lnb/Desktop/HA/HA-Contract/docs/dev/HRPAuth/sdk-package.md`, opening
+  paragraph and "Design Positioning" — checked in this pass.
 - DashboardDebug's reduced role: `src/pages/DashboardDebug.tsx:41-70` (requests
   `/user` or `/status` only).
