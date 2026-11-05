@@ -1,7 +1,6 @@
 # ADR-0002: Build-Time SDK Injection: Six Glue Files, Five Mount Points
 
 - **Status**: accepted
-- **Date**: 2026-11-04
 
 ## Context
 

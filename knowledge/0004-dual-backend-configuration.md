@@ -1,7 +1,6 @@
 # ADR-0004: Dual-Backend Configuration: baseUrl and skinlibUrl
 
 - **Status**: accepted
-- **Date**: 2026-11-04
 
 ## Context
 

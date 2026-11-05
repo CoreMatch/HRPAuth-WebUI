@@ -1,7 +1,6 @@
 # ADR-0001: App Identity and Backend Boundaries
 
 - **Status**: accepted
-- **Date**: 2026-11-04
 
 ## Context
 

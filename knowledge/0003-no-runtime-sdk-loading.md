@@ -1,7 +1,6 @@
 # ADR-0003: No Runtime SDK Loading: Pages Arrive via Build-Time Injection
 
 - **Status**: accepted
-- **Date**: 2026-11-04
 
 ## Context
 
