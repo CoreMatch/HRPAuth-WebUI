@@ -35,10 +35,6 @@ Supporting rules:
   `SdkDashboardItem`, `SdkCriticalOperationItem`, `SdkProfileCardItem`, and its
   header comment points to HA-Contract `sdk-package.md` as the contract source
   (`src/types/generated-sdk.ts:1-5`).
-- Glue files arrived in three waves matching feature history: routes/navbar/
-  dashboard/manifest with the build-time switch-over (commit `de4e5d4`, 2026-10-09),
-  profile cards with `d234585` (2026-10-13), critical operations with `b76f2cf`
-  (2026-10-28).
 - **SDK-declared npm dependencies must be pre-installed in this host**: SDK
   manifests may declare dependencies (e.g. `skinview3d`), and this `package.json`
   carries `skinview3d ^3.4.2` accordingly (`package.json` dependencies;
@@ -65,7 +61,7 @@ Supporting rules:
 
 ## Evidence
 
-All paths relative to this repository at commit `cde6689` unless noted.
+All paths relative to this repository unless noted.
 
 - Six glue files and their headers: `src/generated/sdk-manifest.ts::sdkManifest`,
   `src/generated/sdk-routes.tsx::sdkRouteElements`,
@@ -77,8 +73,6 @@ All paths relative to this repository at commit `cde6689` unless noted.
   `src/pages/Dashboard.tsx:19,46`; `src/pages/Profile.tsx:10,70`;
   `src/pages/AccountSecurity.tsx:38,1354-1356`.
 - Hand-maintained type contract: `src/types/generated-sdk.ts:1-48`.
-- Introduction commits: `de4e5d4` (2026-10-09, four files), `d234585`
-  (sdk-profile-cards), `b76f2cf` (sdk-critical-operations).
 - Host carries SDK dependency: `package.json` dependencies (`skinview3d`);
   declared by the yggdrasil-api SDK manifest
   (`/home/lnb/Desktop/HA/HRPAuth-Yggdrasil-API/sdk/manifest.json`, checked in

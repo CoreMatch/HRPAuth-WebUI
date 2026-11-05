@@ -27,17 +27,12 @@ need to know what these directories actually are.
 - **The yggdrasil-api snapshot is stale** relative to
   `HRPAuth-Yggdrasil-API/sdk/` (compared in this pass):
   - manifest `version` is `1.0.0` here vs `1.0.3` upstream;
-  - manifest structure is the pre-2026-10-22 shape: three routes (`/mojang-bind`,
-    `/texture-management`, `/yggdrasil-api`) plus a `menu` section, versus
-    upstream's single `/yggdrasil-api` route with `dashboard` and `profile_cards`
-    (upstream commit `fd942af` removed the old route/menu entries);
-  - `ProfileCreationContent.tsx` (game-profile creation, upstream commit
-    `e328042`, 2026-10-28) is missing here;
+  - manifest structure differs: three routes (`/mojang-bind`,
+    `/texture-management`, `/yggdrasil-api`) plus a `menu` section here, versus
+    upstream's single `/yggdrasil-api` route with `dashboard` and `profile_cards`;
+  - `ProfileCreationContent.tsx` (game-profile creation) is missing here;
   - `src/api/user.ts`, `src/locales/*.json`, `src/pages/YggdrasilApi.tsx` differ
     from upstream; the content components match.
-  - The snapshot's own history explains the split state: `manifest.json` was last
-    touched by `1a846cd` (2026-10-13) while the source files were re-synced by
-    `b76f2cf` (2026-10-28) — a partial sync.
 - **The haskinproxy snapshot is in sync**: `diff -rq` against
   `HASkinProxy/sdk/src` reports no differences and both manifests are version
   `1.0.0` (checked in this pass).
@@ -52,17 +47,14 @@ need to know what these directories actually are.
 - Because the snapshots are type-checked, syncing them carelessly (e.g. copying a
   new SDK version whose imports expect new host utilities) can break the build of
   this standalone repository.
-- **The npm publish workflow was removed on 2026-11-04** (commit `28a0009`).
-  It had previously contradicted `package.json` `"private": true` (npm refuses to
-  publish private packages). The author confirmed the pipeline was unmaintained
-  and no longer needed; the known consumer (HA-WebUI-SDKHandler) clones this
-  repository by git URL, not through npm. `"private": true` is kept as-is: with
-  no publish workflow and no publish script left, it conflicts with nothing and
-  correctly states that this package is not published to npm.
+- **This package is not published to npm.** `package.json` carries
+  `"private": true` and the repository has no publish workflow and no publish
+  script. The known consumer (HA-WebUI-SDKHandler) clones this repository by git
+  URL, not through npm, so nothing depends on a publish pipeline.
 
 ## Evidence
 
-All paths relative to this repository at commit `cde6689` unless noted.
+All paths relative to this repository unless noted.
 
 - Snapshot directories: `src/generated/services/yggdrasil-api/`,
   `src/generated/services/haskinproxy/`.
@@ -72,22 +64,15 @@ All paths relative to this repository at commit `cde6689` unless noted.
 - Handler unpack layout:
   `/home/lnb/Desktop/HA/HA-WebUI-SDKHandler/internal/inject/generate.go::moduleRef`.
 - Stale manifest: `src/generated/services/yggdrasil-api/manifest.json`
-  (version 1.0.0, three routes + `menu`) vs
+  (version 1.0.0, three routes + `menu` + `dashboard`) vs
   `/home/lnb/Desktop/HA/HRPAuth-Yggdrasil-API/sdk/manifest.json`
-  (version 1.0.3, one route + `dashboard` + `profile_cards`); upstream commits
-  `fd942af` (route/menu cleanup, 2026-10-22) and `e328042` (game profile system,
-  2026-10-28).
-- Partial sync history: snapshot `manifest.json` last modified in `1a846cd`
-  (2026-10-13); source re-sync in `b76f2cf` (2026-10-28, message: "restructure
-  pages, add url utils and sdk support").
+  (version 1.0.3, one route + `dashboard` + `profile_cards`).
 - File-level drift: `diff -rq src/generated/services/yggdrasil-api/src
   HRPAuth-Yggdrasil-API/sdk/src` — `user.ts`, `en.json`, `zh-CN.json`,
   `YggdrasilApi.tsx` differ; `ProfileCreationContent.tsx` only upstream (checked
   in this pass).
 - haskinproxy parity: `diff -rq src/generated/services/haskinproxy/src
   HASkinProxy/sdk/src` — no differences (checked in this pass).
-- Workflow removal: commit `28a0009` (2026-11-04) deletes
-  `.github/workflows/npm-publish.yml`; no other workflow, script, or document
-  referenced it (repository-wide search checked in this pass). `package.json:3`
-  (`"private": true`) remains and is now conflict-free — `package.json` scripts
-  contain no publish entry.
+- No npm publish path: the repository carries no CI workflow and no publish
+  script (repository-wide search checked in this pass); `package.json:3`
+  (`"private": true`) is conflict-free.
