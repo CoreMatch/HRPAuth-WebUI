@@ -25,7 +25,7 @@ owner.
 
 Each entry is one page in ADR style:
 
-- **Status** (`accepted` / `superseded` / ...), **Date**
+- **Status** (`accepted` / `superseded` / ...)
 - **Context** — the problem and constraints
 - **Decision** — what was chosen
 - **Consequences** — including costs and limitations
@@ -35,10 +35,10 @@ Each entry is one page in ADR style:
 
 ## Entries
 
-| # | Title | Status | Date |
-|---|-------|--------|------|
-| [0001](0001-app-identity-and-backend-boundaries.md) | App Identity and Backend Boundaries | accepted | 2026-11-04 |
-| [0002](0002-build-time-sdk-injection.md) | Build-Time SDK Injection: Six Glue Files, Five Mount Points | accepted | 2026-11-04 |
-| [0003](0003-no-runtime-sdk-loading.md) | No Runtime SDK Loading: Pages Arrive via Build-Time Injection | accepted | 2026-11-04 |
-| [0004](0004-dual-backend-configuration.md) | Dual-Backend Configuration: baseUrl and skinlibUrl | accepted | 2026-11-04 |
-| [0005](0005-generated-services-snapshots.md) | src/generated/services Snapshots: Dev-Time Copies, Not Build Inputs | accepted | 2026-11-04 |
+| # | Title | Status |
+|---|-------|--------|
+| [0001](0001-app-identity-and-backend-boundaries.md) | App Identity and Backend Boundaries | accepted |
+| [0002](0002-build-time-sdk-injection.md) | Build-Time SDK Injection: Six Glue Files, Five Mount Points | accepted |
+| [0003](0003-no-runtime-sdk-loading.md) | No Runtime SDK Loading: Pages Arrive via Build-Time Injection | accepted |
+| [0004](0004-dual-backend-configuration.md) | Dual-Backend Configuration: baseUrl and skinlibUrl | accepted |
+| [0005](0005-generated-services-snapshots.md) | src/generated/services Snapshots: Dev-Time Copies, Not Build Inputs | accepted |

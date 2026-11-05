@@ -1,7 +1,6 @@
 # ADR-0005: src/generated/services Snapshots: Dev-Time Copies, Not Build Inputs
 
 - **Status**: accepted
-- **Date**: 2026-11-04
 
 ## Context
 
