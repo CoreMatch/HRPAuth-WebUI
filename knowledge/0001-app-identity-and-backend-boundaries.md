@@ -5,7 +5,7 @@
 
 ## Context
 
-This repository (`CoreMatch/HRPAuth-WebUI`, directory historically named
+This repository (`CoreMatch/HRPAuth-WebUI`, checkout directory named
 `HRPAuth-Web`) is easy to misread: its `package.json` name is "HRPAuth", it talks
 to several different backends, and part of its page tree is injected by another
 project at build time. This entry pins down what the app is and where its edges
@@ -57,7 +57,7 @@ application for build-time SDK page injection** (ADR-0002). Its boundaries:
 
 ## Evidence
 
-All paths relative to this repository at commit `cde6689` unless noted.
+All paths relative to this repository unless noted.
 
 - OAuth2 client id and refresh flow: `src/utils/api.ts:22,40-82`.
 - Login-ticket flow: `src/api/auth.ts:65-73`; second-factor selection in

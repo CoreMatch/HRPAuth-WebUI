@@ -29,9 +29,9 @@ Each entry is one page in ADR style:
 - **Context** — the problem and constraints
 - **Decision** — what was chosen
 - **Consequences** — including costs and limitations
-- **Evidence** — `file:line`, protocol entries, commit hashes. Every piece of
-  evidence must have been actually checked; anything that could not be verified is
-  marked "not verified". Do not fabricate.
+- **Evidence** — `file:line`, protocol entries. Every piece of evidence must
+  have been actually checked; anything that could not be verified is marked
+  "not verified". Do not fabricate.
 
 ## Entries
 
@@ -39,6 +39,6 @@ Each entry is one page in ADR style:
 |---|-------|--------|------|
 | [0001](0001-app-identity-and-backend-boundaries.md) | App Identity and Backend Boundaries | accepted | 2026-11-04 |
 | [0002](0002-build-time-sdk-injection.md) | Build-Time SDK Injection: Six Glue Files, Five Mount Points | accepted | 2026-11-04 |
-| [0003](0003-runtime-sdk-system-superseded.md) | The September Runtime SDK System Was Superseded on 2026-10-09 | accepted | 2026-11-04 |
+| [0003](0003-no-runtime-sdk-loading.md) | No Runtime SDK Loading: Pages Arrive via Build-Time Injection | accepted | 2026-11-04 |
 | [0004](0004-dual-backend-configuration.md) | Dual-Backend Configuration: baseUrl and skinlibUrl | accepted | 2026-11-04 |
 | [0005](0005-generated-services-snapshots.md) | src/generated/services Snapshots: Dev-Time Copies, Not Build Inputs | accepted | 2026-11-04 |

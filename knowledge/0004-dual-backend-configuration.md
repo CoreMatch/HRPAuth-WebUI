@@ -54,7 +54,7 @@ Configuration is a two-field contract `{ baseUrl, skinlibUrl }`
 
 ## Evidence
 
-All paths relative to this repository at commit `cde6689` unless noted.
+All paths relative to this repository unless noted.
 
 - Config shape and defaults: `src/utils/config.ts:1-4,18`.
 - Startup init: `src/main.tsx:8,17`.
