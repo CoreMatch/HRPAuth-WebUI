@@ -77,6 +77,6 @@ All paths relative to this repository unless noted.
   (`/home/lnb/Desktop/HA/HRPAuth-Yggdrasil-API/sdk/manifest.json`, checked in
   this pass).
 - Mounting contract authority: HA-Contract
-  `/home/lnb/Desktop/HA/HA-Contract/docs/dev/HRPAuth/sdk-package.md`
+  `/home/lnb/Desktop/HA/HRPAuth/knowledge/0012-sdk-package-contract.md`
   ("Generated Frontend Contract" referenced from `src/types/generated-sdk.ts:3`) —
   checked in this pass.
