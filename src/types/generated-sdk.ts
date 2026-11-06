@@ -1,6 +1,6 @@
 /**
  * SDK 生成的静态契约类型（人工维护，稳定，不会被 SDKHandler 覆盖）。
- * 契约定义见 HA-Contract/docs/dev/HRPAuth/sdk-package.md 的 "Generated Frontend Contract" 一节。
+ * 契约定义见 HRPAuth/knowledge/0012-sdk-package-contract.md（原 HA-Contract docs/dev/HRPAuth/sdk-package.md）的 "Generated Frontend Contract" 一节。
  * HA-WebUI-SDKHandler 在构建时按本文件类型生成 src/generated/ 下的模块。
  */
 import type { ReactNode } from 'react';

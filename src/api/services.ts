@@ -3,7 +3,7 @@ import { request, type ApiResponse } from '../utils/api';
 
 /**
  * HRPAuth 微服务扩展层 API。
- * 契约定义见 HA-Contract/docs/dev/HRPAuth/microservices.md。
+ * 契约定义见 HRPAuth/knowledge/0008-microservice-extension-layer.md（原 HA-Contract docs/dev/HRPAuth/microservices.md）。
  * 前端不再做运行时 SDK 发现（GET /services/list 已移除），SDK 由 HA-WebUI-SDKHandler
  * 在构建期注入（见 src/generated/）。这里仅保留 presence / route / relay 等旁路管理接口。
  */
