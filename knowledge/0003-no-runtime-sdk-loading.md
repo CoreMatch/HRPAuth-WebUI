@@ -30,7 +30,7 @@ validation.
   rebuild.
 - The DashboardDebug page only inspects a single `/user` (logged-in) or
   `/status` (anonymous) request/response pair
-  (`src/pages/DashboardDebug.tsx:41-70`); it does not load SDKs.
+  (`src/pages/DashboardDebug.tsx:L41-L70 ~ const base = BackendUrl;`); it does not load SDKs.
 - Page availability is coupled to the build/publish cadence: a service that
   uploads a new SDK package becomes visible only after the next SDKHandler build
   and redeployment of the static assets.
@@ -39,9 +39,9 @@ validation.
 
 All paths relative to this repository unless noted.
 
-- No SDK discovery in the services API: `src/api/services.ts:48-110`
+- No SDK discovery in the services API: `src/api/services.ts:L48-L110 ~ **`
   (presence/route/relay wrappers only).
-- DashboardDebug's role: `src/pages/DashboardDebug.tsx:41-70` (requests `/user`
+- DashboardDebug's role: `src/pages/DashboardDebug.tsx:L41-L70 ~ const base = BackendUrl;` (requests `/user`
   or `/status` only).
 - Broker rationale and compile-time model: HA-Contract
   `/home/lnb/Desktop/HA/HRPAuth/knowledge/0012-sdk-package-contract.md`, opening

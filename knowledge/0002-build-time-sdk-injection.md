@@ -21,11 +21,11 @@ in this repository:
 | Glue file | Export | Mount point (host code) |
 |---|---|---|
 | `sdk-manifest.ts` | `sdkManifest` | metadata for the other generators |
-| `sdk-routes.tsx` | `sdkRouteElements` | `src/App.tsx:51` inside `<Routes>` |
-| `sdk-navbar.tsx` | `sdkNavbarItems` | `src/components/Navbar.tsx:179` |
-| `sdk-dashboard.tsx` | `sdkDashboardItems` | `src/pages/Dashboard.tsx:46` |
-| `sdk-profile-cards.tsx` | `sdkProfileCards` | `src/pages/Profile.tsx:70` |
-| `sdk-critical-operations.ts` | `sdkCriticalOperations` | `src/pages/AccountSecurity.tsx:1354-1356` |
+| `sdk-routes.tsx` | `sdkRouteElements` | `src/App.tsx:L51-L51 ~ {sdkRouteElements}` inside `<Routes>` |
+| `sdk-navbar.tsx` | `sdkNavbarItems` | `src/components/Navbar.tsx:L179-L179 ~ {sdkNavbarItems.map((item) => (` |
+| `sdk-dashboard.tsx` | `sdkDashboardItems` | `src/pages/Dashboard.tsx:L46-L46 ~ sdkDashboardItems.map((item) => ({` |
+| `sdk-profile-cards.tsx` | `sdkProfileCards` | `src/pages/Profile.tsx:L70-L70 ~ [...sdkProfileCards].sort((a, b) => {` |
+| `sdk-critical-operations.ts` | `sdkCriticalOperations` | `src/pages/AccountSecurity.tsx:L1354-L1356 ~ {sdkCriticalOperations.length > 0 && (` |
 
 Supporting rules:
 
@@ -33,20 +33,20 @@ Supporting rules:
   `src/types/generated-sdk.ts` defines `SdkManifestEntry`, `SdkNavbarItem`,
   `SdkDashboardItem`, `SdkCriticalOperationItem`, `SdkProfileCardItem`, and its
   header comment points to HA-Contract `sdk-package.md` as the contract source
-  (`src/types/generated-sdk.ts:1-5`).
+  (`src/types/generated-sdk.ts:L1-L5 ~ **`).
 - **SDK-declared npm dependencies must be pre-installed in this host**: SDK
   manifests may declare dependencies (e.g. `skinview3d`), and this `package.json`
   carries `skinview3d ^3.4.2` accordingly (`package.json` dependencies;
   yggdrasil-api SDK `manifest.json` `dependencies` block).
 - Profile cards render sorted by `priority` with the handler's `loadOrder` as
-  tie-breaker (`src/pages/Profile.tsx:70` onward; type fields in
-  `src/types/generated-sdk.ts:42-48`).
+  tie-breaker (`src/pages/Profile.tsx:L70-L70 ~ [...sdkProfileCards].sort((a, b) => {` onward; type fields in
+  `src/types/generated-sdk.ts:L42-L48 ~ export interface SdkProfileCardItem {`).
 
 ## Consequences
 
 - A plain `npm run build` of this repository compiles with **zero SDK pages** —
   every placeholder is an empty array, and host components guard on emptiness
-  (e.g. `src/pages/AccountSecurity.tsx:1354`). This is the intended standalone
+  (e.g. `src/pages/AccountSecurity.tsx:L1354-L1354 ~ {sdkCriticalOperations.length > 0 && (`). This is the intended standalone
   behavior, not a broken build.
 - Editing any `src/generated/sdk-*` file by hand is futile: the next SDKHandler
   build overwrites it. Persistent changes belong in the type contract
@@ -68,15 +68,15 @@ All paths relative to this repository unless noted.
   `src/generated/sdk-dashboard.tsx::sdkDashboardItems`,
   `src/generated/sdk-profile-cards.tsx::sdkProfileCards`,
   `src/generated/sdk-critical-operations.ts::sdkCriticalOperations`.
-- Mount points: `src/App.tsx:5,51`; `src/components/Navbar.tsx:13,179`;
-  `src/pages/Dashboard.tsx:19,46`; `src/pages/Profile.tsx:10,70`;
-  `src/pages/AccountSecurity.tsx:38,1354-1356`.
-- Hand-maintained type contract: `src/types/generated-sdk.ts:1-48`.
+- Mount points: `src/App.tsx::sdkRouteElements`; `src/components/Navbar.tsx::sdkNavbarItems`;
+  `src/pages/Dashboard.tsx::sdkDashboardItems`; `src/pages/Profile.tsx::sdkProfileCards`;
+  `src/pages/AccountSecurity.tsx::sdkCriticalOperations`.
+- Hand-maintained type contract: `src/types/generated-sdk.ts:L1-L48 ~ **`.
 - Host carries SDK dependency: `package.json` dependencies (`skinview3d`);
   declared by the yggdrasil-api SDK manifest
   (`/home/lnb/Desktop/HA/HRPAuth-Yggdrasil-API/sdk/manifest.json`, checked in
   this pass).
 - Mounting contract authority: HA-Contract
   `/home/lnb/Desktop/HA/HRPAuth/knowledge/0012-sdk-package-contract.md`
-  ("Generated Frontend Contract" referenced from `src/types/generated-sdk.ts:3`) —
+  ("Generated Frontend Contract" referenced from `src/types/generated-sdk.ts:L3-L3 ~ * 契约定义见 HRPAuth/knowledge/0012-sdk-package-contr`) —
   checked in this pass.
