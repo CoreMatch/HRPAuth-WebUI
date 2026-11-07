@@ -17,27 +17,27 @@ registration, account security, profile, dashboard), and additionally the **host
 application for build-time SDK page injection** (ADR-0002). Its boundaries:
 
 - **Identity**: an OAuth2 client of the HRPAuth core with hardcoded
-  `client_id = 'hrpauth-webui'` (`src/utils/api.ts:22`). Login goes through
+  `client_id = 'hrpauth-webui'` (`src/utils/api.ts:L22-L22 ~ const CLIENT_ID = 'hrpauth-webui';`). Login goes through
   `POST /oauth/login-ticket` (email + password → login ticket + required second
-  factors, `src/api/auth.ts:65-73`), then a 2FA verification step, and token
+  factors, `src/api/auth.ts:L65-L73 ~ export async function getLoginTicket(email: stri`), then a 2FA verification step, and token
   refresh uses `POST /oauth/token` with `grant_type=refresh_token`
-  (`src/utils/api.ts:40-82`). Session state lives in cookies (`access_token`,
+  (`src/utils/api.ts:L40-L82 ~ async function tryRefreshToken(): Promise<string`). Session state lives in cookies (`access_token`,
   `refresh_token`, `uid`, `user_email`, plus feature flags;
-  `src/utils/cookie.ts:98-133`).
+  `src/utils/cookie.ts:L98-L133 ~ setCookie('user_email', email, {`).
 - **Backend 1 — HRPAuth core** at `baseUrl`: all account/OAuth2/user endpoints.
 - **Backend 2 — HASkinLib** at `skinlibUrl`: only the first-party Skinlib page
-  (texture browse/upload/apply/delete, `src/api/texture.ts:13-101`).
+  (texture browse/upload/apply/delete, `src/api/texture.ts:L13-L101 ~ const url = `${SkinlibUrl}/texture/upload`;`).
 - **Backend 3 — HRPAuth-Yggdrasil-API**: never addressed directly. Its pages are
   injected via SDK packages and call the service through the core's relay under
   the `/yggdrasil-api` path prefix on `baseUrl` (README "Backend dependencies",
-  `README.md:62-66`).
+  `README.md:L62-L66 ~ Backend dependencies`).
 - **Sibling projects**: `HA-WebUI-SDKHandler` uses this repository as its build
   template — it clones this repo, unpacks SDK packages into
   `src/generated/services/<name>/`, overwrites the `src/generated/sdk-*.ts(x)`
   glue files, and compiles the result (SDKHandler config defaults
   `TemplateGitURL = https://github.com/CoreMatch/HRPAuth-WebUI.git`, checked in
   `/home/lnb/Desktop/HA/HA-WebUI-SDKHandler/internal/config/config.go (field: TemplateGitURL)`).
-- **Default branch is `104`**, not `main` (`README.md:16-17`; remote HEAD points
+- **Default branch is `104`**, not `main` (`README.md:L16-L17 ~ 1. Clone (default branch: 104)`; remote HEAD points
   at `origin/104`).
 
 ## Consequences
@@ -47,7 +47,7 @@ application for build-time SDK page injection** (ADR-0002). Its boundaries:
   (ADR-0002). The full multi-service UI only exists in SDKHandler-driven builds.
 - Operators must run and configure three systems for a complete deployment (core,
   skinlib, yggdrasil-api), and the README lists core + skinlib as hard
-  prerequisites (`README.md:9-11`).
+  prerequisites (`README.md:L9-L11 ~ - Node.js and npm (Node ≥ 22 recommended)`).
 - The `package.json` name "HRPAuth" (line 2) collides in reading with the backend
   project of the same name; the canonical repository name is HRPAuth-WebUI.
 - Because the app trusts `baseUrl` for all authenticated calls, a deployment that
@@ -58,16 +58,16 @@ application for build-time SDK page injection** (ADR-0002). Its boundaries:
 
 All paths relative to this repository unless noted.
 
-- OAuth2 client id and refresh flow: `src/utils/api.ts:22,40-82`.
-- Login-ticket flow: `src/api/auth.ts:65-73`; second-factor selection in
-  `src/pages/Login.tsx:293-340`.
-- Cookie session state: `src/utils/cookie.ts:98-133`.
-- Skinlib calls go to `SkinlibUrl`: `src/api/texture.ts:13,38,47,90,101`.
-- Yggdrasil pages reached via core relay prefix: `README.md:62-66`.
+- OAuth2 client id and refresh flow: `src/utils/api.ts:L22-L82 ~ CLIENT_ID const + tryRefreshToken flow`.
+- Login-ticket flow: `src/api/auth.ts:L65-L73 ~ export async function getLoginTicket(email: stri`; second-factor selection in
+  `src/pages/Login.tsx:L293-L340 ~ const res = await getLoginTicket(email, password`.
+- Cookie session state: `src/utils/cookie.ts:L98-L133 ~ setCookie('user_email', email, {`.
+- Skinlib calls go to `SkinlibUrl`: `src/api/texture.ts:L13-L101 ~ texture API calls against SkinlibUrl`.
+- Yggdrasil pages reached via core relay prefix: `README.md:L62-L66 ~ Backend dependencies`.
 - SDKHandler template relationship:
   `/home/lnb/Desktop/HA/HA-WebUI-SDKHandler/internal/config/config.go (field: TemplateGitURL)`
   (checked in this pass).
-- Default branch: `README.md:16-17`; `git remote show origin` HEAD → `origin/104`
+- Default branch: `README.md:L16-L17 ~ 1. Clone (default branch: 104)`; `git remote show origin` HEAD → `origin/104`
   (checked in this pass).
-- package.json identity: `package.json:2-4` (name "HRPAuth", version 0.0.3,
+- package.json identity: `package.json:L2-L4 ~ "name": "HRPAuth",` (name "HRPAuth", version 0.0.3,
   private).
