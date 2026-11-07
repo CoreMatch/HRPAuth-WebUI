@@ -72,6 +72,7 @@ All paths relative to this repository unless noted.
   in this pass).
 - haskinproxy parity: `diff -rq src/generated/services/haskinproxy/src
   HASkinProxy/sdk/src` — no differences (checked in this pass).
-- No npm publish path: the repository carries no CI workflow and no publish
-  script (repository-wide search checked in this pass); `package.json:3`
-  (`"private": true`) is conflict-free.
+- No npm publish path: npm publishing is abandoned for this repository. The
+  former `npm-publish.yml` workflow was removed (commit 28a0009), no publish
+  script or publish-related `package.json` field remains, and this repository
+  is consumed only as an application, never as an npm package.
