@@ -1,0 +1,37 @@
+# Build gate for the HRPAuth WebUI frontend.
+#
+# Scope: install from the lockfile (npm ci, so CI builds exactly what
+# the lockfile pins) and run the production build (tsc -b && vite
+# build). Build failures surface in this job's own log. The existing
+# knowledge-anchors.yml keeps guarding knowledge/ anchors; there is
+# deliberately NO publish step here — npm publishing was abandoned
+# (see knowledge/0005).
+#
+# Node version: this repository has no .nvmrc and no "engines" field;
+# 22 matches the ecosystem's other Node CI (SamuelPortal,
+# MatchCoreArena-Client build/release) and satisfies Vite 7's
+# requirement (Node ^20.19.0 || >=22.12.0).
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies (lockfile-exact)
+        run: npm ci
+
+      - name: Build (tsc -b && vite build)
+        run: npm run build
