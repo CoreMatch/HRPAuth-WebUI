@@ -44,5 +44,5 @@ All paths relative to this repository unless noted.
 - DashboardDebug's role: `src/pages/DashboardDebug.tsx:L41-L70 fp=6a06a898 ~ const base = BackendUrl;` (requests `/user`
   or `/status` only).
 - Broker rationale and compile-time model: HA-Contract
-  `/home/lnb/Desktop/HA/HRPAuth/knowledge/0012-sdk-package-contract.md`, opening
+  `/home/lnb/Desktop/HA/hrpauth/HRPAuth/knowledge/0012-sdk-package-contract.md`, opening
   paragraph and "Design Positioning" — checked in this pass.

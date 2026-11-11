@@ -38,7 +38,7 @@ application for build-time SDK page injection** (ADR-0002). Its boundaries:
   `src/generated/services/<name>/`, overwrites the `src/generated/sdk-*.ts(x)`
   glue files, and compiles the result (SDKHandler config defaults
   `TemplateGitURL = https://github.com/CoreMatch/HRPAuth-WebUI.git`, checked in
-  `/home/lnb/Desktop/HA/HA-WebUI-SDKHandler/internal/config/config.go (field: TemplateGitURL)`).
+  `/home/lnb/Desktop/HA/hrpauth/HA-WebUI-SDKHandler/internal/config/config.go (field: TemplateGitURL)`).
 - **Default branch is `104`**, not `main` (`README.md:L16-L17 fp=4a073b43 ~ 1. Clone (default branch: 104)`; remote HEAD points
   at `origin/104`).
 
@@ -68,7 +68,7 @@ All paths relative to this repository unless noted.
   relay): `src/api/texture.ts:L13-L124 fp=0354e9c0 ~ texture API calls (Skinlib browse/upload/delete + yggdrasil apply)`.
 - Yggdrasil pages reached via core relay prefix: `README.md:L62-L66 fp=e26a87ab ~ Backend dependencies`.
 - SDKHandler template relationship:
-  `/home/lnb/Desktop/HA/HA-WebUI-SDKHandler/internal/config/config.go (field: TemplateGitURL)`
+  `/home/lnb/Desktop/HA/hrpauth/HA-WebUI-SDKHandler/internal/config/config.go (field: TemplateGitURL)`
   (checked in this pass).
 - Default branch: `README.md:L16-L17 fp=4a073b43 ~ 1. Clone (default branch: 104)`; `git remote show origin` HEAD → `origin/104`
   (checked in this pass).
