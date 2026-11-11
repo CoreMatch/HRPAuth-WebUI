@@ -305,11 +305,9 @@ export default function Skinlib() {
 
   const handleUseTexture = async (item: TextureItem) => {
     const token = getAuthToken();
-    const uidStr = getUid();
-    const uid = uidStr ? parseInt(uidStr, 10) : Number.NaN;
 
-    if (!token || !uidStr || Number.isNaN(uid) || uid <= 0) {
-      setSnackbar({ open: true, message: t('skinlib.notLoggedInUid'), severity: 'error' });
+    if (!token) {
+      setSnackbar({ open: true, message: t('skinlib.notLoggedIn'), severity: 'error' });
       return;
     }
 
@@ -328,8 +326,7 @@ export default function Skinlib() {
       const result = await applyTextureToUser(
         item.type,
         file,
-        item.type === 'skin' ? (item.model || 'default') : undefined,
-        uid
+        item.type === 'skin' ? (item.model || 'default') : undefined
       );
 
       if (result.success) {

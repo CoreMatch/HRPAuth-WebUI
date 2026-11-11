@@ -26,7 +26,9 @@ application for build-time SDK page injection** (ADR-0002). Its boundaries:
   `src/utils/cookie.ts:L98-L133 fp=2ea91899 ~ setCookie('user_email', email, {`).
 - **Backend 1 — HRPAuth core** at `baseUrl`: all account/OAuth2/user endpoints.
 - **Backend 2 — HASkinLib** at `skinlibUrl`: only the first-party Skinlib page
-  (texture browse/upload/apply/delete, `src/api/texture.ts:L13-L101 fp=18a07ce2 ~ const url = `${SkinlibUrl}/texture/upload`;`).
+  (texture browse/upload/delete; applying a texture to the logged-in user goes
+  to Backend 3 through the `/yggdrasil-api` relay prefix instead,
+  `src/api/texture.ts:L13-L124 fp=0354e9c0 ~ const url = `${SkinlibUrl}/texture/upload`;`).
 - **Backend 3 — HRPAuth-Yggdrasil-API**: never addressed directly. Its pages are
   injected via SDK packages and call the service through the core's relay under
   the `/yggdrasil-api` path prefix on `baseUrl` (README "Backend dependencies",
@@ -62,7 +64,8 @@ All paths relative to this repository unless noted.
 - Login-ticket flow: `src/api/auth.ts:L65-L73 fp=a6667676 ~ export async function getLoginTicket(email: stri`; second-factor selection in
   `src/pages/Login.tsx:L293-L340 fp=081665de ~ const res = await getLoginTicket(email, password`.
 - Cookie session state: `src/utils/cookie.ts:L98-L133 fp=2ea91899 ~ setCookie('user_email', email, {`.
-- Skinlib calls go to `SkinlibUrl`: `src/api/texture.ts:L13-L101 fp=18a07ce2 ~ texture API calls against SkinlibUrl`.
+- Skinlib calls go to `SkinlibUrl` (the apply call goes to the yggdrasil-api
+  relay): `src/api/texture.ts:L13-L124 fp=0354e9c0 ~ texture API calls (Skinlib browse/upload/delete + yggdrasil apply)`.
 - Yggdrasil pages reached via core relay prefix: `README.md:L62-L66 fp=e26a87ab ~ Backend dependencies`.
 - SDKHandler template relationship:
   `/home/lnb/Desktop/HA/HA-WebUI-SDKHandler/internal/config/config.go (field: TemplateGitURL)`
