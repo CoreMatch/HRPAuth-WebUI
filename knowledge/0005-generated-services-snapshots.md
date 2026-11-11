@@ -15,7 +15,7 @@ need to know what these directories actually are.
 - **They are development-time snapshots of what HA-WebUI-SDKHandler unpacks at
   build time** — the handler's own code documents the layout "包解包在
   `src/generated/services/<name>/`"
-  (`/home/lnb/Desktop/HA/HA-WebUI-SDKHandler/internal/inject/generate.go::moduleRef`,
+  (`/home/lnb/Desktop/HA/hrpauth/HA-WebUI-SDKHandler/internal/inject/generate.go::moduleRef`,
   checked in this pass). In this repository they are reference copies only.
 - **No app code imports them.** A repository-wide search for references to
   `generated/services` matches only files inside the snapshots themselves; no
@@ -61,10 +61,10 @@ All paths relative to this repository unless noted.
   references (only intra-directory hits; checked in this pass).
 - Type-check inclusion: `tsconfig.app.json` `include: ["src", "vite-env.d.ts"]`.
 - Handler unpack layout:
-  `/home/lnb/Desktop/HA/HA-WebUI-SDKHandler/internal/inject/generate.go::moduleRef`.
+  `/home/lnb/Desktop/HA/hrpauth/HA-WebUI-SDKHandler/internal/inject/generate.go::moduleRef`.
 - Stale manifest: `src/generated/services/yggdrasil-api/manifest.json`
   (version 1.0.0, three routes + `menu` + `dashboard`) vs
-  `/home/lnb/Desktop/HA/HRPAuth-Yggdrasil-API/sdk/manifest.json`
+  `/home/lnb/Desktop/HA/hrpauth/HRPAuth-Yggdrasil-API/sdk/manifest.json`
   (version 1.0.3, one route + `dashboard` + `profile_cards`).
 - File-level drift: `diff -rq src/generated/services/yggdrasil-api/src
   HRPAuth-Yggdrasil-API/sdk/src` — `user.ts`, `en.json`, `zh-CN.json`,

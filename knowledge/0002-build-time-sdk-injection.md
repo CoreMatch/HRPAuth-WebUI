@@ -74,9 +74,9 @@ All paths relative to this repository unless noted.
 - Hand-maintained type contract: `src/types/generated-sdk.ts:L1-L48 fp=1e1f5ca1 ~ **`.
 - Host carries SDK dependency: `package.json` dependencies (`skinview3d`);
   declared by the yggdrasil-api SDK manifest
-  (`/home/lnb/Desktop/HA/HRPAuth-Yggdrasil-API/sdk/manifest.json`, checked in
+  (`/home/lnb/Desktop/HA/hrpauth/HRPAuth-Yggdrasil-API/sdk/manifest.json`, checked in
   this pass).
 - Mounting contract authority: HA-Contract
-  `/home/lnb/Desktop/HA/HRPAuth/knowledge/0012-sdk-package-contract.md`
+  `/home/lnb/Desktop/HA/hrpauth/HRPAuth/knowledge/0012-sdk-package-contract.md`
   ("Generated Frontend Contract" referenced from `src/types/generated-sdk.ts:L3-L3 fp=b27db958 ~ * 契约定义见 HRPAuth/knowledge/0012-sdk-package-contr`) —
   checked in this pass.
