@@ -33,7 +33,7 @@ Configuration is a two-field contract `{ baseUrl, skinlibUrl }`
   endpoint for the real backend URL behind it (`src/utils/config.ts:L92-L124 fp=16250fdf ~ export function getRelayUrl(): string {`); the
   yggdrasil-api SDK page uses this to display/service-info its backend. The
   Skinlib page can override `SkinlibUrl` at runtime via `setSkinlibUrl`
-  (`src/utils/config.ts:L39-L41 fp=af6ac2d5 ~ export function setSkinlibUrl(url: string): void`, `src/pages/Skinlib.tsx:L272-L410 fp=1caad2e2 ~ sourceUrl state + setSkinlibUrl on save`).
+  (`src/utils/config.ts:L39-L41 fp=af6ac2d5 ~ export function setSkinlibUrl(url: string): void`, `src/pages/Skinlib.tsx:L272-L409 fp=3339ec1d ~ sourceUrl state + setSkinlibUrl on save`).
 
 ## Consequences
 
@@ -71,4 +71,4 @@ All paths relative to this repository unless noted.
   `src/generated/services/yggdrasil-api/src/pages/YggdrasilApi.tsx:L35-L35 fp=ef489022 ~ getRealBackendUrl().then((url: string) => {` (snapshot
   code, see ADR-0005).
 - Runtime skinlib override: `src/utils/config.ts:L39-L41 fp=af6ac2d5 ~ export function setSkinlibUrl(url: string): void`,
-  `src/pages/Skinlib.tsx:L49-L410 fp=eda80c5b ~ setSkinlibUrl import + sourceUrl state + save`.
+  `src/pages/Skinlib.tsx:L49-L409 fp=62ddb8d4 ~ setSkinlibUrl import + sourceUrl state + save`.
