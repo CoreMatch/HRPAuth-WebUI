@@ -3,7 +3,7 @@ import { Box, Typography, Card, CardContent, Avatar, CircularProgress, Alert, Ch
 import CheckCircle from '@mui/icons-material/CheckCircle';
 import Warning from '@mui/icons-material/Warning';
 import { useTranslation } from 'react-i18next';
-import { dataCache } from '../utils/dataCache';
+import { dataCache, type UserData } from '../utils/dataCache';
 import { request } from '../utils/api';
 import { getUserEmail, getUid } from '../utils/cookie';
 import { BackendUrl } from '../utils/config';
@@ -40,7 +40,7 @@ export default function Profile() {
         setLoading(false);
       }
       try {
-        const userResp = await request(`${BackendUrl}/user`, {
+        const userResp = await request<UserData>(`${BackendUrl}/user`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ uid, email }),

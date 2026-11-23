@@ -42,7 +42,7 @@ export async function sendTestEmail(data: SendEmailRequest): Promise<SendEmailRe
     }
 
     return responseData;
-  } catch (error) {
+  } catch {
     return {
       success: false,
       message: '网络错误：无法连接到后端。',

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Box, Typography, Card, CardContent, CircularProgress, Alert, Stack, TextField, Button, Dialog, DialogTitle, DialogContent, DialogActions, InputAdornment, Switch, Divider, Radio, RadioGroup, FormControlLabel } from '@mui/material';
 import Delete from '@mui/icons-material/Delete';
 import Print from '@mui/icons-material/Print';
@@ -10,7 +10,7 @@ import Edit from '@mui/icons-material/Edit';
 import { QRCodeSVG } from 'qrcode.react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { dataCache } from '../utils/dataCache';
+import { dataCache, type UserData } from '../utils/dataCache';
 import { request } from '../utils/api';
 import {
   createRecoveryKey,
@@ -23,6 +23,7 @@ import {
   toggleTotp,
   type RecoveryKeyVerificationRequest,
   type WebAuthnCredentialRecord,
+  type WebAuthnPublicKeyOptions,
   verifyTotp,
   toggleEmail2fa,
   getTwoFactorStatus,
@@ -31,16 +32,18 @@ import {
 } from '../api/auth';
 import {
   beginWebAuthnSudo,
+  type ChangeEmailParams,
 } from '../api/user';
 import { clearAuthCookies, getUserEmail, getAuthToken, getUid, getTotpEnabled, setTotpEnabled } from '../utils/cookie';
 import { BackendUrl } from '../utils/config';
 import { authenticateWithWebAuthn, isWebAuthnSupported, registerWithWebAuthn } from '../utils/webauthn';
 import { sdkCriticalOperations } from '../generated/sdk-critical-operations';
-import VerificationMethodPickerDialog, {
+import VerificationMethodPickerDialog from '../components/VerificationMethodPickerDialog';
+import {
   getPreferredVerificationMethod,
   type VerificationMethodKey,
   type VerificationMethodOption,
-} from '../components/VerificationMethodPickerDialog';
+} from '../utils/verificationMethod';
 import RecoveryKeyPrintSheet, {
   type RecoveryKeyPrintMode,
 } from '../components/RecoveryKeyPrintSheet';
@@ -65,7 +68,77 @@ interface ActionFeedback {
 
 interface PendingWebAuthnRegistration {
   flowId: string;
-  options: any; // Using any for options to match the flexible structure from API
+  options: WebAuthnPublicKeyOptions;
+}
+
+interface SecurityFlagRecord {
+  data?: {
+    recovery_key_enabled?: unknown;
+    webauthn_2fa_enabled?: unknown;
+    enabled?: unknown;
+    available?: unknown;
+  };
+  recovery_key_enabled?: unknown;
+  webauthn_2fa_enabled?: unknown;
+  enabled?: unknown;
+  available?: unknown;
+}
+
+function parseEnabledFlag(value: unknown): boolean | undefined {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value !== 0;
+  return undefined;
+}
+
+function readRecoveryKeyEnabledFromValue(value: unknown): boolean | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const record = value as SecurityFlagRecord;
+  return parseEnabledFlag(record.data?.recovery_key_enabled ?? record.recovery_key_enabled);
+}
+
+function readWebAuthnEnabledFromValue(value: unknown): boolean | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const record = value as SecurityFlagRecord;
+  return parseEnabledFlag(
+    record.data?.webauthn_2fa_enabled
+    ?? record.data?.enabled
+    ?? record.webauthn_2fa_enabled
+    ?? record.enabled
+  );
+}
+
+function readWebAuthnAvailabilityFromValue(value: unknown): boolean | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const record = value as SecurityFlagRecord;
+  if (typeof record.data?.available === 'boolean') return record.data.available;
+  if (typeof record.available === 'boolean') return record.available;
+  return undefined;
+}
+
+function normalizeWebAuthnCredentials(value: unknown): WebAuthnCredentialRecord[] {
+  const records: unknown[] = Array.isArray(value)
+    ? value
+    : value && typeof value === 'object' && Array.isArray((value as { credentials?: unknown }).credentials)
+      ? (value as { credentials: unknown[] }).credentials
+      : [];
+
+  const normalized: WebAuthnCredentialRecord[] = [];
+  records.forEach((item) => {
+    if (!item || typeof item !== 'object') return;
+    const credential = item as Record<string, unknown>;
+    const id = typeof credential.id === 'number' ? credential.id : Number(credential.id);
+    if (!Number.isFinite(id) || id <= 0) return;
+    normalized.push({
+      id,
+      name: typeof credential.name === 'string' ? credential.name : undefined,
+      created_at: typeof credential.created_at === 'string' ? credential.created_at : undefined,
+      updated_at: typeof credential.updated_at === 'string' ? credential.updated_at : undefined,
+      last_used_at: typeof credential.last_used_at === 'string' || credential.last_used_at === null
+        ? credential.last_used_at as string | null
+        : undefined,
+    });
+  });
+  return normalized;
 }
 
 export default function AccountSecurity() {
@@ -187,63 +260,7 @@ export default function AccountSecurity() {
     }] : []),
   ];
 
-  const parseEnabledFlag = (value: unknown): boolean | undefined => {
-    if (typeof value === 'boolean') return value;
-    if (typeof value === 'number') return value !== 0;
-    return undefined;
-  };
-
-  const readRecoveryKeyEnabledFromValue = (value: unknown): boolean | undefined => {
-    if (!value || typeof value !== 'object') return undefined;
-    const record = value as any;
-    return parseEnabledFlag(record.data?.recovery_key_enabled ?? record.recovery_key_enabled);
-  };
-
-  const readWebAuthnEnabledFromValue = (value: unknown): boolean | undefined => {
-    if (!value || typeof value !== 'object') return undefined;
-    const record = value as any;
-    return parseEnabledFlag(
-      record.data?.webauthn_2fa_enabled
-      ?? record.data?.enabled
-      ?? record.webauthn_2fa_enabled
-      ?? record.enabled
-    );
-  };
-
-  const readWebAuthnAvailabilityFromValue = (value: unknown): boolean | undefined => {
-    if (!value || typeof value !== 'object') return undefined;
-    const record = value as any;
-    if (typeof record.data?.available === 'boolean') return record.data.available;
-    if (typeof record.available === 'boolean') return record.available;
-    return undefined;
-  };
-
-  const normalizeWebAuthnCredentials = (value: unknown): WebAuthnCredentialRecord[] => {
-    const records = Array.isArray(value)
-      ? value
-      : value && typeof value === 'object' && Array.isArray((value as any).credentials)
-        ? (value as any).credentials
-        : [];
-
-    const normalized: WebAuthnCredentialRecord[] = [];
-    records.forEach((item: any) => {
-      if (!item || typeof item !== 'object') return;
-      const id = typeof item.id === 'number' ? item.id : Number(item.id);
-      if (!Number.isFinite(id) || id <= 0) return;
-      normalized.push({
-        id,
-        name: typeof item.name === 'string' ? item.name : undefined,
-        created_at: typeof item.created_at === 'string' ? item.created_at : undefined,
-        updated_at: typeof item.updated_at === 'string' ? item.updated_at : undefined,
-        last_used_at: typeof item.last_used_at === 'string' || item.last_used_at === null
-          ? item.last_used_at as string | null
-          : undefined,
-      });
-    });
-    return normalized;
-  };
-
-  const applyWebAuthnState = (value: unknown, fallbackEnabled?: boolean) => {
+  const applyWebAuthnState = useCallback((value: unknown, fallbackEnabled?: boolean) => {
     const credentials = normalizeWebAuthnCredentials(value);
     const enabled = readWebAuthnEnabledFromValue(value) ?? fallbackEnabled ?? false;
     const available = readWebAuthnAvailabilityFromValue(value) ?? true;
@@ -252,7 +269,7 @@ export default function AccountSecurity() {
     setWebauthnBackendAvailable(available);
     setUserInfo((prev) => (prev ? { ...prev, webauthn_2fa_enabled: enabled } : prev));
     return { credentials, enabled, available };
-  };
+  }, []);
 
   const refreshTwoFactorStatus = async (uid?: string) => {
     try {
@@ -332,7 +349,7 @@ export default function AccountSecurity() {
 
       try {
         const [userResp, twoFactorData, webauthnResp] = await Promise.all([
-          request(`${BackendUrl}/user`, {
+          request<UserData>(`${BackendUrl}/user`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ uid, email }),
@@ -364,7 +381,7 @@ export default function AccountSecurity() {
           setEmail2faEnabled(currentTwoFactor.email_2fa_enabled);
         }
 
-        if (webauthnResp.success) {
+        if (webauthnResp.success && webauthnResp.data) {
           dataCache.setWebauthnCredentials(webauthnResp.data);
           const currentWebAuthnEnabled = twoFactorData?.webauthn_2fa_enabled ?? false;
           applyWebAuthnState(webauthnResp.data, currentWebAuthnEnabled);
@@ -378,7 +395,7 @@ export default function AccountSecurity() {
     };
 
     fetchData();
-  }, [t]);
+  }, [t, applyWebAuthnState]);
 
   const handleToggleEmail2fa = async (enabled: boolean) => {
     setEmail2faLoading(true);
@@ -583,8 +600,8 @@ export default function AccountSecurity() {
         flow_id: beginResp.data.flow_id,
         credential,
       }));
-    } catch (err: any) {
-      setRecoveryKeyDialogError(err?.message || t('profile.webauthnOperationFailed'));
+    } catch (err) {
+      setRecoveryKeyDialogError(err instanceof Error ? err.message : t('profile.webauthnOperationFailed'));
     } finally {
       setRecoveryKeyLoading(false);
     }
@@ -664,8 +681,8 @@ export default function AccountSecurity() {
           setChangeEmailError(resp.message || t('profile.saveFailed'));
         }
       }
-    } catch (err: any) {
-      setChangeEmailError(err.message || t('profile.webauthnOperationFailed'));
+    } catch (err) {
+      setChangeEmailError(err instanceof Error ? err.message : t('profile.webauthnOperationFailed'));
     } finally {
       setChangeEmailLoading(false);
     }
@@ -680,7 +697,7 @@ export default function AccountSecurity() {
       await handleBeginWebAuthnSudo();
       return;
     }
-    let params: any = null;
+    let params: ChangeEmailParams;
     if (selectedChangeEmailMethod === 'email') {
       if (!emailCode || emailCode.length !== 6) {
         setChangeEmailError(t('login.errors.emailCodeRequired'));
@@ -748,7 +765,7 @@ export default function AccountSecurity() {
     setSetupSuccess(false);
     try {
       const resp = await setupTotp(email);
-      const nextTotpKey = resp.data?.totpkey ?? (resp as any).totpkey;
+      const nextTotpKey = resp.data?.totpkey;
       if (resp.success && nextTotpKey) {
         setTotpKey(nextTotpKey);
         setTotpDialogOpen(true);
@@ -955,7 +972,7 @@ export default function AccountSecurity() {
       setWebauthnName('');
       setPendingWebAuthnRegistration(null);
       setWebauthnFeedback({ severity: 'success', message: t('profile.webauthnRegisterSuccess') });
-    } catch (err: any) {
+    } catch (err) {
       let message = t('profile.webauthnRegisterFailed');
       if (err instanceof DOMException && err.name === 'SecurityError') message = t('profile.webauthnSecurityError');
       else if (err instanceof DOMException && err.name === 'NotAllowedError') message = t('profile.webauthnNotAllowedError');
@@ -1056,7 +1073,7 @@ export default function AccountSecurity() {
     setChangeUsernameLoading(true);
     setChangeUsernameError(null);
     try {
-      const resp = await request(`${BackendUrl}/change-username`, {
+      const resp = await request<{ username?: string }>(`${BackendUrl}/change-username`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: trimmed }),

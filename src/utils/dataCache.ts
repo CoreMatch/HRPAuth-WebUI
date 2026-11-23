@@ -1,6 +1,12 @@
 import { request } from './api';
 import { BackendUrl } from './config';
-import { getTwoFactorStatus, listWebAuthnCredentials, type TwoFactorStatusResponse } from '../api/auth';
+import {
+  getTwoFactorStatus,
+  listWebAuthnCredentials,
+  type TwoFactorStatusResponse,
+  type WebAuthnCredentialListResponse,
+  type WebAuthnCredentialRecord,
+} from '../api/auth';
 import { getAuthToken, getUid } from './cookie';
 
 export interface UserData {
@@ -26,7 +32,7 @@ interface MojangProfile {
 interface Cache {
   user: UserData | null;
   twoFactorStatus: TwoFactorStatusResponse | null;
-  webauthnCredentials: any | null;
+  webauthnCredentials: WebAuthnCredentialListResponse | WebAuthnCredentialRecord[] | null;
   mojangProfile: MojangProfile | null;
   lastFetched: number;
 }
@@ -55,7 +61,7 @@ export const dataCache = {
     cache.twoFactorStatus = status;
     cache.lastFetched = Date.now();
   },
-  setWebauthnCredentials: (creds: any) => {
+  setWebauthnCredentials: (creds: WebAuthnCredentialListResponse | WebAuthnCredentialRecord[]) => {
     cache.webauthnCredentials = creds;
     cache.lastFetched = Date.now();
   },
@@ -74,12 +80,12 @@ export const dataCache = {
     
     try {
       const [userResp, twoFactorResp, webauthnResp] = await Promise.all([
-        request(`${BackendUrl}/user`, { method: 'POST' }),
+        request<UserData>(`${BackendUrl}/user`, { method: 'POST' }),
         getTwoFactorStatus(uid || undefined),
         listWebAuthnCredentials(),
       ]);
 
-      if (userResp.success) {
+      if (userResp.success && userResp.data) {
         cache.user = userResp.data;
       }
       
@@ -87,7 +93,7 @@ export const dataCache = {
         cache.twoFactorStatus = twoFactorResp.data;
       }
       
-      if (webauthnResp.success) {
+      if (webauthnResp.success && webauthnResp.data) {
         cache.webauthnCredentials = webauthnResp.data;
       }
 

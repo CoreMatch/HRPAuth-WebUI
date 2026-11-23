@@ -13,15 +13,29 @@ interface DebugInfo {
   responseStatus: number;
   responseStatusText: string;
   responseHeaders: Record<string, string>;
-  responseBody: any;
+  responseBody: unknown;
   timestamp: string;
   duration: number;
+}
+
+interface RawTextResponse {
+  isRawText: true;
+  contentType: string;
+  content: string;
+}
+
+function isRawTextResponse(value: unknown): value is RawTextResponse {
+  if (!value || typeof value !== 'object') return false;
+  const record = value as Record<string, unknown>;
+  return record.isRawText === true
+    && typeof record.contentType === 'string'
+    && typeof record.content === 'string';
 }
 
 export default function DashboardDebug() {
   useMeta('dashdebug');
   const { t } = useTranslation();
-  const [rawData, setRawData] = useState<any>(null);
+  const [rawData, setRawData] = useState<unknown>(null);
   const [debugInfo, setDebugInfo] = useState<DebugInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -82,7 +96,7 @@ export default function DashboardDebug() {
         console.log('响应头:', responseHeaders);
 
         // 尝试解析 JSON，如果失败则尝试获取文本（门户页可能是 HTML 或重定向）
-        let data: any;
+        let data: unknown;
         const contentType = resp.headers.get('content-type');
         if (contentType && contentType.includes('application/json')) {
           data = await resp.json().catch(() => ({
@@ -136,7 +150,7 @@ export default function DashboardDebug() {
     );
   }
 
-  const renderJsonBlock = (title: string, data: any) => (
+  const renderJsonBlock = (title: string, data: unknown) => (
     <Box sx={{ mb: 3 }}>
       <Typography variant="subtitle2" gutterBottom color="primary">
         {title}
@@ -272,7 +286,7 @@ export default function DashboardDebug() {
               wordBreak: 'break-word'
             }}>
               {rawData !== null ? (
-              rawData.isRawText ? (
+              isRawTextResponse(rawData) ? (
                 `[${rawData.contentType}]\n\n${rawData.content}`
               ) : (
                 JSON.stringify(rawData, null, 2)

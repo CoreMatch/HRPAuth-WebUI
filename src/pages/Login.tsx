@@ -18,11 +18,12 @@ import {
 import { completeLogin } from '../utils/auth';
 import { useMeta } from '../hooks/useMeta';
 import { authenticateWithWebAuthn, isWebAuthnSupported } from '../utils/webauthn';
-import VerificationMethodPickerDialog, {
+import VerificationMethodPickerDialog from '../components/VerificationMethodPickerDialog';
+import {
   getPreferredVerificationMethod,
   type VerificationMethodKey,
   type VerificationMethodOption,
-} from '../components/VerificationMethodPickerDialog';
+} from '../utils/verificationMethod';
 
 export default function Login() {
   useMeta('login');

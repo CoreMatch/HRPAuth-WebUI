@@ -8,14 +8,14 @@ import {
 } from './cookie';
 import { BackendUrl } from './config';
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean;
   message: string;
   data?: T;
   code?: string;
   meta?: {
     request_id: string;
-    [key: string]: any;
+    [key: string]: unknown;
   };
 }
 
@@ -102,7 +102,7 @@ async function fetchWithAuth(
   return fetch(url, { ...options, headers });
 }
 
-export async function request<T = any>(
+export async function request<T = unknown>(
   url: string,
   options: RequestInit = {}
 ): Promise<ApiResponse<T>> {

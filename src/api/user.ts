@@ -1,5 +1,6 @@
 import { BackendUrl } from '../utils/config';
 import { request, type ApiResponse } from '../utils/api';
+import type { WebAuthnPublicKeyOptions } from './auth';
 
 export interface ChangeEmailParams {
   new_email: string;
@@ -27,7 +28,7 @@ export async function changeEmail(params: ChangeEmailParams): Promise<ApiRespons
   });
 }
 
-export async function beginWebAuthnSudo(): Promise<ApiResponse<{ flow_id: string; options: any }>> {
+export async function beginWebAuthnSudo(): Promise<ApiResponse<{ flow_id: string; options: WebAuthnPublicKeyOptions }>> {
   return request(`${BackendUrl}/user/security/change-email/webauthn-begin`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

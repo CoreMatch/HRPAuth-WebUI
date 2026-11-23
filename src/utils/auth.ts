@@ -1,6 +1,7 @@
 import { request } from './api';
 import { BackendUrl } from './config';
 import { setAuthCookies, setRememberLogin } from './cookie';
+import type { UserData } from './dataCache';
 
 /**
  * Shared login-success handler used by both Register (auto-login) and Login pages.
@@ -16,7 +17,7 @@ export async function completeLogin(
   rememberMe: boolean = true
 ): Promise<string> {
   try {
-    const userRes = await request(`${BackendUrl}/user`, {
+    const userRes = await request<UserData>(`${BackendUrl}/user`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${accessToken}`,

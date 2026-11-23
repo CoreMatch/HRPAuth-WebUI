@@ -97,11 +97,10 @@ export default function Register() {
     setError(null);
 
     try {
-      const { password2, ...rest } = formData;
       const registerData: Omit<RegisterRequest, 'password2'> = {
-        email: rest.email,
-        username: rest.username,
-        password: rest.password,
+        email: formData.email,
+        username: formData.username,
+        password: formData.password,
       };
 
       // Attach captcha fields only if the backend has captcha enabled.

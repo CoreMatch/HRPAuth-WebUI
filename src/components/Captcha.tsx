@@ -43,6 +43,7 @@ const Captcha = forwardRef<CaptchaRef, CaptchaProps>(({ value, onChange, error }
   // Bumped on every refresh to force <img> to refetch the same URL.
   const [imageKey, setImageKey] = useState(0);
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const loadRef = useRef<() => Promise<void>>(() => Promise.resolve());
 
   const load = useCallback(async () => {
     setStatus('loading');
@@ -73,7 +74,7 @@ const Captcha = forwardRef<CaptchaRef, CaptchaProps>(({ value, onChange, error }
       // Refresh 30s before expiry, minimum 5s, to give the user time to retype.
       const refreshIn = Math.max(5_000, (result.expiresIn - 30) * 1000);
       refreshTimerRef.current = setTimeout(() => {
-        load();
+        void loadRef.current();
       }, refreshIn);
     } catch (err) {
       const message = err instanceof Error ? err.message : t('captcha.loadFailed');
@@ -83,7 +84,10 @@ const Captcha = forwardRef<CaptchaRef, CaptchaProps>(({ value, onChange, error }
   }, [t]);
 
   useEffect(() => {
-    load();
+    loadRef.current = load;
+    queueMicrotask(() => {
+      void load();
+    });
     return () => {
       if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
     };
