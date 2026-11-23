@@ -72,5 +72,5 @@ All paths relative to this repository unless noted.
   (checked in this pass).
 - Default branch: `README.md:L16-L17 fp=4a073b43 ~ 1. Clone (default branch: 104)`; `git remote show origin` HEAD → `origin/104`
   (checked in this pass).
-- package.json identity: `package.json:L2-L4 fp=bd670645 ~ "name": "HRPAuth",` (name "HRPAuth", version 0.0.3,
+- package.json identity: `package.json:L2-L4 fp=3990f9c2 ~ "name": "HRPAuth",` (name "HRPAuth", version 1.3.0,
   private).
