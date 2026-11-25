@@ -27,7 +27,7 @@
   },
   "home": {
     "badge": "Identity Hub",
-    "title": "Enter the <1>HRPAuth</1> Identity Network",
+    "title": "Enter the <1>Armorial</1> Identity Network",
     "description": "A unified authentication portal for <2>RevolutionMC</2>, bringing account access, security verification, player assets, and multi-service entry into one place.",
     "primaryActionGuest": "Sign In",
     "primaryActionAuth": "Open Dashboard",
@@ -236,7 +236,7 @@
     "recoveryKeyPrintModeKeyDescription": "Prints the key alone, ideal for cutting out or storing separately.",
     "recoveryKeyPrintModeFull": "Recovery key with account details",
     "recoveryKeyPrintModeFullDescription": "Includes the account name, account email, generation time and safety reminders.",
-    "recoveryKeyPrintBrand": "HRPAuth",
+    "recoveryKeyPrintBrand": "Armorial",
     "recoveryKeyPrintSheetTitle": "Recovery Key",
     "recoveryKeyPrintSheetAccount": "Account",
     "recoveryKeyPrintSheetEmail": "Email",

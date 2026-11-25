@@ -27,7 +27,7 @@
   },
   "home": {
     "badge": "Identity Hub",
-    "title": "进入 <1>HRPAuth</1> 身份中枢",
+    "title": "进入 <1>Armorial</1> 身份中枢",
     "description": "为 <2>RevolutionMC</2> 打造的统一认证入口，将账号、安全验证、皮肤资产与多服务接入整合在同一个门户中。",
     "primaryActionGuest": "开始登录",
     "primaryActionAuth": "打开控制台",
@@ -236,7 +236,7 @@
     "recoveryKeyPrintModeKeyDescription": "只输出密钥本身，适合单独剪裁或与其他资料分开存放。",
     "recoveryKeyPrintModeFull": "打印恢复密钥及附加信息",
     "recoveryKeyPrintModeFullDescription": "包含账户名称、账户邮箱、生成时间以及安全保存提示。",
-    "recoveryKeyPrintBrand": "HRPAuth",
+    "recoveryKeyPrintBrand": "Armorial",
     "recoveryKeyPrintSheetTitle": "恢复密钥",
     "recoveryKeyPrintSheetAccount": "账户名称",
     "recoveryKeyPrintSheetEmail": "账户邮箱",

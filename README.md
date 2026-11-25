@@ -1,27 +1,27 @@
 <div align="center">
-  <img src="public/logo.svg" alt="HRPAuth" width="160">
-  <h1>HRPAuth WebUI</h1>
+  <img src="public/logo.svg" alt="Armorial" width="160">
+  <h1>Armorial WebUI</h1>
   <p><strong>Your account, security, and skins in one bilingual portal.</strong></p>
   <p><a href="./README.zh-CN.md">简体中文</a></p>
 </div>
 
-HRPAuth WebUI is a React/MUI account portal for people using a self-hosted HA deployment.
+Armorial WebUI is a React/MUI account portal for people using a self-hosted Armorial deployment.
 
-It brings login, account security, and skin management together with ecosystem pages injected from HRPAuth-hosted SDK packages.
+It brings login, account security, and skin management together with Armorial ecosystem pages injected from Armorial-hosted SDK packages.
 
-## Why HRPAuth WebUI
+## Why Armorial WebUI
 
-- **Sign in with confidence.** Access HRPAuth account login and registration in one portal.
+- **Sign in with confidence.** Access Armorial account login and registration in one portal.
 - **Control account security.** Manage second factors and security settings.
 - **Make profiles personal.** Manage skins through the connected HASkinLib service.
 - **Switch languages naturally.** Use English and Simplified Chinese interfaces.
-- **Host ecosystem tools.** Surface service pages supplied through HRPAuth-hosted SDK packages.
+- **Host ecosystem tools.** Surface service pages supplied through Armorial-hosted SDK packages.
 
 ## Learn more
 
-- [Live portal](https://ha.mcnb.dev/) — public HA account experience
-- [HA Wiki](https://wiki.mcnb.dev/) — ecosystem documentation
-- [HA-Contract](https://github.com/CoreMatch/HA-Contract) — ecosystem API contracts
+- [Live portal](https://ha.mcnb.dev/) — public Armorial account experience
+- [Armorial Wiki](https://wiki.mcnb.dev/) — ecosystem documentation
+- [Armorial API Contracts](https://github.com/CoreMatch/HA-Contract) — ecosystem API contracts
 
 ## Scope
 

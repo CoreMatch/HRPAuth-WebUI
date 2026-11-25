@@ -107,7 +107,7 @@ export default function Navbar() {
           </Box>
           <Box sx={{ minWidth: 0 }}>
             <Typography variant="h6" sx={{ lineHeight: 1.05, fontWeight: 800 }}>
-              HRPAuth
+              Armorial
             </Typography>
             <Typography variant="caption" color="text.secondary" sx={{ display: { xs: 'none', sm: 'block' } }}>
               {t('navbar.tagline')}

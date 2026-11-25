@@ -12,10 +12,10 @@ defines outward behavior.
 
 ## Order of Authority
 
-For outward behavior, **the HA-Contract repository is authoritative**: the business
-API standard lives in HA-Contract `docs/api/` (OpenAPI under `docs/api/openapi/`),
+For outward behavior, **the Armorial Contract repository is authoritative**: the business
+API standard lives in Armorial Contract `docs/api/` (OpenAPI under `docs/api/openapi/`),
 and the SDK package format and mounting contract this frontend participates in live
-in HA-Contract `docs/dev/HRPAuth/sdk-package.md`. This repository keeps no contracts
+in Armorial Contract `docs/dev/HRPAuth/sdk-package.md`. This repository keeps no contracts
 of its own. The knowledge base only explains internal workings and design rationale.
 If an entry here ever appears to contradict a contract, the contract wins and the
 entry is stale — fix the entry, never the contract, and surface the conflict to the

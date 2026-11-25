@@ -864,7 +864,7 @@ export default function AccountSecurity() {
   };
 
   const generateOtpAuthUri = (secret: string, email: string): string => {
-    const issuer = 'HRPAuth';
+    const issuer = 'Armorial';
     const encodedIssuer = encodeURIComponent(issuer);
     const encodedAccount = encodeURIComponent(email);
     return `otpauth://totp/${encodedIssuer}:${encodedAccount}?secret=${secret}&issuer=${encodedIssuer}&algorithm=SHA1&digits=6&period=30`;
